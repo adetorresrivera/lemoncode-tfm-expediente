@@ -1,0 +1,45 @@
+{
+  "name": "expediente-tfm",
+  "dockerComposeFile": "docker-compose.yml",
+  "service": "workspace",
+  "workspaceFolder": "/workspaces/${localWorkspaceFolderBasename}",
+  "features": {
+    "ghcr.io/devcontainers/features/github-cli:1": {},
+    "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
+    "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
+  },
+  "forwardPorts": [5173, 3000, 8080, "mongo:27017", "s3:9000", "s3:9001", "ollama:11434"],
+  "portsAttributes": {
+    "5173": { "label": "web (vite)" },
+    "3000": { "label": "api" },
+    "8080": { "label": "app (docker compose)" },
+    "s3:9001": { "label": "consola Silo" }
+  },
+  "remoteEnv": {
+    "PORT": "3000",
+    "MONGO_URL": "mongodb://mongo:27017/tfm",
+    "S3_ENDPOINT": "http://s3:9000",
+    "S3_REGION": "us-east-1",
+    "S3_BUCKET": "tfm-assets",
+    "S3_ACCESS_KEY": "minioadmin",
+    "S3_SECRET_KEY": "minioadmin",
+    "S3_FORCE_PATH_STYLE": "true",
+    "LLM_PROVIDER": "ollama",
+    "LLM_BASE_URL": "http://ollama:11434",
+    "LLM_MODEL": "gemma4:e2b",
+    "LLM_TIMEOUT_MS": "90000"
+  },
+  "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "bradlc.vscode-tailwindcss",
+        "mongodb.mongodb-vscode",
+        "vitest.explorer",
+        "anthropic.claude-code"
+      ]
+    }
+  }
+}
