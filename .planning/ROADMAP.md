@@ -36,11 +36,22 @@ Decimal phases appear between their surrounding integers in numeric order.
   5. The user can switch theme between Sistema, Claro and Oscuro from the shell; the default follows the system and the choice survives a reload.
 **Plans**: 6 plans
 Plans:
+**Wave 1**
 - [ ] 01-01-PLAN.md — Walking-skeleton tracer: workspace + contracts health/error + API real health + built web + Docker/compose smoke; error contract, env fail-fast, .env.example (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 01-02-PLAN.md — Quality gate: ESLint flat config, Prettier, Husky pre-commit (lint-staged + typecheck) and pre-push (tests) (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 01-03-PLAN.md — All API contracts (enums, tag, interview, document, offer-extraction, application) + openai/mock LLM providers (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 01-04-PLAN.md — Web: / → /applications through route → scene → pod (full pod file set), DS tokens and fonts, http-client, formatters (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 01-05-PLAN.md — Shell: shadcn primitives, theme Sistema/Claro/Oscuro, AppLayout with sidebar and Sheet (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 01-06-PLAN.md — README and phase gate (clean-install suite, compose smoke with model pull) (wave 6)
 **UI hint**: yes
 
