@@ -27,7 +27,8 @@
     "LLM_PROVIDER": "ollama",
     "LLM_BASE_URL": "http://ollama:11434",
     "LLM_MODEL": "gemma4:e2b",
-    "LLM_TIMEOUT_MS": "90000"
+    "LLM_TIMEOUT_MS": "90000",
+    "CLAUDE_CODE_OAUTH_TOKEN": "${localEnv:CLAUDE_CODE_OAUTH_TOKEN}"
   },
   "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
   "customizations": {
