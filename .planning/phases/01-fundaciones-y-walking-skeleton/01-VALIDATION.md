@@ -38,23 +38,26 @@ created: "2026-10-28"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 01-XX | TBD | TBD | FND-01 | — | N/A | integration | `npm ci && npm run build && npm run test && npm run lint && npm run typecheck && npm run format:check` | ❌ W0 | ⬜ pending |
-| 01-XX | TBD | TBD | FND-02 / D-06 | — | N/A | unit + grep | `npm run test -w @tfm/contracts`; `! grep -rnE "z\.enum\(\[" apps --include=*.ts --include=*.tsx` | ❌ W0 | ⬜ pending |
-| 01-XX | TBD | TBD | FND-03 | — | health never hangs, always 200 | unit | `npm run test -w @tfm/api` (`app.test.ts`) | ❌ W0 | ⬜ pending |
-| 01-XX | TBD | TBD | FND-03 (real) | — | N/A | smoke | `docker compose up -d --build --wait --wait-timeout 300` + `docker compose exec -T app node -e "fetch('http://127.0.0.1:8080/api/health')..."` | manual/scripted | ⬜ pending |
-| 01-XX | TBD | TBD | FND-04 | env errors name keys, not values; no stack leak | unit | `npm run test -w @tfm/api` (`config.test.ts`, `app.test.ts`) | ❌ W0 | ⬜ pending |
-| 01-XX | TBD | TBD | D-09 | — | N/A | unit | `npm run test -w @tfm/api` (`llm/*.test.ts`) | ❌ W0 | ⬜ pending |
-| 01-XX | TBD | TBD | D-11 | — | N/A | unit | `npm run test -w @tfm/api` (static + SPA fallback) | ❌ W0 | ⬜ pending |
-| 01-XX | TBD | TBD | FND-10 | no secrets in `.env.example` | unit | `.env.example` keys ⊇ `envSchema` keys test | ❌ W0 | ⬜ pending |
-| 01-XX | TBD | TBD | FND-05 | — | N/A | component | `npm run test -w @tfm/web` (`app-layout.test.tsx`) | ❌ W0 | ⬜ pending |
-| 01-XX | TBD | TBD | FND-06 | storage failure tolerated | unit | `npm run test -w @tfm/web` (`theme.test.ts`) | ❌ W0 | ⬜ pending |
-| 01-XX | TBD | TBD | FND-07 | — | N/A | build + grep | `npm run build -w @tfm/web && grep -l "EB Garamond Variable" apps/web/dist/assets/*.css` (+ Source Sans 3, JetBrains Mono); no hex colours in `.tsx` | ❌ W0 | ⬜ pending |
-| 01-XX | TBD | TBD | D-19 | — | N/A | unit | `npm run test -w @tfm/web` (`format.test.ts`) | ❌ W0 | ⬜ pending |
-| 01-XX | TBD | TBD | D-16 | — | N/A | unit | `npm run test -w @tfm/web` (`http-client.test.ts`) | ❌ W0 | ⬜ pending |
-| 01-XX | TBD | TBD | FND-08 | pinned images, non-root | config + smoke | `docker compose config -q`; `! grep -nE "image:.*:latest" compose.yml`; `docker compose exec -T app id` → `uid=1000(node)` | manual/scripted | ⬜ pending |
-| 01-XX | TBD | TBD | FND-09 | — | N/A | scripted | bad commit is rejected by pre-commit; `.husky/pre-push` runs `npm run typecheck` | manual-once | ⬜ pending |
+| 01-01-T1 | 01-01 | 1 | FND-01 / FND-08 | T-01-04, T-01-05, T-01-SC | pinned images, non-root, loopback ports | integration + smoke | `npm ci && npm run build && npm run typecheck`; `bash scripts/compose-smoke.sh --down` | ❌ W0 (created by the task) | ⬜ pending |
+| 01-01-T1 | 01-01 | 1 | FND-03 (real) | T-01-03 | health never hangs, always 200 | smoke | `bash scripts/compose-smoke.sh --down` (health ok, mongo/s3 stop → error → start → ok) | ❌ W0 | ⬜ pending |
+| 01-01-T2 | 01-01 | 1 | FND-03 / D-12 | T-01-03 | hung probe → `"error"` within 2.5 s | unit | `npm run test -w @tfm/api` (`app.test.ts`) | ❌ W0 | ⬜ pending |
+| 01-01-T2 | 01-01 | 1 | FND-04 / D-07 / D-10 | T-01-01, T-01-02 | env errors name keys, not values; no stack leak | unit | `npm run test -w @tfm/api` (`config.test.ts`, `app.test.ts`) | ❌ W0 | ⬜ pending |
+| 01-01-T2 | 01-01 | 1 | D-11 | T-01-06 | static root fixed, SPA fallback only for non-/api | unit | `npm run test -w @tfm/api` (static + SPA fallback cases) | ❌ W0 | ⬜ pending |
+| 01-01-T2 | 01-01 | 1 | FND-10 / D-05 | T-01-07 | no secrets in `.env.example` | unit | `config.test.ts` (`.env.example` keys ⊇ `envSchema` keys; `LLM_API_KEY=` empty) | ❌ W0 | ⬜ pending |
+| 01-02-T1 | 01-02 | 2 | FND-01 (lint/format) | — | N/A | lint + format | `npm run lint && npm run format:check` | ❌ W0 | ⬜ pending |
+| 01-02-T2 | 01-02 | 2 | FND-09 / D-04 | T-01-10 | bad commit rejected | scripted | hook probe (`bash -c '…git commit…'` must fail and leave no probe file); `.husky/pre-push` runs `npm run typecheck` | ❌ W0 | ⬜ pending |
+| 01-03-T1/T2 | 01-03 | 3 | FND-02 / D-06 | T-01-12, T-01-13 | bounded inputs; http/https-only sourceUrl | unit + grep | `npm run test -w @tfm/contracts`; z.enum placement gate (no `z.enum(` under `apps/` except `apps/api/src/config.ts`) | ❌ W0 | ⬜ pending |
+| 01-03-T3 | 01-03 | 3 | D-09 | T-01-14, T-01-15, T-01-16 | key never logged; ping bounded | unit | `npm run test -w @tfm/api` (`llm/llm.client.test.ts`) | ❌ W0 | ⬜ pending |
+| 01-04-T1 | 01-04 | 3 | FND-05 (landing) / D-13 / D-18 | — | N/A | component | `npm run test -w @tfm/web` (`core/router/router.test.tsx`) | ❌ W0 | ⬜ pending |
+| 01-04-T2 | 01-04 | 3 | FND-07 / D-15 | — | N/A | build + grep | `cmp docs/design/expediente.css apps/web/src/styles.css`; `npm run build -w @tfm/web` + three font-family greps; no hex/palette classes in `.tsx` | ❌ W0 | ⬜ pending |
+| 01-04-T3 | 01-04 | 3 | D-16 (http) / D-19 | T-01-17, T-01-18 | only contract errors reach the UI | unit | `npm run test -w @tfm/web` (`http-client.test.ts`, `format.test.ts`) | ❌ W0 | ⬜ pending |
+| 01-05-T1 | 01-05 | 4 | D-15 (shadcn) | T-01-20 | no `cn` package; DS tokens untouched | grep + cmp | `test ! -e node_modules/cn`; no cn import from the external package; `cmp` styles; palette gate | ❌ W0 | ⬜ pending |
+| 01-05-T2 | 01-05 | 4 | FND-06 / D-16 (theme) | T-01-21 | storage failure tolerated; unknown value → system | unit | `npm run test -w @tfm/web` (`theme.test.ts`) | ❌ W0 | ⬜ pending |
+| 01-05-T3 | 01-05 | 4 | FND-05 / D-17 | — | N/A | component | `npm run test -w @tfm/web` (`app-layout.test.tsx`) | ❌ W0 | ⬜ pending |
+| 01-06-T1 | 01-06 | 5 | D-22 | T-01-23 | creds documented as local-only | grep | README required-content greps | ❌ W0 | ⬜ pending |
+| 01-06-T2 | 01-06 | 5 | FND-01 / FND-08 / D-23 (phase gate, A1) | T-01-24, T-01-SC | app never waits for the model pull | integration + smoke | `npm ci && … && npm run build`; `rm -rf packages/contracts/dist && npm run typecheck && npm run test`; `bash scripts/compose-smoke.sh --with-model --down` | ❌ W0 | ⬜ pending |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky. Task IDs/plans are filled in once PLAN.md files exist.*
+*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky. Task IDs are `{plan}-T{n}` from the PLAN.md files.*
 
 ---
 
@@ -72,9 +75,10 @@ created: "2026-10-28"
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| Sidebar visible ≥1024 px, hidden below with menu button | FND-05 | CSS breakpoints are not evaluated by jsdom | Open `localhost:5173` or `:8080`, resize across 1024 px |
-| No theme flash on reload | FND-06 | Needs real paint | Hard-reload in dark with throttled CPU; no light frame |
-| Pre-commit hook rejects bad commit | FND-09 | Mutates git index | Stage a file with `any`, attempt commit, expect failure, then reset |
+| Sidebar visible ≥1024 px, hidden below with menu button | FND-05 | CSS breakpoints are not evaluated by jsdom | Open `localhost:5173` or `:8080`, resize across 1024 px (01-05-T3 human-check) |
+| No theme flash on reload | FND-06 | Needs real paint | Hard-reload in dark with throttled CPU; no light frame (01-05-T3 human-check) |
+| Pre-commit hook rejects bad commit | FND-09 | Mutates git index | Automated as a self-cleaning probe in 01-02-T2; re-run manually only if the hook changes |
+| Host-side health and browser check | FND-08 / D-23 | Devcontainer cannot reach host-published ports (RESEARCH Pitfall 11) | On the host: `curl -s http://localhost:8080/api/health`, open `http://localhost:8080` and `http://localhost:9001` (01-06-T2 human-check) |
 
 ---
 

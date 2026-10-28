@@ -34,7 +34,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `GET /api/health` returns `{ status, mongo, s3, llm }` and each field reflects real connectivity (stopping Mongo or Silo changes the matching field); the API refuses to start with an invalid environment, answers every error as `{ error: { code, message, details? } }`, and `.env.example` lists every variable the system reads.
   4. Opening the web app lands on `/applications` inside the Expediente shell (parchment and Oxford blue tokens, EB Garamond / Source Sans 3 / JetBrains Mono): fixed sidebar at 1024 px and above, header with a menu button that opens a sheet with the same navigation below that.
   5. The user can switch theme between Sistema, Claro and Oscuro from the shell; the default follows the system and the choice survives a reload.
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 01-01-PLAN.md — Walking-skeleton tracer: workspace + contracts health/error + API real health + built web + Docker/compose smoke; error contract, env fail-fast, .env.example (wave 1)
+- [ ] 01-02-PLAN.md — Quality gate: ESLint flat config, Prettier, Husky pre-commit (lint-staged) and pre-push (typecheck) (wave 2)
+- [ ] 01-03-PLAN.md — All API contracts (enums, tag, interview, document, offer-extraction, application) + openai/mock LLM providers (wave 3)
+- [ ] 01-04-PLAN.md — Web: / → /applications through route → scene → pod, DS tokens and fonts, http-client, formatters (wave 3)
+- [ ] 01-05-PLAN.md — Shell: shadcn primitives, theme Sistema/Claro/Oscuro, AppLayout with sidebar and Sheet (wave 4)
+- [ ] 01-06-PLAN.md — README and phase gate (clean-install suite, compose smoke with model pull) (wave 5)
 **UI hint**: yes
 
 ### Phase 2: Candidaturas
@@ -143,7 +150,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fundaciones y walking skeleton | 0/TBD | Not started | - |
+| 1. Fundaciones y walking skeleton | 0/6 | Planned | - |
 | 2. Candidaturas | 0/TBD | Not started | - |
 | 3. Autocompletado con IA | 0/TBD | Not started | - |
 | 4. Rondas de entrevista | 0/TBD | Not started | - |
