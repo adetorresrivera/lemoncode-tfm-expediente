@@ -37,11 +37,11 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 6 plans
 Plans:
 - [ ] 01-01-PLAN.md — Walking-skeleton tracer: workspace + contracts health/error + API real health + built web + Docker/compose smoke; error contract, env fail-fast, .env.example (wave 1)
-- [ ] 01-02-PLAN.md — Quality gate: ESLint flat config, Prettier, Husky pre-commit (lint-staged) and pre-push (typecheck) (wave 2)
+- [ ] 01-02-PLAN.md — Quality gate: ESLint flat config, Prettier, Husky pre-commit (lint-staged + typecheck) and pre-push (tests) (wave 2)
 - [ ] 01-03-PLAN.md — All API contracts (enums, tag, interview, document, offer-extraction, application) + openai/mock LLM providers (wave 3)
-- [ ] 01-04-PLAN.md — Web: / → /applications through route → scene → pod, DS tokens and fonts, http-client, formatters (wave 3)
-- [ ] 01-05-PLAN.md — Shell: shadcn primitives, theme Sistema/Claro/Oscuro, AppLayout with sidebar and Sheet (wave 4)
-- [ ] 01-06-PLAN.md — README and phase gate (clean-install suite, compose smoke with model pull) (wave 5)
+- [ ] 01-04-PLAN.md — Web: / → /applications through route → scene → pod (full pod file set), DS tokens and fonts, http-client, formatters (wave 4)
+- [ ] 01-05-PLAN.md — Shell: shadcn primitives, theme Sistema/Claro/Oscuro, AppLayout with sidebar and Sheet (wave 5)
+- [ ] 01-06-PLAN.md — README and phase gate (clean-install suite, compose smoke with model pull) (wave 6)
 **UI hint**: yes
 
 ### Phase 2: Candidaturas

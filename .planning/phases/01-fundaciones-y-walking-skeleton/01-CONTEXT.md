@@ -20,6 +20,7 @@ Requisitos: FND-01 … FND-10. Sin funcionalidad de negocio (CRUD, IA, rondas, d
 - **D-02:** TypeScript strict con `tsconfig.base.json` en la raíz; project references o build en orden contracts → api → web.
 - **D-03:** Scripts raíz: `dev` (concurrently), `build`, `test`, `lint`, `typecheck`, `format`, `seed` (stub en esta fase).
 - **D-04:** ESLint flat config + Prettier + Husky + lint-staged (lint + prettier en staged; `typecheck` en pre-push).
+  (Overridden 2026-10-28 by user at plan-check: typecheck runs at pre-commit, per FND-09/SC1.)
 - **D-05:** `.env.example` con todas las variables de `docs/ARCHITECTURE.md`; `.gitignore` con `.env`, `dist`, `node_modules`.
 
 ### contracts
