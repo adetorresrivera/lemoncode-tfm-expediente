@@ -12,7 +12,7 @@ Expediente is built as seven vertical slices, one per pull request, in the order
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Fundaciones y walking skeleton** - Monorepo, contracts, API health, themed shell and `docker compose up` working end to end (target 29 Oct)
+- [x] **Phase 1: Fundaciones y walking skeleton** - Monorepo, contracts, API health, themed shell and `docker compose up` working end to end (target 29 Oct) (completed 2026-10-29)
 - [ ] **Phase 2: Candidaturas** - Listado, detalle, alta/edición manual, estado e historial (target 31 Oct)
 - [ ] **Phase 3: Autocompletado con IA** - Paste an offer and get a reviewable draft that never overwrites user data (target 2 Nov)
 - [ ] **Phase 4: Rondas de entrevista** - Create, edit and delete interview rounds with the automatic move to `en_entrevistas` (target 3 Nov)
@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `GET /api/health` returns `{ status, mongo, s3, llm }` and each field reflects real connectivity (stopping Mongo or Silo changes the matching field); the API refuses to start with an invalid environment, answers every error as `{ error: { code, message, details? } }`, and `.env.example` lists every variable the system reads.
   4. Opening the web app lands on `/applications` inside the Expediente shell (parchment and Oxford blue tokens, EB Garamond / Source Sans 3 / JetBrains Mono): fixed sidebar at 1024 px and above, header with a menu button that opens a sheet with the same navigation below that.
   5. The user can switch theme between Sistema, Claro and Oscuro from the shell; the default follows the system and the choice survives a reload.
-**Plans**: 6/6 plans executed
+**Plans**: 6/6 plans complete
 Plans:
 **Wave 1**
 - [x] 01-01-PLAN.md — Walking-skeleton tracer: workspace + contracts health/error + API real health + built web + Docker/compose smoke; error contract, env fail-fast, .env.example (wave 1)
@@ -161,7 +161,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fundaciones y walking skeleton | 6/6 | In Progress | - |
+| 1. Fundaciones y walking skeleton | 6/6 | Complete    | 2026-10-29 |
 | 2. Candidaturas | 0/TBD | Not started | - |
 | 3. Autocompletado con IA | 0/TBD | Not started | - |
 | 4. Rondas de entrevista | 0/TBD | Not started | - |

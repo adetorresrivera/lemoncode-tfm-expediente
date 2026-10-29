@@ -9,16 +9,16 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Foundations (FND)
 
-- [ ] **FND-01**: Developer can run `npm install`, `npm run build`, `npm run test`, `npm run lint` and `npm run typecheck` from the root of the npm-workspaces monorepo (`apps/web`, `apps/api`, `packages/contracts`)
-- [ ] **FND-02**: Web and API import every API model (enums, tag, interview, application, document, offer-extraction, error schemas and inferred types) from `@tfm/contracts`, never redefined
-- [ ] **FND-03**: User can call `GET /api/health` and get `{ status, mongo, s3, llm }` reflecting real connectivity
-- [ ] **FND-04**: API validates its environment with Zod at startup and returns every error as `{ error: { code, message, details? } }`
-- [ ] **FND-05**: User opens the web app and lands on `/applications` inside a shell with desktop sidebar and mobile sheet navigation
-- [ ] **FND-06**: User can switch theme between Sistema, Claro and Oscuro; the choice persists and the default follows the system
-- [ ] **FND-07**: User sees the app with the «Expediente» design system (tokens, EB Garamond / Source Sans 3 / JetBrains Mono)
-- [ ] **FND-08**: User can run `docker compose up` and reach the app at `http://localhost:8080` with Mongo, Silo and Ollama services healthy (multi-stage Dockerfile, pinned image versions)
-- [ ] **FND-09**: Developer commits only code that passes ESLint, Prettier and typecheck via Husky + lint-staged pre-commit
-- [ ] **FND-10**: `.env.example` lists every variable the system reads and stays up to date
+- [x] **FND-01**: Developer can run `npm install`, `npm run build`, `npm run test`, `npm run lint` and `npm run typecheck` from the root of the npm-workspaces monorepo (`apps/web`, `apps/api`, `packages/contracts`)
+- [x] **FND-02**: Web and API import every API model (enums, tag, interview, application, document, offer-extraction, error schemas and inferred types) from `@tfm/contracts`, never redefined
+- [x] **FND-03**: User can call `GET /api/health` and get `{ status, mongo, s3, llm }` reflecting real connectivity
+- [x] **FND-04**: API validates its environment with Zod at startup and returns every error as `{ error: { code, message, details? } }`
+- [x] **FND-05**: User opens the web app and lands on `/applications` inside a shell with desktop sidebar and mobile sheet navigation
+- [x] **FND-06**: User can switch theme between Sistema, Claro and Oscuro; the choice persists and the default follows the system
+- [x] **FND-07**: User sees the app with the «Expediente» design system (tokens, EB Garamond / Source Sans 3 / JetBrains Mono)
+- [x] **FND-08**: User can run `docker compose up` and reach the app at `http://localhost:8080` with Mongo, Silo and Ollama services healthy (multi-stage Dockerfile, pinned image versions)
+- [x] **FND-09**: Developer commits only code that passes ESLint, Prettier and typecheck via Husky + lint-staged pre-commit
+- [x] **FND-10**: `.env.example` lists every variable the system reads and stays up to date
 
 ### Applications (APP)
 
@@ -116,16 +116,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FND-01 | Phase 1 | Pending |
-| FND-02 | Phase 1 | Pending |
-| FND-03 | Phase 1 | Pending |
-| FND-04 | Phase 1 | Pending |
-| FND-05 | Phase 1 | Pending |
-| FND-06 | Phase 1 | Pending |
-| FND-07 | Phase 1 | Pending |
-| FND-08 | Phase 1 | Pending |
-| FND-09 | Phase 1 | Pending |
-| FND-10 | Phase 1 | Pending |
+| FND-01 | Phase 1 | Complete |
+| FND-02 | Phase 1 | Complete |
+| FND-03 | Phase 1 | Complete |
+| FND-04 | Phase 1 | Complete |
+| FND-05 | Phase 1 | Complete |
+| FND-06 | Phase 1 | Complete |
+| FND-07 | Phase 1 | Complete |
+| FND-08 | Phase 1 | Complete |
+| FND-09 | Phase 1 | Complete |
+| FND-10 | Phase 1 | Complete |
 | APP-01 | Phase 2 | Pending |
 | APP-02 | Phase 2 | Pending |
 | APP-03 | Phase 2 | Pending |

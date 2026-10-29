@@ -1,8 +1,8 @@
 ---
 phase: 01-fundaciones-y-walking-skeleton
-verified: 2026-10-29T16:20:00Z
-status: human_needed
-score: 4/8 must-haves verified (4 of 5 roadmap success criteria; 1 behavior-unverified; 3 backstop truths await a human)
+verified: 2026-10-29T22:40:00Z
+status: passed
+score: 8/8 must-haves verified (5 roadmap success criteria; 3 backstop truths discharged by human UAT)
 covered_files:
   - .env.example
   - .husky/pre-commit
@@ -22,10 +22,12 @@ covered_files:
   - .planning/phases/01-fundaciones-y-walking-skeleton/01-06-SUMMARY.md
   - Dockerfile
   - README.md
+  - apps/api/src/app.test.ts
   - apps/api/src/app.ts
   - apps/api/src/config.ts
   - apps/api/src/db/mongo.ts
   - apps/api/src/errors.ts
+  - apps/api/src/llm/llm.client.test.ts
   - apps/api/src/llm/llm.client.ts
   - apps/api/src/llm/mock.provider.ts
   - apps/api/src/llm/ollama.provider.ts
@@ -37,11 +39,13 @@ covered_files:
   - apps/web/src/common/components/theme-toggle.tsx
   - apps/web/src/core/router/router.ts
   - apps/web/src/core/theme/theme.ts
+  - apps/web/src/layouts/app-layout.test.tsx
   - apps/web/src/layouts/app-layout.tsx
   - apps/web/src/main.tsx
   - apps/web/src/pods/application-list/index.ts
   - apps/web/src/scenes/application-list.scene.tsx
   - apps/web/src/styles.css
+  - apps/web/vite.config.ts
   - compose.yml
   - eslint.config.js
   - package.json
@@ -50,51 +54,52 @@ covered_files:
   - packages/contracts/src/error.schema.ts
   - packages/contracts/src/index.ts
   - scripts/compose-smoke.sh
-covered_digest: "v4:sha256:16d06f2f7feae81734fe827edb87c7133e43c5a73487283009def6c104e70b70"
-behavior_unverified: 1
+covered_digest: "v4:sha256:77b89117a7368392d07cdc3df60fea5e566b13f0b89daccb5c4975f06e54d390"
+behavior_unverified: 0
 overrides_applied: 0
-behavior_unverified_items:
-  - truth: "docker compose up with the committed 127.0.0.1:8080 and 127.0.0.1:9001 mappings brings the stack up and the app answers at http://localhost:8080 (ROADMAP SC2)"
-    test: "On a clean host with nothing bound to 8080/9001, run `docker compose up --build` and wait for the app, mongo, s3 and ollama containers to be healthy; open http://localhost:8080"
-    expected: "Shell loads at /applications; `curl http://localhost:8080/api/health` returns {\"status\":\"ok\",\"mongo\":\"ok\",\"s3\":\"ok\",\"llm\":\"ok\"}; Silo console reachable at http://127.0.0.1:9001 with bucket tfm-assets"
-    why_human: "The executor ran the compose smoke (SMOKE OK, including the gemma4:e2b pull) only with an uncommitted port override (18080/19001). The committed host-port publishing was never exercised, and the verifier did not start compose to avoid leaving containers behind."
-human_verification:
-  - test: "Run `docker compose up --build` on a clean host (committed port mappings, no override) and open http://localhost:8080"
-    expected: "App container healthy, mongo/s3/ollama healthy, s3-init exited 0, browser lands on /applications inside the themed shell; `curl http://localhost:8080/api/health` gives all four fields ok; Silo console at 127.0.0.1:9001 lists bucket tfm-assets"
-    why_human: "Host-port publishing and a real browser cannot be confirmed from inside the devcontainer (Docker-outside-of-Docker); executor evidence used a port override."
-  - test: "Resize a browser to 1024 px and 1023 px wide"
-    expected: "At 1024 px the fixed sidebar is visible and the header with «Abrir menú» is hidden; at 1023 px the sidebar is hidden and the header button opens the Sheet"
-    why_human: "Plan 01-05 tags this truth `verification: backstop`; jsdom has no layout engine. Code uses Tailwind lg: (64rem = 1024 px) with no custom breakpoint override in styles.css, which is consistent but not behavioral proof."
-  - test: "Select Oscuro, reload the page (hard reload, throttled CPU if possible)"
-    expected: "No light-theme frame is painted before React mounts; theme stays dark and the toggle shows Oscuro"
-    why_human: "Plan 01-05 tags this truth `verification: backstop`. The pre-hydration script is present in apps/web/index.html and in the built apps/web/dist/index.html, but a paint-timing property cannot be proven by grep or jsdom."
-  - test: "Open the mobile Sheet with the keyboard, Tab through it, press Esc"
-    expected: "Focus stays trapped inside the Sheet; Esc closes it and focus returns to the «Abrir menú» button; the theme toggle fits the 256 px sidebar and the Sheet without clipping"
-    why_human: "Radix focus management is exercised only partially in jsdom (Esc close and link-close are unit-tested; focus return and trap are not); visual fit needs eyes."
+re_verification:
+  previous_status: human_needed
+  previous_score: 4/8
+  gaps_closed:
+    - "SC2 / B3: docker compose up on the committed 127.0.0.1:8080 and 127.0.0.1:9001 mappings (UAT test 1, user-attested on a clean host)"
+    - "B1: sidebar at 1024 px, header + Sheet below (UAT test 2, re-run after the button move)"
+    - "B2: no light flash on reload with Oscuro (UAT test 3)"
+    - "Sheet keyboard behavior and toggle fit (UAT test 4; focus return now also asserted by a unit test)"
+  gaps_remaining: []
+  regressions: []
 ---
 
 # Phase 1: Fundaciones y walking skeleton Verification Report
 
 **Phase Goal:** As the sole user, I want to run `docker compose up` and open a themed Expediente shell at localhost:8080 backed by a healthy API, so that every later phase ships on a working end-to-end skeleton.
-**Verified:** 2026-10-29T16:20:00Z
-**Status:** human_needed
-**Re-verification:** No, initial verification
+**Verified:** 2026-10-29T22:40:00Z
+**Status:** passed
+**Re-verification:** Yes. The previous report (2026-10-29T16:20:00Z, `human_needed`) went stale when `apps/web/src/layouts/app-layout.tsx` changed. Everything below was re-checked against the working tree as it is now; the previous verdict was not assumed.
 
 ## MVP Mode Note
 
-ROADMAP marks this phase `Mode: mvp`. `gsd_run query user-story.validate` reports the goal as not valid because it starts with «As the sole user» instead of the canonical «As a [role],». The goal is plainly a user story (role, capability, outcome); only the article differs. Verification proceeded against the `[outcome]` clause («every later phase ships on a working end-to-end skeleton»). Warning, not a blocker: reword the ROADMAP goal to «As a sole user, ...» (plan 01-06 already uses that wording) if the strict guard is relied on later.
+ROADMAP marks this phase `Mode: mvp`. The goal begins «As the sole user», not «As a [role],», so the strict user-story validator rejects it. The goal is a user story in substance, and verification ran against its `[outcome]` clause. Warning, not a blocker: change the ROADMAP wording to «As a sole user, ...».
 
-## User Flow Coverage
+## What changed since the previous report
 
-User story: «run `docker compose up`, open a themed Expediente shell at localhost:8080 backed by a healthy API».
+| Commit | Change | Effect on this verification |
+| ------ | ------ | --------------------------- |
+| 40a0207, 1c631ce | Mobile menu button moved to the Sheet side (left) of the header; test asserts it is the header's first child and precedes the wordmark | Re-read `app-layout.tsx` and the test. Diff is a pure reorder inside `<header>` (`justify-between` replaced by `gap-2`; wordmark after the `Sheet`). Sheet content, trigger and `onOpenChange` are untouched. |
+| 626364c | `server.host: true` in `apps/web/vite.config.ts` | Dev-server only. Not shipped by compose (the production image serves the SPA from Hono). Recorded as review warning, no phase-truth impact. |
+| cfe7895 | Two Nyquist test additions (`app.test.ts`, `llm.client.test.ts`) | Test-only. API suite is now 41 tests, all passing. |
 
-| Step | Expected | Evidence | Status |
-| ---- | -------- | -------- | ------ |
-| Run `docker compose up` | Pinned images, app + healthy mongo/s3/ollama, s3-init and ollama-init one-shots | `compose.yml` parses (`docker compose config -q` OK); images pinned (`mongo:8.0.32`, `pgsty/minio:RELEASE.2026-08-04...`, `pgsty/mc:RELEASE.2026-09-16...`, `ollama/ollama:0.40.3`, local `tfm-app:0.1.0`); healthchecks on app (Dockerfile), mongo, s3, ollama; app `depends_on` mongo/s3/s3-init only, never ollama | ✓ (config); runtime on committed ports ⚠️ human |
-| Open localhost:8080 | API serves built SPA | Built API (`NODE_ENV=production`, run by verifier on port 18099 against the devcontainer Mongo/Silo/mock LLM) served `/` and `/applications/1` as `index.html` (200 text/html), hashed CSS asset 200 text/css, `/api/nope` 404 JSON | ✓ |
-| Land on `/applications` in the shell | Redirect, scene header, empty state, sidebar/Sheet nav | `routes/index.tsx` `redirect({to:"/applications", replace:true})`; `router.test.tsx`, `app-layout.test.tsx` pass; `AppLayout` is the root route component | ✓ (visual breakpoint ⚠️ human) |
-| API healthy | `/api/health` reflects real connectivity | Live: `{"status":"ok","mongo":"ok","s3":"ok","llm":"ok"}`; second instance with `LLM_BASE_URL=http://127.0.0.1:1` returned `"llm":"error"` with the others `ok` | ✓ |
-| Outcome: skeleton for later phases | Workspaces, contracts, quality gate, error contract, pod/scene/route structure in place | See truths below | ✓ |
+## Disposition of the previous human items
+
+The UAT file records four results, each entered by the user with the test's expected text. I accept them as the human evidence the backstop truths required, and checked that none was invalidated by later code.
+
+| Previous human item | UAT result | Code cross-check | Disposition |
+| ------------------- | ---------- | ---------------- | ----------- |
+| 1. Compose on a clean host with the committed ports (SC2 / B3) | pass: «user verified it passes outside the repository (clean host)». The earlier block was a host clash on port 9001, not a `compose.yml` defect. | `compose.yml` unchanged since the previous report; `docker compose config -q` valid; ports are `127.0.0.1:8080:8080` and `127.0.0.1:9001:9001`; every image pinned. | Discharged (human-attested, not reproducible from this devcontainer) |
+| 2. 1024 / 1023 px breakpoint (B1) | first run: issue (button on the wrong side); re-run after commits 1c631ce/626364c: pass at 21:22 | Classes unchanged: aside `hidden lg:flex`, header `lg:hidden`, no custom breakpoint in `styles.css`. | Discharged (the re-run post-dates the layout change) |
+| 3. No light flash on reload with Oscuro (B2) | pass (20:19, before the layout change) | `apps/web/index.html` untouched by the layout commits; pre-hydration script reads `expediente-theme` and adds `dark` to `<html>`. | Discharged; not affected by the later change |
+| 4. Sheet keyboard behavior and toggle fit | pass (20:19, before the layout change) | The layout diff does not touch the Sheet, its content or focus handling. The test «closes the sheet with Escape» now also asserts `trigger` regains focus and passes. UAT test 2 re-run (post-change) includes «Esc returns focus to the button» and passed. | Discharged. Residual risk: the item was not re-run by itself after the reorder. I judge it covered by the unit test plus the UAT test 2 re-run, and the change is a DOM-order move only. |
+
+No item needs a human any more. If you want the strictest reading, UAT test 4 could be repeated once on the final build; I do not consider it blocking.
 
 ## Goal Achievement
 
@@ -102,142 +107,117 @@ User story: «run `docker compose up`, open a themed Expediente shell at localho
 
 | #   | Truth | Status | Evidence |
 | --- | ----- | ------ | -------- |
-| SC1 | From root, `npm install/build/test/lint/typecheck` pass across the three workspaces; web and API import every API model from `@tfm/contracts`; a commit with a lint, format or type error is rejected by the pre-commit hook | ✓ VERIFIED | Verifier ran in this working tree: `npm run typecheck` exit 0 (3 workspaces); `npm run lint` (`eslint . --max-warnings=0`) clean; `npm run test` all green (contracts 40, api 34, web 40, no flake on this run); `npm run build` contracts, api and web all built. `z.enum` appears under `apps/` only in `apps/api/src/config.ts` (env enum); API and web import `ErrorResponse`, `Health`, `applicationSchema`, `OfferExtraction`, etc. from `@tfm/contracts`. `.husky/pre-commit` = `npx lint-staged` then `npm run typecheck`; `.husky/pre-push` = `npm run test`; `core.hooksPath` = `.husky/_` and `.husky/_` exists; ESLint on a stdin `any` source fails with `no-explicit-any`. The live reject probes (explicit `any`, type error) were executed and recorded by 01-02 and not repeated here to avoid touching the index. |
-| SC2 | `docker compose up` (multi-stage Dockerfile, pinned images) brings up the app plus healthy Mongo, Silo and Ollama services; app opens at `http://localhost:8080` | ⚠️ PRESENT_BEHAVIOR_UNVERIFIED | Artifacts verified: 4-stage Dockerfile (`deps`, `build`, `prod-deps`, `runtime`; `node:22.23.2-slim`, `USER node`, `HEALTHCHECK`), `compose.yml` valid with every image pinned and no `latest`. Executor smoke `SMOKE OK` (incl. real `gemma4:e2b` pull, uid 1000, stop/start flips) was obtained only with an uncommitted 18080/19001 override. Commit `d4143d9` removed the 8080/9001 devcontainer forwards that caused the clash, but nobody has run the committed mapping since. Routed to human verification. |
-| SC3 | `GET /api/health` returns `{status,mongo,s3,llm}`, each field real (stopping Mongo/Silo flips the matching field); API refuses to start on invalid env; every error is `{error:{code,message,details?}}`; `.env.example` lists every variable | ✓ VERIFIED | Live run (above): real health all ok; with an unreachable LLM only `llm` flips to `error`. `probe()` caps each dependency at 2.5 s and never rejects; `app.test.ts` covers flip-only-mongo, flip-only-s3, never-settling probe (200 within cap). Env: running `main.js` with an empty env exits 1 listing `MONGO_URL, S3_ENDPOINT, S3_BUCKET, S3_ACCESS_KEY, S3_SECRET_KEY` and no values; empty string counts as absent (`config.test.ts`). `onError` maps ApiError, ZodError, SyntaxError, HTTPException, unknown, in that order, typed as `ErrorResponse`; unknown messages are not echoed; verified live: `/api/nope` and a POST to a GET-only route return the contract `NOT_FOUND` shape; the ZodError, malformed-JSON, HTTPException and unknown-error branches are covered by `app.test.ts` only. `.env.example` parity is a test (`config.test.ts` ".env.example lists every key of envSchema") and `LLM_API_KEY=` carries no value. Mongo stop/Silo stop live flip was proven by the executor's compose smoke, not re-run here. |
-| SC4 | Web lands on `/applications` inside the Expediente shell (tokens, EB Garamond / Source Sans 3 / JetBrains Mono): fixed sidebar at 1024 px and above, header with a menu button that opens a sheet with the same navigation below that | ✓ VERIFIED (visual sub-truth ⚠️ human) | `/` redirects to `/applications` (router test). `AppLayout`: `<aside class="hidden lg:flex lg:fixed ...">` + `<header class="lg:hidden ...">` with `aria-label="Abrir menú"` opening a `Sheet` that re-renders the same `MainNav` plus `ThemeToggle`; Sheet has title and sr-only description; Esc and link-click close are tested. `styles.css` is byte-identical to `docs/design/expediente.css` (`cmp`), built CSS contains `EB Garamond Variable`, `Source Sans 3 Variable`, `JetBrains Mono Variable` and ships woff2 files. No hex or Tailwind palette class in any TSX (grep). Pod structure: route → scene → pod, `pods/application-list/index.ts` exports only the container, all pod files of CLAUDE.md present, VM not derived from contracts type, empty barrels for the other three pods. |
-| SC5 | Theme switch Sistema / Claro / Oscuro from the shell; default follows the system; choice survives a reload | ✓ VERIFIED (no-flash sub-truth ⚠️ human) | `theme.ts`: `readThemePreference` (try/catch, unknown value → system), `setThemePreference` persists `expediente-theme`, `applyTheme` toggles `dark` on `<html>`, `initTheme` listens to `prefers-color-scheme` only while preference is `system`; `main.tsx` calls `initTheme()` before render; `theme.test.ts` (10 tests) and `app-layout.test.tsx` "switches to dark from the sidebar and stores the choice" pass. Persistence across reload is implemented through localStorage read on init and by the inline pre-hydration script (present in source and in built `dist/index.html`). |
+| SC1 | From root, `npm install/build/test/lint/typecheck` pass across the three workspaces; web and API import every API model from `@tfm/contracts`; a commit with a lint, format or type error is rejected by the pre-commit hook | ✓ VERIFIED | Run today: `npm run typecheck` exit 0 (3 workspaces); `npm run lint` clean (`--max-warnings=0`); tests contracts 40, api 41, web 41 pass; `npm run build` completes. `z.enum` under `apps/` appears only in `apps/api/src/config.ts` (env, not an API model). `.husky/pre-commit` = `npx lint-staged` then `npm run typecheck`; `.husky/pre-push` = `npm run test`; `core.hooksPath=.husky/_`. Live reject probes were executed by plan 01-02 and not repeated, to avoid touching the index. |
+| SC2 | `docker compose up` (multi-stage Dockerfile, pinned images) brings up the app plus healthy Mongo, Silo and Ollama; app opens at `http://localhost:8080` | ✓ VERIFIED (static + live API here; committed-port run human-attested) | Static: `docker compose config -q` OK; images pinned (`mongo:8.0.32`, `pgsty/minio:RELEASE.2026-08-04...`, `pgsty/mc:RELEASE.2026-09-16...`, `ollama/ollama:0.40.3`, local `tfm-app:0.1.0`); 127.0.0.1-only publishing. Executor compose smoke (SMOKE OK) plus UAT test 1 on a clean host with the committed ports. I could not run compose here (Docker-outside-of-Docker, no host port publishing), so the final link rests on the user's attestation. |
+| SC3 | `GET /api/health` returns `{status,mongo,s3,llm}`, each field real; API refuses to start on invalid env; every error is `{error:{code,message,details?}}`; `.env.example` lists every variable | ✓ VERIFIED | Live today (built API, `NODE_ENV=production`, port 18099, devcontainer Mongo/Silo): `{"status":"ok","mongo":"ok","s3":"ok","llm":"ok"}`; `/api/nope` gives `{"error":{"code":"NOT_FOUND","message":"Recurso no encontrado"}}`. `env -i node apps/api/dist/main.js` prints «Invalid environment» naming the missing variables (no values) and exits 1. `app.test.ts` covers the flip of each field, never-settling probe, and the ZodError/malformed-JSON/HTTPException/unknown branches. `config.test.ts` asserts `.env.example` parity with the env schema. |
+| SC4 | Web lands on `/applications` inside the Expediente shell (tokens, EB Garamond / Source Sans 3 / JetBrains Mono): fixed sidebar at 1024 px and above, header with a menu button that opens a sheet with the same navigation below that | ✓ VERIFIED | Router test: `/` redirects to `/applications`. `AppLayout` (re-read today): `<aside class="hidden lg:flex lg:fixed ...">` + `<header class="lg:hidden ...">`; button `aria-label="Abrir menú"` is the header's first child (asserted); Sheet `side="left"` re-renders the same `MainNav` and `ThemeToggle`; link click and Esc close it (tested). `styles.css` is byte-identical to `docs/design/expediente.css` (`cmp`). No hex colors or Tailwind palette classes in any TSX. Route, scene and pod structure unchanged. Breakpoint behavior: UAT test 2 pass. |
+| SC5 | Theme switch Sistema / Claro / Oscuro from the shell; default follows the system; choice survives a reload | ✓ VERIFIED | `theme.ts` / `theme.test.ts` (10 tests) and `app-layout.test.tsx` «switches to dark from the sidebar and stores the choice» pass. Inline pre-hydration script in `apps/web/index.html`. No-flash behavior: UAT test 3 pass. |
 
-### Plan-level truths tagged `verification: backstop` (plan 01-05 and 01-06)
+### Plan-level truths tagged `verification: backstop` (plans 01-05 and 01-06)
 
 | #   | Truth | Status | Evidence |
 | --- | ----- | ------ | -------- |
-| B1 | Sidebar visible from exactly 1024 px and hidden at 1023 px, where the header takes over | ? insufficient_spec, human | `lg:` (64rem) classes only; no layout test possible in jsdom. See human_verification. |
-| B2 | Reloading with Oscuro paints no light frame before React mounts | ? insufficient_spec, human | Pre-hydration script present and runs before module script; paint timing unprovable here. |
-| B3 | On the host, `curl http://localhost:8080/api/health` answers all ok and a browser lands on `/applications` in the themed shell | ? insufficient_spec, human | Same evidence gap as SC2. |
+| B1 | Sidebar visible from exactly 1024 px, hidden at 1023 px where the header takes over | ✓ VERIFIED (human) | UAT test 2 pass, re-run after the layout change; code uses `lg:` with no override. |
+| B2 | Reloading with Oscuro paints no light frame before React mounts | ✓ VERIFIED (human) | UAT test 3 pass; script present in `index.html`. |
+| B3 | On the host, `curl http://localhost:8080/api/health` answers all ok and a browser lands on `/applications` in the themed shell | ✓ VERIFIED (human) | UAT test 1 pass on a clean host. |
 
-**Score:** 4/8 (SC1, SC3, SC4, SC5 verified; SC2 behavior-unverified; B1 to B3 require a human). No truth is FAILED.
+**Score:** 8/8 truths verified. No truth is FAILED, none is PRESENT_BEHAVIOR_UNVERIFIED. The three backstop truths are verified by human attestation (UAT), which is the evidence class the plan required for them.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 | -------- | -------- | ------ | ------- |
-| `package.json`, `.npmrc`, `package-lock.json`, `tsconfig.base.json` | workspaces, scripts, exact pins | ✓ VERIFIED | Scripts `dev build test lint typecheck format format:check seed` present; `@tfm/source` export condition resolves contracts without a build |
-| `packages/contracts/src/*.ts` | enums, tag, interview, application, document, offer-extraction, error, health | ✓ VERIFIED | Enum values and order match `docs/DOMAIN.md`; applicationSchema fields match; 40 tests |
-| `apps/api/src/{app,config,errors,main}.ts`, `db/mongo.ts`, `storage/s3.ts`, `llm/*` | health, error contract, env fail-fast, indexes, bucket, providers | ✓ VERIFIED | Substantive and wired from `main.ts` into `createApp`; Mongo named indexes and `ensureBucket` at startup (indexes created against devcontainer Mongo during the live run); LLM `ollama`/`openai`/`mock` switch in `createLlmClient`; extraction itself is an intentional Phase 3 stub (502 `LLM_ERROR`) |
-| `Dockerfile`, `compose.yml`, `.dockerignore`, `scripts/compose-smoke.sh` | pinned multi-stage deliverable | ✓ VERIFIED (static) | See SC2 |
-| `eslint.config.js`, `.prettierrc.json`, `.prettierignore`, `.lintstagedrc.json`, `.husky/*` | quality gate | ✓ VERIFIED | See SC1 |
+| `package.json`, `package-lock.json`, `tsconfig.base.json` | workspaces, scripts | ✓ VERIFIED | Scripts run today (typecheck, lint, test, build) |
+| `packages/contracts/src/*.ts` | enums, tag, interview, application, document, offer-extraction, error, health | ✓ VERIFIED | 40 tests pass |
+| `apps/api/src/{app,config,errors,main}.ts`, `db/mongo.ts`, `storage/s3.ts`, `llm/*` | health, error contract, env fail-fast, providers | ✓ VERIFIED | Substantive and wired; live run above. Extraction is an intentional Phase 3 stub (502 `LLM_ERROR`); ping is real |
+| `Dockerfile`, `compose.yml`, `scripts/compose-smoke.sh` | pinned multi-stage deliverable | ✓ VERIFIED | See SC2 |
+| `eslint.config.js`, `.prettierrc.json`, `.lintstagedrc.json`, `.husky/*` | quality gate | ✓ VERIFIED | See SC1 |
 | `apps/web` router, routes, scene, pod, layout, theme, shadcn primitives, `styles.css`, `index.html` | themed shell | ✓ VERIFIED | See SC4/SC5 |
-| `.env.example`, `README.md` | documentation | ✓ VERIFIED | README in Spanish, tuteo, documents compose, mock fallback, smoke, dev mode; `.env`/`.env.*` git-ignored except the example |
+| `.env.example`, `README.md` | documentation | ✓ VERIFIED | Parity test; `LLM_API_KEY=` empty |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 | ---- | -- | --- | ------ | ------- |
-| `routes/__root.tsx` | `layouts/app-layout.tsx` | `createRootRoute({component: AppLayout})` | WIRED | Confirmed in source |
-| `routes/applications/index.tsx` | `scenes/application-list.scene.tsx` → `pods/application-list` | route → scene → pod | WIRED | Scene renders `ApplicationListContainer`; no pod imports another pod (grep) |
+| `routes/__root.tsx` | `layouts/app-layout.tsx` | `createRootRoute({component: AppLayout})` | WIRED | Router tests render the shell through it |
+| `routes/applications/index.tsx` | scene → pod | route → scene → pod | WIRED | Heading «Mis candidaturas» rendered inside `main` (test) |
 | `main.tsx` | `core/theme/theme.ts` | `initTheme()` before render | WIRED | |
 | `main.ts` | `app.ts` | `createApp({pingMongo, pingS3, pingLlm, webDistDir})` | WIRED | Live health uses real pings |
-| `app.ts` | `@tfm/contracts` | `ErrorResponse`, `Health` types | WIRED | |
-| `llm.client.ts` | `mock.provider.ts` / `openai.provider.ts` / `ollama.provider.ts` | switch on `LLM_PROVIDER` | WIRED | |
-| `.husky/pre-commit` | `.lintstagedrc.json` and `npm run typecheck` | hook body | WIRED | `core.hooksPath=.husky/_` |
-| `README.md` | `scripts/compose-smoke.sh` | documented command | WIRED | |
+| `app.ts` | `@tfm/contracts` | `ErrorResponse`, `Health` | WIRED | |
+| `.husky/pre-commit` | `.lintstagedrc.json` + typecheck | hook body | WIRED | `core.hooksPath=.husky/_` |
 | `compose.yml` `app` | `Dockerfile` | `build: .` | WIRED | |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 | -------- | ------------- | ------ | ------------------ | ------ |
-| `/api/health` handler | `mongo`, `s3`, `llm` | `pingMongo` (db.command ping), `pingS3` (HeadBucket), `llm.ping()` (HTTP GET) | Yes, verified live; flips on an unreachable LLM | ✓ FLOWING |
-| `ApplicationListContainer` | `applications` | `useApplicationList` returns mapped `[]` | Intentionally empty in Phase 1 (list endpoint is APP-04, Phase 2); renders the empty state, which is the Phase 1 contract | ✓ FLOWING (by design, not HOLLOW) |
+| `/api/health` handler | `mongo`, `s3`, `llm` | real pings (db command, HeadBucket, HTTP GET) | Yes, live | ✓ FLOWING |
+| `ApplicationListContainer` | `applications` | `useApplicationList` returns `[]` | Intentionally empty in Phase 1 (list endpoint is APP-04, Phase 2); renders the empty state | ✓ FLOWING (by design) |
 | `ThemeToggle` | `preference` | `useSyncExternalStore` over localStorage | Yes | ✓ FLOWING |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 | -------- | ------- | ------ | ------ |
-| Typecheck, lint | `npm run typecheck`, `npm run lint` | exit 0 | ✓ PASS |
-| Tests | `npm run test` | contracts 40, api 34, web 40 passed | ✓ PASS |
-| Build | `npm run build` | contracts, api, web built; CSS contains the 3 font families | ✓ PASS |
-| Production API | `NODE_ENV=production PORT=18099 LLM_PROVIDER=mock node apps/api/dist/main.js` then curl `/api/health`, `/api/nope`, `/applications/1`, `/` | health all ok; 404 JSON; SPA fallback 200 HTML | ✓ PASS |
-| LLM flip | same with `LLM_PROVIDER=ollama LLM_BASE_URL=http://127.0.0.1:1` | `"llm":"error"`, others ok | ✓ PASS |
-| Invalid env | `env -i node apps/api/dist/main.js` | exit 1, names 5 variables, no values | ✓ PASS |
+| Typecheck, lint | `npm run typecheck`, `npm run lint` | exit 0, no warnings | ✓ PASS |
+| Contracts and API tests | `npm run test -w @tfm/contracts`, `-w @tfm/api` | 40 and 41 passed | ✓ PASS |
+| Web tests | `npm run test -w @tfm/web` | 41 passed on 3 of 4 runs (see Observations) | ✓ PASS (flaky start) |
+| Build | `npm run build` | contracts, api, web built | ✓ PASS |
+| Production API | built `main.js`, curl `/api/health`, `/`, `/applications/1`, `/api/nope` | health all ok; 200 text/html on both SPA paths; 404 JSON contract | ✓ PASS |
+| Invalid env | `env -i node apps/api/dist/main.js` | exit 1, lists missing variables | ✓ PASS |
 | Compose file | `docker compose config -q` | valid | ✓ PASS |
-| `format:check` | `npm run format:check` | one warning: `.gsd/dispatch-isolation-sentinel.json` | observation, see below |
+| CSS identity | `cmp apps/web/src/styles.css docs/design/expediente.css` | identical | ✓ PASS |
 
-The verifier's API processes were stopped; no compose containers were started. Run side effects: the API created the (idempotent) named indexes in database `tfm` of the devcontainer Mongo and ensured bucket `tfm-assets`, both expected project state.
+The verifier's API process was stopped; no containers were started.
 
 ### Probe Execution
 
-Step 7c: no `scripts/*/tests/probe-*.sh` and no probe declared by any PLAN. The compose smoke (`scripts/compose-smoke.sh`) is the phase-declared runtime check; it was not run by the verifier (it starts and stops containers, and cannot publish the committed ports from this devcontainer). Executor result recorded in 01-06-SUMMARY.md: SMOKE OK with port override.
+Step 7c: no `scripts/*/tests/probe-*.sh` exists and no PLAN declares a probe. `scripts/compose-smoke.sh` is the phase-declared runtime check; it was not run here (it starts containers and cannot publish the committed ports from this devcontainer). Executor result: SMOKE OK, with a port override. The committed-port run is covered by UAT test 1.
 
 ### Requirements Coverage
 
-Plan frontmatter IDs: 01-01 `FND-01, FND-03, FND-04, FND-08, FND-10`; 01-02 `FND-09, FND-01`; 01-03 `FND-02`; 01-04 `FND-05, FND-07, FND-02`; 01-05 `FND-05, FND-06, FND-07`; 01-06 `FND-01, FND-08, FND-10`. Union = FND-01..FND-10; REQUIREMENTS.md maps exactly FND-01..FND-10 to Phase 1. No orphaned requirement, no ID claimed by a plan that is missing from REQUIREMENTS.md.
+Plan frontmatter IDs: 01-01 `FND-01, FND-03, FND-04, FND-08, FND-10`; 01-02 `FND-09, FND-01`; 01-03 `FND-02`; 01-04 `FND-05, FND-07, FND-02`; 01-05 `FND-05, FND-06, FND-07`; 01-06 `FND-01, FND-08, FND-10`. The union is FND-01 to FND-10, and REQUIREMENTS.md maps exactly FND-01 to FND-10 to Phase 1. No orphaned requirement and no plan ID missing from REQUIREMENTS.md.
 
 | Requirement | Source Plan(s) | Description | Status | Evidence |
 | ----------- | -------------- | ----------- | ------ | -------- |
-| FND-01 | 01-01, 01-02, 01-06 | root npm install/build/test/lint/typecheck over the monorepo | ✓ SATISFIED | Ran all four scripts successfully |
-| FND-02 | 01-03, 01-04 | every API model from `@tfm/contracts`, never redefined | ✓ SATISFIED | Contracts barrel exports all models; only env enum under `apps/`; web `getApplications` typed against contracts |
-| FND-03 | 01-01 | `GET /api/health` with real connectivity | ✓ SATISFIED | Live probe + unit tests (Mongo/Silo flip confirmed by executor smoke) |
-| FND-04 | 01-01 | Zod env validation at startup; error contract | ✓ SATISFIED | Live invalid-env exit; `onError` mapping; tests |
-| FND-05 | 01-04, 01-05 | lands on `/applications` in shell with desktop sidebar and mobile sheet | ✓ SATISFIED (breakpoint exactness ⚠️ human B1) | See SC4 |
-| FND-06 | 01-05 | theme Sistema/Claro/Oscuro, persisted, default follows system | ✓ SATISFIED (no-flash ⚠️ human B2) | See SC5 |
-| FND-07 | 01-04, 01-05 | «Expediente» design system tokens and fonts | ✓ SATISFIED | CSS byte-identical to the DS file; fonts in build; no palette/hex classes |
-| FND-08 | 01-01, 01-06 | `docker compose up` reaches app at `localhost:8080`, healthy Mongo/Silo/Ollama, multi-stage, pinned | ? NEEDS HUMAN | Static artifacts verified; committed port mapping unproven at runtime |
-| FND-09 | 01-02 | pre-commit ESLint, Prettier, typecheck via Husky + lint-staged | ✓ SATISFIED | Hook files, config, hooksPath; live probes recorded by 01-02 |
-| FND-10 | 01-01, 01-06 | `.env.example` lists every variable | ✓ SATISFIED | Parity test; `LLM_API_KEY` empty; README documents `.env` usage |
+| FND-01 | 01-01, 01-02, 01-06 | root npm scripts over the monorepo | ✓ SATISFIED | All five scripts ran successfully |
+| FND-02 | 01-03, 01-04 | every API model from `@tfm/contracts` | ✓ SATISFIED | Only the env enum is defined under `apps/` |
+| FND-03 | 01-01 | `GET /api/health` with real connectivity | ✓ SATISFIED | Live probe plus flip tests |
+| FND-04 | 01-01 | Zod env validation; error contract | ✓ SATISFIED | Live invalid-env exit; live 404 shape; `onError` tests |
+| FND-05 | 01-04, 01-05 | `/applications` in the shell with sidebar and mobile Sheet | ✓ SATISFIED | SC4 plus UAT test 2 |
+| FND-06 | 01-05 | theme Sistema/Claro/Oscuro, persisted, default follows system | ✓ SATISFIED | SC5 plus UAT test 3 |
+| FND-07 | 01-04, 01-05 | «Expediente» design system tokens and fonts | ✓ SATISFIED | CSS identical to the DS file; fonts in build; no palette or hex classes |
+| FND-08 | 01-01, 01-06 | `docker compose up` reaches the app at `localhost:8080`, services healthy, multi-stage, pinned | ✓ SATISFIED | Static artifacts verified here; clean-host run attested in UAT test 1 |
+| FND-09 | 01-02 | pre-commit ESLint, Prettier, typecheck via Husky + lint-staged | ✓ SATISFIED | Hooks, config, hooksPath |
+| FND-10 | 01-01, 01-06 | `.env.example` lists every variable | ✓ SATISFIED | Parity test; README documents `.env` use |
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 | ---- | ---- | ------- | -------- | ------ |
 | (all phase sources) | - | `TBD`/`FIXME`/`XXX`/`TODO`/`HACK` | none found | No debt markers |
-| `apps/web/src/routeTree.gen.ts` | 19, 24 | `as any` | ℹ️ Info | Generated by TanStack Router, ESLint-ignored and Prettier-ignored by design; not hand-written |
-| `apps/api/src/llm/ollama.provider.ts`, `openai.provider.ts` | - | `extractStructured` throws 502 `LLM_ERROR` | ℹ️ Info | Intentional Phase 3 stub (AI-01..AI-04); ping is real |
-| `apps/web/src/pods/application-list/application-list.hooks.ts` | - | no fetch; returns `[]` | ℹ️ Info | Documented: list endpoint belongs to APP-04 (Phase 2); not a stub against any Phase 1 truth |
-| `apps/web/src/pods/{application-detail,application-edit,document-upload}/index.ts` | - | `export {}` barrels | ℹ️ Info | Intentional (D-14), filled in Phases 2 and 5 |
+| `apps/web/src/routeTree.gen.ts` | 19, 24 | `as any` | Info | Generated by TanStack Router and lint-ignored by design |
+| `apps/api/src/llm/{ollama,openai}.provider.ts` | - | `extractStructured` throws 502 `LLM_ERROR` | Info | Intentional Phase 3 stub (AI-01 to AI-04) |
+| `apps/web/src/pods/application-list/application-list.hooks.ts` | - | returns `[]` | Info | Documented: list endpoint is Phase 2 (APP-04) |
+| `apps/web/vite.config.ts` | server | `host: true` binds the dev server to all interfaces | Warning | Code-review WR-02 (open). Dev only; not part of the compose deliverable; no phase truth affected |
 
-The eight open review warnings (WR-01..WR-08, 0 critical) concern startup robustness, theme desync, error mapping, tag normalisation (APP-12, Phase 2) and SPA 404 behavior. None contradicts a Phase 1 success criterion or an FND requirement. Observed while verifying: the built API took several seconds to log «API listening» against the devcontainer services (the Mongo connection alone took about 7 s in this environment), consistent with WR-01 (no startup timeout on S3, raw failure on Mongo); compose masks it with `depends_on` plus `restart: unless-stopped`.
-
-### Deferred Items
-
-None to defer: all gaps found are either not gaps or are routed to human verification. Items that later phases will address anyway (not counted against Phase 1): list endpoint and list UI (Phase 2), real LLM extraction (Phase 3), seed and full README (Phase 6).
+Open code-review warnings (01-REVIEW.md: 0 critical, 2 warnings, 3 info; earlier phase review WR-01..WR-08 also open) are quality items. None contradicts a success criterion or an FND requirement. 01-SECURITY.md reports `threats_open: 0` at ASVS 1.
 
 ### Human Verification Required
 
-1. **Compose on a clean host with the committed ports**
-   **Test:** `docker compose up --build` (no override), open http://localhost:8080, `curl http://localhost:8080/api/health`, open http://127.0.0.1:9001.
-   **Expected:** All services healthy, shell at `/applications`, health all `ok`, Silo console shows bucket `tfm-assets`.
-   **Why human:** Executor evidence used a 18080/19001 override; host publishing cannot be tested from the devcontainer.
-
-2. **Breakpoint at 1024 / 1023 px**
-   **Test:** Resize the browser.
-   **Expected:** Sidebar at 1024 px and above; header with «Abrir menú» below.
-   **Why human:** Layout behavior (backstop truth B1).
-
-3. **No light flash on reload with Oscuro**
-   **Test:** Choose Oscuro, hard reload.
-   **Expected:** Dark from the first paint.
-   **Why human:** Paint timing (backstop truth B2).
-
-4. **Sheet keyboard behavior and toggle fit**
-   **Test:** Open the Sheet from the keyboard, Tab around, Esc.
-   **Expected:** Focus trapped; focus returns to «Abrir menú»; theme toggle fits sidebar and Sheet.
-   **Why human:** Focus return and visual fit are not covered by jsdom tests.
+None. All four previous human items are discharged by the recorded UAT results, cross-checked against the code as it now stands (see the disposition table).
 
 ### Gaps Summary
 
-No blocking gaps. Every FND requirement has implementation evidence in the codebase, and the verifier reproduced typecheck, lint, tests, build and a production run of the API (real health, SPA fallback, error contract, env fail-fast) in this working tree. The phase is held at `human_needed` solely because the headline deliverable, `docker compose up` publishing on the committed `127.0.0.1:8080` and `127.0.0.1:9001`, and three backstop-tagged UI truths (exact breakpoint, no theme flash, Sheet focus) can only be confirmed by a human on a clean host.
+No gaps. Phase goal achieved: root scripts, quality gate, contracts, healthy API with real connectivity, error contract and env fail-fast, themed shell with sidebar/Sheet and persistent theme, and a pinned multi-stage compose deliverable all exist, are wired, and were reproduced today (typecheck, lint, tests, build, a production API run). The compose-on-committed-ports run depends on the user's UAT attestation, since the devcontainer cannot publish host ports.
 
 Observations, not failures:
-- **Flake:** the aggregate `npm test` web workspace has the known cold-start `Failed to start forks worker` timeout; it did not occur in this run (web suite took about 61 s).
-- **`format:check`:** fails in this working tree on `.gsd/dispatch-isolation-sentinel.json`, a git-ignored GSD tooling artifact that Prettier does not skip because only the root `.gitignore` is honored. A clean checkout does not contain it. Consider adding `.gsd` to `.prettierignore` so the pre-commit and format gate stay green while GSD workflows run.
-- **ROADMAP goal wording** does not pass the strict MVP user-story validator (see MVP Mode Note).
-- **REQUIREMENTS.md** still shows FND-01..FND-10 unchecked and «Pending» in the traceability table; update after human verification closes.
-- **Open review warnings** (01-REVIEW-DISPOSITION.md, all open): WR-01 and WR-02 (startup and S3 ping timeouts) are the ones most likely to affect the live demo environment; schedule them early in Phase 2.
+- **Web test flake:** one of four `vitest run` invocations of `@tfm/web` failed in this session (the first, run immediately after the API tests and a large build; the failing output was not captured). The next three runs passed 6/6 files and 41/41 tests. This matches the cold-start `Failed to start forks worker` timeout noted in the previous report. It is not a code defect, but it can make the pre-push hook (`npm run test`) fail intermittently. Consider a `vitest` `poolOptions`/timeout tweak or `--pool=threads` in Phase 2.
+- **Tracking docs:** REQUIREMENTS.md still shows FND-01..FND-10 unchecked and «Pending». Update them now that verification has passed.
+- **ROADMAP wording** does not satisfy the strict MVP user-story validator (see the MVP Mode Note).
+- **Review warnings** WR-01/WR-02 of the earlier review (startup and S3 ping timeouts) remain the likeliest to affect a live demo; schedule them early in Phase 2.
 
 ---
 
-_Verified: 2026-10-29T16:20:00Z_
+_Verified: 2026-10-29T22:40:00Z_
 _Verifier: Claude (gsd-verifier)_
