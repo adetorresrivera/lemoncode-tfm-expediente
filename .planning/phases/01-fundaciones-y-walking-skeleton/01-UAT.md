@@ -1,9 +1,9 @@
 ---
-status: partial
+status: complete
 phase: 01-fundaciones-y-walking-skeleton
 source: [01-VERIFICATION.md]
 started: 2026-10-29T16:40:00Z
-updated: 2026-10-29T21:21:45.918Z
+updated: 2026-10-29T21:34:47.866Z
 ---
 
 ## Current Test
@@ -14,9 +14,8 @@ updated: 2026-10-29T21:21:45.918Z
 
 ### 1. Run `docker compose up --build` on a clean host (committed port mappings, no override) and open http://localhost:8080
 expected: App container healthy, mongo/s3/ollama healthy, s3-init exited 0, browser lands on /applications inside the themed shell; `curl http://localhost:8080/api/health` gives all four fields ok; Silo console at 127.0.0.1:9001 lists bucket tfm-assets
-result: blocked
-blocked_by: other
-reason: "Error response from daemon: ports are not available: exposing port TCP 127.0.0.1:9001 -> 127.0.0.1:0: listen tcp4 127.0.0.1:9001: bind: Only one usage of each socket address (protocol/network address/port) is normally permitted. Known environment clash (see 01-01-SUMMARY / 01-06-SUMMARY): host port 9001 held outside compose, not a compose.yml defect. Re-test after freeing 8080/9001 or on a clean host."
+result: pass
+note: "Re-test: user verified it passes outside the repository (clean host). Previous block was a host clash on port 9001, not a compose.yml defect."
 
 ### 2. Resize a browser to 1024 px and 1023 px wide
 expected: At 1024 px the fixed sidebar is visible and the header with «Abrir menú» is hidden; at 1023 px the sidebar is hidden and the «Abrir menú» button sits at the left edge of the header, the Sheet opens from the left, and Esc returns focus to the button
@@ -34,11 +33,11 @@ result: pass
 ## Summary
 
 total: 4
-passed: 3
+passed: 4
 issues: 0
 pending: 0
 skipped: 0
-blocked: 1
+blocked: 0
 
 ## Gaps
 - gap_id: G-01-2
