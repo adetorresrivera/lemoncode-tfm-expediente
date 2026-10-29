@@ -2,9 +2,16 @@ import { z } from "zod";
 
 export const envSchema = z
   .object({
-    NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
+    NODE_ENV: z
+      .enum(["development", "test", "production"])
+      .default("development"),
     PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-    MONGO_URL: z.string().regex(/^mongodb(\+srv)?:\/\//, "must start with mongodb:// or mongodb+srv://"),
+    MONGO_URL: z
+      .string()
+      .regex(
+        /^mongodb(\+srv)?:\/\//,
+        "must start with mongodb:// or mongodb+srv://",
+      ),
     S3_ENDPOINT: z.url(),
     S3_REGION: z.string().min(1).default("us-east-1"),
     S3_BUCKET: z.string().min(3),
@@ -44,12 +51,16 @@ export type Config = z.infer<typeof envSchema>;
 export function loadConfig(env: NodeJS.ProcessEnv = process.env): Config {
   // Compose passes unset optional variables as empty strings: treat them as absent.
   const cleaned = Object.fromEntries(
-    Object.entries(env).filter(([, value]) => value !== undefined && value !== ""),
+    Object.entries(env).filter(
+      ([, value]) => value !== undefined && value !== "",
+    ),
   );
   const parsed = envSchema.safeParse(cleaned);
   if (!parsed.success) {
     // Names and messages only, never values (they may be secrets).
-    const lines = parsed.error.issues.map((issue) => `  - ${issue.path.join(".")}: ${issue.message}`);
+    const lines = parsed.error.issues.map(
+      (issue) => `  - ${issue.path.join(".")}: ${issue.message}`,
+    );
     throw new Error(`Invalid environment:\n${lines.join("\n")}`);
   }
   return parsed.data;

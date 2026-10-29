@@ -6,7 +6,12 @@ export class ApiError extends Error {
   readonly code: ErrorCode;
   readonly details?: unknown;
 
-  constructor(status: ContentfulStatusCode, code: ErrorCode, message: string, details?: unknown) {
+  constructor(
+    status: ContentfulStatusCode,
+    code: ErrorCode,
+    message: string,
+    details?: unknown,
+  ) {
     super(message);
     this.name = "ApiError";
     this.status = status;

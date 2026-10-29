@@ -2,7 +2,7 @@ import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { errorResponseSchema, healthSchema } from "@tfm/contracts";
-import { Hono } from "hono";
+import { type Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
@@ -33,11 +33,19 @@ describe("GET /api/health", () => {
   it("answers 200 with every dependency ok", async () => {
     const res = await createApp(allUp).request("/api/health");
     expect(res.status).toBe(200);
-    expect(await bodyOf(res)).toEqual({ status: "ok", mongo: "ok", s3: "ok", llm: "ok" });
+    expect(await bodyOf(res)).toEqual({
+      status: "ok",
+      mongo: "ok",
+      s3: "ok",
+      llm: "ok",
+    });
   });
 
   it("flips only mongo when the mongo probe fails", async () => {
-    const res = await createApp({ ...allUp, pingMongo: async () => false }).request("/api/health");
+    const res = await createApp({
+      ...allUp,
+      pingMongo: async () => false,
+    }).request("/api/health");
     const body = healthSchema.parse(await bodyOf(res));
     expect(res.status).toBe(200);
     expect(body).toEqual({ status: "ok", mongo: "error", s3: "ok", llm: "ok" });
@@ -57,7 +65,10 @@ describe("GET /api/health", () => {
 
   it("reports a probe that never settles as error after the 2.5 s cap and still answers 200", async () => {
     vi.useFakeTimers();
-    const app = createApp({ ...allUp, pingLlm: () => new Promise<boolean>(() => undefined) });
+    const app = createApp({
+      ...allUp,
+      pingLlm: () => new Promise<boolean>(() => undefined),
+    });
     const pending = app.request("/api/health");
     await vi.advanceTimersByTimeAsync(2600);
     const res = await pending;
@@ -71,7 +82,9 @@ describe("error contract", () => {
   function appWithRoutes(): Hono {
     const app = createApp(allUp);
     app.get("/boom/api-error", () => {
-      throw new ApiError(502, "LLM_ERROR", "El modelo no responde", { retry: false });
+      throw new ApiError(502, "LLM_ERROR", "El modelo no responde", {
+        retry: false,
+      });
     });
     app.post("/boom/zod", async (c) => {
       z.object({ name: z.string() }).parse(await c.req.json());
@@ -139,15 +152,17 @@ describe("error contract", () => {
     const notFound = await app.request("/boom/http-404");
     expect(notFound.status).toBe(404);
     const notFoundText = await notFound.text();
-    expect(errorResponseSchema.parse(JSON.parse(notFoundText)).error.code).toBe("NOT_FOUND");
+    expect(errorResponseSchema.parse(JSON.parse(notFoundText)).error.code).toBe(
+      "NOT_FOUND",
+    );
     expect(notFoundText).not.toContain("internal-not-found-detail");
 
     const badRequest = await app.request("/boom/http-400");
     expect(badRequest.status).toBe(400);
     const badRequestText = await badRequest.text();
-    expect(errorResponseSchema.parse(JSON.parse(badRequestText)).error.code).toBe(
-      "VALIDATION_ERROR",
-    );
+    expect(
+      errorResponseSchema.parse(JSON.parse(badRequestText)).error.code,
+    ).toBe("VALIDATION_ERROR");
     expect(badRequestText).not.toContain("internal-bad-request-detail");
   });
 
@@ -155,7 +170,9 @@ describe("error contract", () => {
     const res = await appWithRoutes().request("/boom/http-503");
     expect(res.status).toBe(503);
     const text = await res.text();
-    expect(errorResponseSchema.parse(JSON.parse(text)).error.code).toBe("INTERNAL_ERROR");
+    expect(errorResponseSchema.parse(JSON.parse(text)).error.code).toBe(
+      "INTERNAL_ERROR",
+    );
     expect(text).not.toContain("internal-unavailable-detail");
   });
 
@@ -163,7 +180,9 @@ describe("error contract", () => {
     const res = await appWithRoutes().request("/boom/unknown");
     expect(res.status).toBe(500);
     const text = await res.text();
-    expect(errorResponseSchema.parse(JSON.parse(text)).error.code).toBe("INTERNAL_ERROR");
+    expect(errorResponseSchema.parse(JSON.parse(text)).error.code).toBe(
+      "INTERNAL_ERROR",
+    );
     expect(text).not.toContain("secret-internal-detail");
     // The handler logs the message only, never the stack.
     expect(console.error).toHaveBeenCalledWith("secret-internal-detail");
@@ -176,7 +195,10 @@ describe("static hosting with SPA fallback", () => {
   beforeEach(async () => {
     dist = await mkdtemp(join(tmpdir(), "tfm-web-dist-"));
     await mkdir(join(dist, "assets"));
-    await writeFile(join(dist, "index.html"), '<!doctype html><div id="root"></div>');
+    await writeFile(
+      join(dist, "index.html"),
+      '<!doctype html><div id="root"></div>',
+    );
     await writeFile(join(dist, "assets", "app.js"), "console.log('app');");
   });
 
@@ -185,21 +207,29 @@ describe("static hosting with SPA fallback", () => {
   });
 
   it("serves existing assets", async () => {
-    const res = await createApp({ ...allUp, webDistDir: dist }).request("/assets/app.js");
+    const res = await createApp({ ...allUp, webDistDir: dist }).request(
+      "/assets/app.js",
+    );
     expect(res.status).toBe(200);
     expect(await res.text()).toContain("console.log");
   });
 
   it("falls back to index.html for client-side routes", async () => {
-    const res = await createApp({ ...allUp, webDistDir: dist }).request("/applications/42");
+    const res = await createApp({ ...allUp, webDistDir: dist }).request(
+      "/applications/42",
+    );
     expect(res.status).toBe(200);
     expect(res.headers.get("content-type")).toContain("text/html");
     expect(await res.text()).toContain('id="root"');
   });
 
   it("keeps answering JSON 404 for unknown /api paths", async () => {
-    const res = await createApp({ ...allUp, webDistDir: dist }).request("/api/nope");
+    const res = await createApp({ ...allUp, webDistDir: dist }).request(
+      "/api/nope",
+    );
     expect(res.status).toBe(404);
-    expect(errorResponseSchema.parse(await bodyOf(res)).error.code).toBe("NOT_FOUND");
+    expect(errorResponseSchema.parse(await bodyOf(res)).error.code).toBe(
+      "NOT_FOUND",
+    );
   });
 });

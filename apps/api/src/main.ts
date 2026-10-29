@@ -23,7 +23,9 @@ const llm = createLlmClient(config);
 const here = dirname(fileURLToPath(import.meta.url));
 const webDistDir =
   config.WEB_DIST_DIR ??
-  (config.NODE_ENV === "production" ? resolve(here, "../../web/dist") : undefined);
+  (config.NODE_ENV === "production"
+    ? resolve(here, "../../web/dist")
+    : undefined);
 
 const app = createApp({
   pingMongo: () => pingMongo(db),
