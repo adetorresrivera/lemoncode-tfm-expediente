@@ -4,3 +4,4 @@ export * from "./tag.schema.js";
 export * from "./interview.schema.js";
 export * from "./document.schema.js";
 export * from "./offer-extraction.schema.js";
+export * from "./application.schema.js";
