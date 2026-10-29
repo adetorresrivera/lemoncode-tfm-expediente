@@ -3,7 +3,9 @@ import { join } from "node:path";
 import { serveStatic } from "@hono/node-server/serve-static";
 import type { ErrorResponse, Health, HealthStatus } from "@tfm/contracts";
 import { Hono } from "hono";
+import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
+import { z } from "zod";
 import { ApiError } from "./errors.js";
 
 export type AppDeps = {
@@ -66,14 +68,48 @@ export function createApp(deps: AppDeps): Hono {
     return c.json(body, 404);
   });
 
+  // Single error handler. Mapping order matters: ApiError, ZodError, SyntaxError (Hono's
+  // c.req.json() throws a plain SyntaxError on a malformed body), HTTPException, anything else.
+  // Only err.message is logged: never the stack, the request body or the offer text.
   app.onError((err, c) => {
     console.error(err.message);
+
     if (err instanceof ApiError) {
       const body: ErrorResponse = {
         error: { code: err.code, message: err.message, details: err.details },
       };
       return c.json(body, err.status);
     }
+
+    if (err instanceof z.ZodError) {
+      const body: ErrorResponse = {
+        error: {
+          code: "VALIDATION_ERROR",
+          message: "Datos no válidos",
+          details: z.flattenError(err),
+        },
+      };
+      return c.json(body, 400);
+    }
+
+    if (err instanceof SyntaxError) {
+      const body: ErrorResponse = {
+        error: { code: "VALIDATION_ERROR", message: "JSON no válido" },
+      };
+      return c.json(body, 400);
+    }
+
+    if (err instanceof HTTPException) {
+      // The exception's own message is never echoed: it is internal wording.
+      const body: ErrorResponse =
+        err.status === 404
+          ? { error: { code: "NOT_FOUND", message: "Recurso no encontrado" } }
+          : err.status === 400
+            ? { error: { code: "VALIDATION_ERROR", message: "Solicitud no válida" } }
+            : { error: { code: "INTERNAL_ERROR", message: "Error interno" } };
+      return c.json(body, err.status);
+    }
+
     const body: ErrorResponse = { error: { code: "INTERNAL_ERROR", message: "Error interno" } };
     return c.json(body, 500);
   });
