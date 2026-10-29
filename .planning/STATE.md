@@ -4,10 +4,10 @@ current_phase: 01
 current_phase_name: Fundaciones y walking skeleton
 status: executing
 stopped_at: Phase 01 UI-SPEC approved
-last_updated: "2026-10-29T12:25:45.604Z"
+last_updated: "2026-10-29T21:09:13.885Z"
 last_activity: 2026-10-29
 last_activity_desc: Phase 01 execution resumed (wave continue)
-state_head: be76699b0f853d43322052671b1b08ed266969b5
+state_head: 6bc743745b5ce7696d9555cc38bdd98ae7a43f6a
 progress:
   total_phases: 7
   completed_phases: 0
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-10-28)
 Phase: 01 (Fundaciones y walking skeleton) — EXECUTING
 Plan: 1 of 6
 Status: Executing Phase 01
-Last activity: 2026-10-29 — Phase 01 execution resumed (wave continue)
+Last activity: 2026-10-29 - Completed quick task 261029-sa5: mobile menu button left + Vite IPv4 host
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -73,6 +73,12 @@ None yet.
 - [Phase 1]: Schedule is tight — Phase 1 target is 29 Oct (tomorrow) and 7 phases must fit in ~12 days; MVP finished beats features half done.
 - [Phase 1]: Confirm the Ollama model tag `gemma4:e2b` on ollama.com before pinning it in `compose.yml` (`ollama-init`) and `.env.example`; Phase 3 depends on it.
 - [Phase 1]: `.planning/config.json` has `git.phase_branch_template` = `gsd/phase-{phase}-{slug}` and `branching_strategy` = `none`, while CLAUDE.md requires `phase/NN-nombre`; reconcile before the first branch or `/gsd-ship`.
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261029-sa5 | Fix mobile menu button position (left, where the Sheet opens) and bind Vite dev server to IPv4 (UAT gap G-01-2) | 2026-10-29 | 6bc7437 | [261029-sa5-fix-mobile-menu-button-position-left-whe](./quick/261029-sa5-fix-mobile-menu-button-position-left-whe/) |
 
 ## Deferred Items
 
