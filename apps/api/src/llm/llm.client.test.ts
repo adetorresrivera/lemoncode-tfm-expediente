@@ -36,6 +36,7 @@ function stubFetch(status: number) {
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.useRealTimers();
+  vi.restoreAllMocks();
 });
 
 describe("createLlmClient", () => {
@@ -73,6 +74,19 @@ describe("ollama provider", () => {
     expect(await createLlmClient(ollamaConfig).ping()).toBe(false);
   });
 
+  it("bounds ping with an AbortSignal of at most 2.5 s and hands that signal to fetch", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    const fetchMock = stubFetch(200);
+    expect(await createLlmClient(ollamaConfig).ping()).toBe(true);
+    expect(timeoutSpy).toHaveBeenCalledTimes(1);
+    const ms = timeoutSpy.mock.calls[0]?.[0];
+    expect(ms).toBeGreaterThan(0);
+    expect(ms).toBeLessThanOrEqual(2500);
+    const signal = fetchMock.mock.calls[0]?.[1]?.signal;
+    expect(signal).toBeInstanceOf(AbortSignal);
+    expect(signal).toBe(timeoutSpy.mock.results[0]?.value);
+  });
+
   it("extractStructured rejects with ApiError 502 LLM_ERROR", async () => {
     const error = await createLlmClient(ollamaConfig)
       .extractStructured("sys", "input", offerExtractionSchema)
@@ -106,6 +120,19 @@ describe("openai provider", () => {
       }),
     );
     expect(await createLlmClient(openaiConfig).ping()).toBe(false);
+  });
+
+  it("bounds ping with an AbortSignal of at most 2.5 s and hands that signal to fetch", async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, "timeout");
+    const fetchMock = stubFetch(200);
+    expect(await createLlmClient(openaiConfig).ping()).toBe(true);
+    expect(timeoutSpy).toHaveBeenCalledTimes(1);
+    const ms = timeoutSpy.mock.calls[0]?.[0];
+    expect(ms).toBeGreaterThan(0);
+    expect(ms).toBeLessThanOrEqual(2500);
+    const init = fetchMock.mock.calls[0]?.[1];
+    expect(init?.signal).toBeInstanceOf(AbortSignal);
+    expect(init?.signal).toBe(timeoutSpy.mock.results[0]?.value);
   });
 
   it("extractStructured rejects with ApiError 502 LLM_ERROR, without the key", async () => {

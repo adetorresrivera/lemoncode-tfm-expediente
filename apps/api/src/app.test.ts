@@ -232,4 +232,43 @@ describe("static hosting with SPA fallback", () => {
       "NOT_FOUND",
     );
   });
+
+  describe("static root is fixed (T-01-06)", () => {
+    const secretMarker = "TFM-SECRET-MARKER-7f3a9c";
+    let secretRoot: string;
+    let servedDist: string;
+
+    beforeEach(async () => {
+      // dist/ is the served root; secret.txt sits next to it, outside the root.
+      secretRoot = await mkdtemp(join(tmpdir(), "tfm-secret-root-"));
+      servedDist = join(secretRoot, "dist");
+      await mkdir(join(servedDist, "assets"), { recursive: true });
+      await writeFile(join(servedDist, "index.html"), "<!doctype html>");
+      await writeFile(join(secretRoot, "secret.txt"), secretMarker);
+    });
+
+    afterEach(async () => {
+      await rm(secretRoot, { recursive: true, force: true });
+    });
+
+    // Each variant survives WHATWG normalisation, so it reaches serveStatic as-is.
+    const traversalPaths = [
+      "/..%2fsecret.txt",
+      "/%2e%2e%2fsecret.txt",
+      "/..%5csecret.txt",
+      "/assets/..%2f..%2fsecret.txt",
+      "/%252e%252e%252fsecret.txt",
+    ];
+
+    for (const path of traversalPaths) {
+      it(`never returns the secret file outside the root for ${path}`, async () => {
+        const res = await createApp({
+          ...allUp,
+          webDistDir: servedDist,
+        }).request(path);
+        // The SPA fallback may answer 200 text/html (WR-08); only the marker matters.
+        expect(await res.text()).not.toContain(secretMarker);
+      });
+    }
+  });
 });
