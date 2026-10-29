@@ -1,6 +1,8 @@
 import type { z } from "zod";
 import type { Config } from "../config.js";
+import { createMockProvider } from "./mock.provider.js";
 import { createOllamaProvider } from "./ollama.provider.js";
+import { createOpenAiProvider } from "./openai.provider.js";
 
 export interface LlmClient {
   extractStructured<T>(
@@ -21,14 +23,17 @@ export type LlmConfig = Pick<
 >;
 
 export function createLlmClient(config: LlmConfig): LlmClient {
-  switch (config.LLM_PROVIDER) {
+  // HTTP providers append their own path, so drop one trailing slash here.
+  const normalized: LlmConfig = {
+    ...config,
+    LLM_BASE_URL: config.LLM_BASE_URL?.replace(/\/$/, ""),
+  };
+  switch (normalized.LLM_PROVIDER) {
     case "ollama":
-      return createOllamaProvider(config);
+      return createOllamaProvider(normalized);
     case "openai":
+      return createOpenAiProvider(normalized);
     case "mock":
-      // Plan 01-03 fills these providers together with the offer-extraction contract.
-      throw new Error(
-        `LLM provider ${config.LLM_PROVIDER} is wired in plan 01-03`,
-      );
+      return createMockProvider();
   }
 }
