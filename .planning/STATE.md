@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-28)
+See: .planning/PROJECT.md (updated 2026-10-29)
 
 **Core value:** Pegar una oferta y obtener un expediente casi completo y revisable en segundos, con el flujo entero (pegar → guardar → ronda → CV → estado → filtrar) demostrable en menos de 2 minutos con `docker compose up`.
-**Current focus:** Phase 01 — Fundaciones y walking skeleton
+**Current focus:** Phase 02 — Candidaturas
 
 ## Current Position
 
@@ -63,6 +63,7 @@ Recent decisions affecting current work:
 - [Roadmap]: 7 phases fixed by the author, one phase = one PR, branch `phase/NN-nombre`; targets 29 Oct / 31 Oct / 2 Nov / 3 Nov / 5 Nov / 7 Nov / 8 Nov; defense 9 Nov 2026.
 - [Roadmap]: Category → phase map: FND→1, APP→2, AI→3, INT→4, DOC→5, DEMO→6, PRES→7. DOC-03 (upload from the form) lands in Phase 5.
 - [Roadmap]: All contracts schemas are defined in Phase 1 (FND-02); later phases add behavior only.
+- [Phase 1]: Security audit closed 26/26 threats (ASVS 1); Nyquist validation compliant; UI audit 16/24 kept as an improvement list (`01-UI-REVIEW.md`), not applied.
 
 ### Pending Todos
 
@@ -70,9 +71,11 @@ None yet.
 
 ### Blockers/Concerns
 
-- [Phase 1]: Schedule is tight — Phase 1 target is 29 Oct (tomorrow) and 7 phases must fit in ~12 days; MVP finished beats features half done.
-- [Phase 1]: Confirm the Ollama model tag `gemma4:e2b` on ollama.com before pinning it in `compose.yml` (`ollama-init`) and `.env.example`; Phase 3 depends on it.
-- [Phase 1]: `.planning/config.json` has `git.phase_branch_template` = `gsd/phase-{phase}-{slug}` and `branching_strategy` = `none`, while CLAUDE.md requires `phase/NN-nombre`; reconcile before the first branch or `/gsd-ship`.
+- [Schedule]: 7 phases must fit before the 9 Nov defense; MVP finished beats features half done.
+- [Phase 1]: `.planning/config.json` has `git.phase_branch_template` = `gsd/phase-{phase}-{slug}` and `branching_strategy` = `none`, while CLAUDE.md requires `phase/NN-nombre`; local main branch is `master`, not `main`. Reconcile before `/gsd-ship`.
+- [Phase 1]: Web tests (`@tfm/web`) intermittently fail with `Failed to start forks worker` on a cold start; it can break the pre-push hook. Consider a Vitest pool/timeout tweak early in Phase 2.
+- [Phase 1]: Open code-review findings that can hurt a live demo: API startup hangs or dies when Mongo/S3 is slow, and `pingS3` has no abort (see `01-REVIEW-DISPOSITION.md`, ids carried from the first review). `server.host: true` in `apps/web/vite.config.ts` exposes the dev server on all interfaces.
+- [Phase 1]: `npm run format:check` flags the untracked GSD artifact `.gsd/dispatch-isolation-sentinel.json`; add `.gsd` to `.prettierignore` when convenient.
 
 ### Quick Tasks Completed
 
@@ -90,6 +93,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-29T12:25:45.496Z
+Last session: 2026-10-29T22:45:00.000Z
 Stopped at: Phase 01 complete, ready to plan Phase 2
-Resume file: .planning/phases/01-fundaciones-y-walking-skeleton/01-UI-SPEC.md
+Resume file: None

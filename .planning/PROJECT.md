@@ -14,11 +14,10 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 
 ### Validated
 
-(None yet — ship to validate)
+- ✓ **FND**: monorepo npm workspaces, `packages/contracts`, API `/api/health` real, web con router + shell + tema + fuentes, Dockerfile y compose, calidad (lint, typecheck, test, pre-commit) — Fase 1 (FND-01..FND-10, verificado y UAT 4/4)
 
 ### Active
 
-- [ ] **FND**: monorepo npm workspaces, `packages/contracts`, API `/api/health`, web con router + shell + tema + fuentes, Dockerfile y compose funcionando desde la fase 1, calidad (lint, typecheck, test, pre-commit)
 - [ ] **APP**: CRUD de candidaturas, listado con filtros sincronizados con la URL, detalle, cambio de estado con historial y reglas de negocio de `docs/DOMAIN.md`
 - [ ] **AI**: extracción de oferta con `LlmClient` intercambiable (ollama / openai-compatible / mock), panel «Pegar oferta», fusión que no pisa datos del usuario, marcas «IA» y campos faltantes
 - [ ] **INT**: rondas de entrevista (crear, editar, borrar) con la regla de paso automático a `en_entrevistas`
@@ -41,7 +40,7 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 - Entregable: imagen `tfm-app` + MongoDB 8 + Silo (`pgsty/minio`) como S3 + Ollama, todo vía `docker compose up` en `http://localhost:8080`.
 - Desarrollo en devcontainer (`.devcontainer/`) con servicios `mongo`, `s3`, `ollama`. Hoja de estilos lista en `docs/design/expediente.css`.
 - Frontend con la arquitectura del curso: `core/`, `common/`, `layouts/`, `scenes/`, `pods/` (API model + view model + mapper por pod). Datos con hooks propios y `fetch` + `AbortController`, sin React Query.
-- Repo recién iniciado (un commit, sin código todavía). Metodología GSD + Claude Code; rama por fase (`phase/NN-nombre`), una PR por fase.
+- Fase 1 cerrada (29 oct): esqueleto andante con monorepo, contratos Zod, API Hono con `/api/health`, shell web con tema y compose funcionando. Metodología GSD + Claude Code; rama por fase (`phase/NN-nombre`), una PR por fase.
 
 ## Constraints
 
@@ -58,12 +57,12 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Monorepo npm workspaces (`apps/web`, `apps/api`, `packages/contracts`) | Contratos Zod compartidos entre web y API sin duplicar modelos | — Pending |
-| Hono + driver oficial `mongodb` (sin ODM) | Ligero, tipado, suficiente para dos colecciones | — Pending |
-| Silo (`pgsty/minio`) como S3 local | Fork mantenido de MinIO, compatible con AWS SDK | — Pending |
+| Monorepo npm workspaces (`apps/web`, `apps/api`, `packages/contracts`) | Contratos Zod compartidos entre web y API sin duplicar modelos | ✓ Fase 1: web y API importan de `@tfm/contracts` |
+| Hono + driver oficial `mongodb` (sin ODM) | Ligero, tipado, suficiente para dos colecciones | ✓ Fase 1: health real contra Mongo |
+| Silo (`pgsty/minio`) como S3 local | Fork mantenido de MinIO, compatible con AWS SDK | ✓ Fase 1: health real contra S3 con AWS SDK |
 | Estados fijos con transiciones libres e historial | Refleja procesos reales sin imponer un flujo rígido | — Pending |
 | Borrador IA nunca se persiste solo; solo rellena campos vacíos | El usuario conserva el control y revisa antes de guardar | — Pending |
-| `LlmClient` intercambiable por `LLM_PROVIDER` | Ollama local por defecto, cloud barato o mock como plan B de la demo | — Pending |
+| `LlmClient` intercambiable por `LLM_PROVIDER` | Ollama local por defecto, cloud barato o mock como plan B de la demo | ✓ Fase 1: tres proveedores con tests; `gemma4:e2b` descargado en el smoke |
 | Datos con hooks propios (`fetch` + `AbortController`), sin React Query | Alineado con el curso y con el alcance del MVP | — Pending |
 | Roadmap de 7 fases fijado por el autor | MVP completo y demostrable antes que funcionalidades a medias | — Pending |
 
@@ -85,4 +84,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-28 after initialization*
+*Last updated: 2026-10-29 after Phase 1*
