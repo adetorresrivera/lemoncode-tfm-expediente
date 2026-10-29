@@ -9,6 +9,8 @@ import {
   useThemePreference,
 } from "@/core/theme/theme";
 
+const ITEM_CLASS = "flex-1 gap-1 px-1.5 text-xs";
+
 export function ThemeToggle() {
   const preference = useThemePreference();
 
@@ -22,18 +24,19 @@ export function ThemeToggle() {
       type="single"
       variant="outline"
       aria-label="Tema"
+      className="w-full"
       value={preference}
       onValueChange={handleValueChange}
     >
-      <ToggleGroupItem value="system" className="gap-1.5">
+      <ToggleGroupItem value="system" className={ITEM_CLASS}>
         <Monitor strokeWidth={1.5} className="size-4" aria-hidden="true" />
         Sistema
       </ToggleGroupItem>
-      <ToggleGroupItem value="light" className="gap-1.5">
+      <ToggleGroupItem value="light" className={ITEM_CLASS}>
         <Sun strokeWidth={1.5} className="size-4" aria-hidden="true" />
         Claro
       </ToggleGroupItem>
-      <ToggleGroupItem value="dark" className="gap-1.5">
+      <ToggleGroupItem value="dark" className={ITEM_CLASS}>
         <Moon strokeWidth={1.5} className="size-4" aria-hidden="true" />
         Oscuro
       </ToggleGroupItem>
