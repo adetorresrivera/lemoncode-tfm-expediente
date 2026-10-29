@@ -83,8 +83,7 @@ export function AppLayout() {
         </div>
       </aside>
 
-      <header className="lg:hidden flex h-14 items-center justify-between border-b border-sidebar-border bg-sidebar px-4 text-sidebar-foreground">
-        <p className="font-serif text-xl">Expediente</p>
+      <header className="lg:hidden flex h-14 items-center gap-2 border-b border-sidebar-border bg-sidebar px-4 text-sidebar-foreground">
         <Sheet open={menuOpen} onOpenChange={setMenuOpen}>
           <SheetTrigger asChild>
             <Button
@@ -116,6 +115,7 @@ export function AppLayout() {
             </div>
           </SheetContent>
         </Sheet>
+        <p className="font-serif text-xl">Expediente</p>
       </header>
 
       <main className="p-6 lg:pl-72">
