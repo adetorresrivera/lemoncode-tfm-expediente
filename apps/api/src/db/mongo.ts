@@ -1,7 +1,12 @@
 import { MongoClient, type Db } from "mongodb";
 
-export async function connectMongo(url: string): Promise<{ client: MongoClient; db: Db }> {
-  const client = new MongoClient(url, { serverSelectionTimeoutMS: 3000, connectTimeoutMS: 3000 });
+export async function connectMongo(
+  url: string,
+): Promise<{ client: MongoClient; db: Db }> {
+  const client = new MongoClient(url, {
+    serverSelectionTimeoutMS: 3000,
+    connectTimeoutMS: 3000,
+  });
   await client.connect();
   const db = client.db(); // database name comes from the URL path (/tfm)
   await db.collection("applications").createIndexes([

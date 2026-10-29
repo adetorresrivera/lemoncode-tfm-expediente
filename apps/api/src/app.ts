@@ -16,7 +16,10 @@ export type AppDeps = {
 };
 
 // Bounds a dependency probe so /api/health can never hang: a rejection or a timeout is "error".
-async function probe(fn: () => Promise<boolean>, ms = 2500): Promise<HealthStatus> {
+async function probe(
+  fn: () => Promise<boolean>,
+  ms = 2500,
+): Promise<HealthStatus> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<boolean>((resolve) => {
     timer = setTimeout(() => resolve(false), ms);
@@ -39,7 +42,9 @@ function readIndexHtml(webDistDir: string): string | undefined {
 
 export function createApp(deps: AppDeps): Hono {
   const app = new Hono();
-  const indexHtml = deps.webDistDir ? readIndexHtml(deps.webDistDir) : undefined;
+  const indexHtml = deps.webDistDir
+    ? readIndexHtml(deps.webDistDir)
+    : undefined;
 
   app.use("*", secureHeaders({ strictTransportSecurity: false }));
 
@@ -105,12 +110,19 @@ export function createApp(deps: AppDeps): Hono {
         err.status === 404
           ? { error: { code: "NOT_FOUND", message: "Recurso no encontrado" } }
           : err.status === 400
-            ? { error: { code: "VALIDATION_ERROR", message: "Solicitud no válida" } }
+            ? {
+                error: {
+                  code: "VALIDATION_ERROR",
+                  message: "Solicitud no válida",
+                },
+              }
             : { error: { code: "INTERNAL_ERROR", message: "Error interno" } };
       return c.json(body, err.status);
     }
 
-    const body: ErrorResponse = { error: { code: "INTERNAL_ERROR", message: "Error interno" } };
+    const body: ErrorResponse = {
+      error: { code: "INTERNAL_ERROR", message: "Error interno" },
+    };
     return c.json(body, 500);
   });
 

@@ -10,7 +10,9 @@ export function createOllamaProvider(config: LlmConfig): LlmClient {
     },
     async ping() {
       try {
-        const res = await fetch(`${baseUrl}/api/version`, { signal: AbortSignal.timeout(2000) });
+        const res = await fetch(`${baseUrl}/api/version`, {
+          signal: AbortSignal.timeout(2000),
+        });
         return res.ok;
       } catch {
         return false;

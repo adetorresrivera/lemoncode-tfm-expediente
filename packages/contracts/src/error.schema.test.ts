@@ -34,19 +34,34 @@ describe("errorResponseSchema", () => {
 describe("healthSchema", () => {
   it("accepts the documented shape", () => {
     expect(
-      healthSchema.safeParse({ status: "ok", mongo: "ok", s3: "error", llm: "ok" }).success,
+      healthSchema.safeParse({
+        status: "ok",
+        mongo: "ok",
+        s3: "error",
+        llm: "ok",
+      }).success,
     ).toBe(true);
   });
 
   it('rejects status "error" (the endpoint always answers ok)', () => {
     expect(
-      healthSchema.safeParse({ status: "error", mongo: "ok", s3: "ok", llm: "ok" }).success,
+      healthSchema.safeParse({
+        status: "error",
+        mongo: "ok",
+        s3: "ok",
+        llm: "ok",
+      }).success,
     ).toBe(false);
   });
 
   it('rejects a dependency value other than "ok" or "error"', () => {
     expect(
-      healthSchema.safeParse({ status: "ok", mongo: "ok", s3: "ok", llm: "down" }).success,
+      healthSchema.safeParse({
+        status: "ok",
+        mongo: "ok",
+        s3: "ok",
+        llm: "down",
+      }).success,
     ).toBe(false);
   });
 });

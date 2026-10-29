@@ -59,7 +59,11 @@ describe("loadConfig", () => {
   });
 
   it("requires LLM_BASE_URL for the ollama provider", () => {
-    const message = messageOf({ ...base, LLM_PROVIDER: "ollama", LLM_MODEL: "gemma4:e2b" });
+    const message = messageOf({
+      ...base,
+      LLM_PROVIDER: "ollama",
+      LLM_MODEL: "gemma4:e2b",
+    });
     expect(message).toContain("LLM_BASE_URL");
   });
 
@@ -72,7 +76,10 @@ describe("loadConfig", () => {
 describe(".env.example", () => {
   function readExample(): string {
     try {
-      return readFileSync(new URL("../../../.env.example", import.meta.url), "utf8");
+      return readFileSync(
+        new URL("../../../.env.example", import.meta.url),
+        "utf8",
+      );
     } catch {
       return "";
     }
@@ -85,7 +92,9 @@ describe(".env.example", () => {
         .map((line) => /^#?\s*([A-Z][A-Z0-9_]*)=/.exec(line)?.[1])
         .filter((key): key is string => key !== undefined),
     );
-    const missing = Object.keys(envSchema.shape).filter((key) => !keys.has(key));
+    const missing = Object.keys(envSchema.shape).filter(
+      (key) => !keys.has(key),
+    );
     expect(missing).toEqual([]);
   });
 
