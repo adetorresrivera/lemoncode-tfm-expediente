@@ -1,0 +1,25 @@
+{
+  "name": "@tfm/api",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --conditions=@tfm/source src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "seed": "node -e \"console.log('seed: pendiente (fase 6)')\""
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "3.1152.0",
+    "@hono/node-server": "2.1.5",
+    "@tfm/contracts": "*",
+    "hono": "4.13.13",
+    "mongodb": "7.7.0",
+    "zod": "4.6.7"
+  },
+  "devDependencies": {
+    "tsx": "4.23.15"
+  }
+}
