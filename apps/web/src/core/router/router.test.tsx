@@ -1,5 +1,5 @@
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import { createAppRouter } from "./router";
 
@@ -35,7 +35,9 @@ describe("app router", () => {
         name: "Mis candidaturas",
       }),
     ).toBeInTheDocument();
-    expect(screen.getByText("Expediente")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("main")).getByText("Expediente"),
+    ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/applications");
   });
 });
