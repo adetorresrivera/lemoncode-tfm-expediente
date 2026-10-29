@@ -65,7 +65,7 @@ Plans:
   1. The user can create an application with only title (2–120) and company (1–120) required, edit it later with the same form, and add tags by group (stack / se valora / idiomas) that are trimmed, space-collapsed, deduplicated case-insensitively (first spelling kept) and capped at 20; invalid input shows validation errors from the contracts schema.
   2. The list shows each application as a card (title, company · location, status badge, up to 3 tags plus `+N`, salary, last-updated date) and shows distinct loading, error-with-retry, empty and empty-by-filters states.
   3. The user can filter by free text (title/company), status (multi), stack tags picked from `GET /api/tags` ordered by count, work mode and seniority, and sort by last update or applied date; filters and sort live in the URL, survive a reload, and «Limpiar filtros» resets them.
-  4. The detail shows offer data, tags grouped by type, status history, notes, linked-documents and interview sections (empty states until Phases 4 and 5) and a collapsible original offer text; the user can delete the application after a confirmation dialog and its documents are not deleted.
+  4. The detail shows offer data, tags grouped by type, status history, notes and a collapsible original offer text; the interview and linked-documents sections are not rendered until Phases 4 and 5 (no placeholders); the user can delete the application after a confirmation dialog and its documents are not deleted.
   5. The user can change status to any of the 7 states from the detail; each change appends `{ status, at }` to the history, re-selecting the same status adds nothing, the first move to `enviada` sets `appliedAt` when empty, and `updatedAt` changes on every modification.
 **Plans**: TBD
 **UI hint**: yes
@@ -149,7 +149,7 @@ Seams where a requirement's owner phase and the phase that finishes its behavior
 
 - **Contracts up front (FND-02):** Phase 1 defines every schema listed in `docs/ARCHITECTURE.md` (including interview, document and offer-extraction), so later phases add behavior, not models.
 - **Health `llm` field (FND-03 → AI-02):** Phase 1 reports LLM connectivity with a minimal provider-aware reachability probe; Phase 3 replaces it with `LlmClient.ping()`.
-- **Detail sections (APP-09):** Phase 2 renders the interviews and linked-documents sections with empty states; Phase 4 (INT-05) fills rounds and Phase 5 (DOC-03, DOC-04) fills documents.
+- **Detail sections (APP-09):** Phase 2 does not render the interviews and linked-documents sections, not even as empty states (D-15); Phase 4 (INT-05) adds the rounds section and Phase 5 (DOC-03, DOC-04) adds the documents section. The "linked documents" clause of APP-09 is therefore completed in Phase 5.
 - **`updatedAt` on interview changes (APP-13 → INT):** the rule lives in the applications service from Phase 2; Phase 4 must route every interview mutation through it.
 - **Document section of the form (DOC-03):** the form exists from Phase 2 (and gains the AI panel in Phase 3); Phase 5 adds the CV / cover-letter section, with the scene rendering `DocumentUploadContainer` and passing `onSelected` as a prop (no pod imports another pod).
 - **Seed inputs (DEMO-01):** the 3 fixture offers are created in Phase 3 and demo documents depend on Phase 5, so the seed lands in Phase 6.
