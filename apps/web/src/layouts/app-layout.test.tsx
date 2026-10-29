@@ -72,13 +72,33 @@ describe("AppLayout", () => {
     const user = userEvent.setup();
     await renderShell();
 
-    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    const trigger = screen.getByRole("button", { name: "Abrir menú" });
+    await user.click(trigger);
     await screen.findByRole("dialog");
     await user.keyboard("{Escape}");
 
     await waitFor(() =>
       expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
     );
+    await waitFor(() => expect(trigger).toHaveFocus());
+  });
+
+  it("places the menu button before the wordmark in the mobile header", async () => {
+    await renderShell();
+
+    const trigger = screen.getByRole("button", { name: "Abrir menú" });
+    const header = trigger.closest("header");
+    if (header === null) {
+      throw new Error("The menu button is not inside a header");
+    }
+
+    expect(header.firstElementChild).toBe(trigger);
+
+    const wordmark = within(header).getByText("Expediente");
+    expect(
+      trigger.compareDocumentPosition(wordmark) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
   });
 
   it("closes the sheet after following a link", async () => {
