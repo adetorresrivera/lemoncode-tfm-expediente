@@ -1,17 +1,27 @@
 #!/usr/bin/env bash
-# Compose smoke test (D-23). Usage: bash scripts/compose-smoke.sh [--down]
+# Compose smoke test (D-23). Usage: bash scripts/compose-smoke.sh [--with-model] [--down]
 #
 # Runs entirely through `docker compose exec` because the runtime image has no curl and, from a
 # devcontainer, the published host ports are not reachable (Docker-outside-of-Docker).
+# `--with-model` also waits for the `ollama-init` one-shot (model pull) and checks the model is
+# listed; the first pull downloads several GB, so it is opt-in.
 # `--down` removes the containers at the end (never the volumes: the model volume is expensive).
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 DOWN=false
-if [ "${1:-}" = "--down" ]; then
-  DOWN=true
-fi
+WITH_MODEL=false
+for arg in "$@"; do
+  case "$arg" in
+    --down) DOWN=true ;;
+    --with-model) WITH_MODEL=true ;;
+    *)
+      echo "Unknown option: $arg (usage: compose-smoke.sh [--with-model] [--down])" >&2
+      exit 2
+      ;;
+  esac
+done
 
 fail() {
   echo "SMOKE FAIL: $*" >&2
@@ -101,6 +111,23 @@ docker compose stop s3
 assert_health '"s3":"error"'
 docker compose start s3
 wait_health '"s3":"ok"'
+
+if [ "$WITH_MODEL" = true ]; then
+  echo "== model pull (ollama-init) =="
+  model="${LLM_MODEL:-gemma4:e2b}"
+  pull_start=$SECONDS
+  # `docker compose wait` blocks until the container stops and prints its exit code; bounded so a
+  # stalled download fails the smoke instead of hanging it.
+  wait_code="$(timeout 2400 docker compose wait ollama-init | tr -d '\r')" \
+    || fail "ollama-init did not finish within 2400 s"
+  echo "ollama-init wait exit code: $wait_code (pull took $((SECONDS - pull_start)) s)"
+  init_code="$(docker compose ps -a --format '{{.ExitCode}}' ollama-init | tr -d '\r')"
+  echo "ollama-init exit code: $init_code"
+  [ "$init_code" = "0" ] || fail "ollama-init exit code is $init_code, expected 0"
+  models="$(docker compose exec -T ollama ollama list)"
+  echo "$models"
+  echo "$models" | grep -q "$model" || fail "ollama list does not show $model"
+fi
 
 if [ "$DOWN" = true ]; then
   echo "== down =="
