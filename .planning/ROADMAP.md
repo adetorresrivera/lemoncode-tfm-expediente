@@ -34,7 +34,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. `GET /api/health` returns `{ status, mongo, s3, llm }` and each field reflects real connectivity (stopping Mongo or Silo changes the matching field); the API refuses to start with an invalid environment, answers every error as `{ error: { code, message, details? } }`, and `.env.example` lists every variable the system reads.
   4. Opening the web app lands on `/applications` inside the Expediente shell (parchment and Oxford blue tokens, EB Garamond / Source Sans 3 / JetBrains Mono): fixed sidebar at 1024 px and above, header with a menu button that opens a sheet with the same navigation below that.
   5. The user can switch theme between Sistema, Claro and Oscuro from the shell; the default follows the system and the choice survives a reload.
-**Plans**: 2/6 plans executed
+**Plans**: 3/6 plans executed
 Plans:
 **Wave 1**
 - [x] 01-01-PLAN.md — Walking-skeleton tracer: workspace + contracts health/error + API real health + built web + Docker/compose smoke; error contract, env fail-fast, .env.example (wave 1)
@@ -43,7 +43,7 @@ Plans:
 - [x] 01-02-PLAN.md — Quality gate: ESLint flat config, Prettier, Husky pre-commit (lint-staged + typecheck) and pre-push (tests) (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 01-03-PLAN.md — All API contracts (enums, tag, interview, document, offer-extraction, application) + openai/mock LLM providers (wave 3)
+- [x] 01-03-PLAN.md — All API contracts (enums, tag, interview, document, offer-extraction, application) + openai/mock LLM providers (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 01-04-PLAN.md — Web: / → /applications through route → scene → pod (full pod file set), DS tokens and fonts, http-client, formatters (wave 4)
@@ -161,7 +161,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Fundaciones y walking skeleton | 2/6 | In Progress | - |
+| 1. Fundaciones y walking skeleton | 3/6 | In Progress | - |
 | 2. Candidaturas | 0/TBD | Not started | - |
 | 3. Autocompletado con IA | 0/TBD | Not started | - |
 | 4. Rondas de entrevista | 0/TBD | Not started | - |
