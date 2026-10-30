@@ -1,0 +1,48 @@
+{
+  "contract": "1.0.0",
+  "flavor": "core",
+  "milestone": null,
+  "phases": [
+    {
+      "number": "1",
+      "name": "Fundaciones y walking skeleton",
+      "status": "complete"
+    },
+    {
+      "number": "2",
+      "name": "Candidaturas",
+      "status": "pending"
+    },
+    {
+      "number": "3",
+      "name": "Autocompletado con IA",
+      "status": "pending"
+    },
+    {
+      "number": "4",
+      "name": "Rondas de entrevista",
+      "status": "pending"
+    },
+    {
+      "number": "5",
+      "name": "Documentos en S3",
+      "status": "pending"
+    },
+    {
+      "number": "6",
+      "name": "Pulido de demo",
+      "status": "pending"
+    },
+    {
+      "number": "7",
+      "name": "Documentación y defensa",
+      "status": "pending"
+    }
+  ],
+  "next": {
+    "command": "/gsd-progress --next",
+    "label": "Advance to the next step (plan phase 2)",
+    "reason": "Phase 2 of 7 — needs a plan"
+  },
+  "updated_at": "2026-10-29T22:36:42.098Z"
+}
