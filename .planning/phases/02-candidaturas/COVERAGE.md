@@ -3,7 +3,7 @@
 > Full coverage by default. Opt-outs are explicit, reasoned decisions.
 > Detector result at plan time: `{"detected": true}`, triggered by the phrase "API integration tests" (tests of the project's own Hono API). The only external service this phase calls is MongoDB through the official `mongodb` driver 7.7.0; Silo (S3) and Ollama/OpenAI are not touched (Phase 1 connectivity only; Phases 3 and 5 own their business capabilities). The project's own HTTP API is internal and covered by the plans, not by this matrix.
 
-## MongoDB (official driver `mongodb` 7.7.0) — plans 02-01 to 02-09
+## MongoDB (official driver `mongodb` 7.7.0) — plans 02-01 to 02-12
 
 | capability | decision | reason |
 |---|---|---|

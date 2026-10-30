@@ -597,15 +597,15 @@ Not a rename/refactor/migration phase — omitted. (Greenfield collections; `app
 | A4 | Dedupe by normalized label across groups (not per group) is what the author wants | Contracts example, Open Q1 | Low: change `seen` key to `${group}:${key}` |
 | A5 | `ObjectId.isValid` strictness may change in future driver versions (hence the explicit regex) | Q4f | None — regex is used |
 | A6 | shadcn CLI availability offline is unknown; primitives can be hand-written following `sheet.tsx` | Q7 | Low |
-| A7 | Moving `node_modules` to a Docker volume fixes the 9p cost (inferred from 42 s vs 0.4 s `require('jsdom')` and 0.98 s scratch suite; the full repo suite was not run on the volume) | Q6 | Medium: needs a devcontainer rebuild decision from the user |
+| A7 | Moving `node_modules` to a Docker volume fixes the 9p cost (inferred from 42 s vs 0.4 s `require('jsdom')` and 0.98 s scratch suite; the full repo suite was not run on the volume) | Q6 | Medium: needs a devcontainer rebuild decision from the user. Decided 2026-10-30: no volume for now (Open Question 3, resolved) |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Tag dedupe scope.** DOMAIN.md says «sin duplicados por `label` normalizado» (all groups). Should "React" be allowed in both Stack and Se valora? Recommendation: follow DOMAIN.md literally (one occurrence per application), and tell the user when a tag is dropped as duplicate.
-2. **Does «Limpiar filtros» also reset sort?** APP-07 says "filters and sort … can be cleared". Recommendation: yes (URL back to `/applications`); the empty-by-filters state ignores sort.
-3. **Devcontainer `node_modules` volume (Q6).** Decision for the user; see Decision Risks.
-4. **Salary currency input.** Small native select (EUR / USD / GBP + «—» → `null`, shown as EUR by default) vs free 3-letter text. Discretion; select avoids regex errors.
-5. **Back-to-list keeps filters?** Detail → list via a plain `<Link to="/applications">` loses filters; `history.back()`/`useCanGoBack()` keeps them. Nice-to-have for the scene.
+1. **Tag dedupe scope.** DOMAIN.md says «sin duplicados por `label` normalizado» (all groups). Should "React" be allowed in both Stack and Se valora? Recommendation: follow DOMAIN.md literally (one occurrence per application), and tell the user when a tag is dropped as duplicate. **RESOLVED:** dedupe across all groups, as DOMAIN.md says. One occurrence per application; the first spelling and the first group are kept. The form announces «Ya está en la lista» when a typed tag is a duplicate in any group (plans 02-03 and 02-11).
+2. **Does «Limpiar filtros» also reset sort?** APP-07 says "filters and sort … can be cleared". Recommendation: yes (URL back to `/applications`); the empty-by-filters state ignores sort. **RESOLVED:** yes. «Limpiar filtros» navigates to exactly `/applications`, which resets every filter and the sort. The empty-by-filters state depends only on the filters, never on the sort (plans 02-05 and 02-06).
+3. **Devcontainer `node_modules` volume (Q6).** Decision for the user; see Decision Risks. **RESOLVED (user decision, 2026-10-30):** no volume for now. Web test runs of about one minute are accepted, and the devcontainer is not rebuilt in Phase 2. Targeted per-pod web runs stay the per-task feedback loop; the full suite runs at the end of each plan.
+4. **Salary currency input.** Small native select (EUR / USD / GBP + «—» → `null`, shown as EUR by default) vs free 3-letter text. Discretion; select avoids regex errors. **RESOLVED:** a native select with EUR, USD and GBP, defaulting to EUR, with no empty option. A stored code outside the list is appended as an extra option. Currency is sent as `null` when both salaries are empty (plan 02-11, UI-SPEC A-10).
+5. **Back-to-list keeps filters?** Detail → list via a plain `<Link to="/applications">` loses filters; `history.back()`/`useCanGoBack()` keeps them. Nice-to-have for the scene. **RESOLVED:** no. The detail back link is a plain `Link to="/applications"` that does not restore filters, as fixed by the approved UI-SPEC (assumption A-9). History-back behaviour is not part of Phase 2 (plan 02-08).
 
 ## Environment Availability
 
@@ -663,7 +663,7 @@ Security/behavior extras (each is also a threat-model row): PUT forging `id/crea
 - [ ] `apps/web/src/test/mock-fetch.ts` helper; rewrite `core/router/router.test.tsx` and `pods/application-list/application-list.test.tsx` (Pitfall 4)
 - [ ] Install `@tanstack/react-form@1.33.5` (+ lock check for `devtools-event-client` 0.4.x)
 - [ ] shadcn-style primitives: `input`, `label`, `textarea`, `native-select`, `alert-dialog`, `collapsible`, `skeleton`
-- [ ] Decision (user): devcontainer `node_modules` volume to fix web test/typecheck latency (Q6)
+- [x] Decision (user, 2026-10-30): no devcontainer `node_modules` volume for now; web test runs of about one minute are accepted (Q6, Open Question 3 resolved)
 
 ## Security Domain
 
@@ -706,12 +706,12 @@ No threat reaches `high` once the controls above are in the plans; T-02-04 and T
 
 No locked decision is infeasible. Items needing the planner's or user's attention:
 
-1. **D-13 read literally ("`validateSearch` con `applicationQuerySchema`") is unsafe on 1.170.x.** Passing the contracts schema as-is works for well-formed URLs but (a) the default serializer turns `q=123` into a number and throws, and (b) any invalid value renders the router's error component instead of the list [VERIFIED]. *Smallest alternative (recommended):* keep D-13's intent by deriving a per-field-lenient schema from `applicationQuerySchema.shape` plus custom `parseSearch`/`stringifySearch` (Pattern 1). Still contracts-sourced.
+1. **D-13 read literally ("`validateSearch` con `applicationQuerySchema`") is unsafe on 1.170.x.** Passing the contracts schema as-is works for well-formed URLs but (a) the default serializer turns `q=123` into a number and throws, and (b) any invalid value renders the router's error component instead of the list [VERIFIED]. *Smallest alternative (recommended):* keep D-13's intent by deriving a per-field-lenient schema from `applicationQuerySchema.shape` plus custom `parseSearch`/`stringifySearch` (Pattern 1). Still contracts-sourced. **Approved by the user on 2026-10-30 as a D-13 amendment (recorded in 02-CONTEXT.md).**
 2. **D-11 database name.** A single literal `tfm_test` shared by parallel test files races. *Alternative:* `tfm_test_<suffix>` per file (same real Mongo, same cleanup intent). 
 3. **D-04 + current index.** `tags.label_1` cannot serve a case-insensitive `$all` (regex = full index scan; collation = COLLSCAN without a collated index) [VERIFIED]. D-04 is satisfiable (results correct) but the Claude's-discretion question "does `{ "tags.label": 1 }` suffice?" is answered **no for index use, yes for correctness at this scale**. *Recommended:* stored `tags.key` + index `{ "tags.key": 1 }`; *alternative:* regex on `label` with no new index.
 4. **D-16 vs "pass the contracts schema to TanStack Form".** The VM (strings) cannot be validated by the API-shaped schema directly; the form uses a wrapper validator (Pattern 2). No contract is redefined.
 5. **D-09 cap vs schema order.** `applicationInputSchema` rejects >20 raw tags before the service can dedupe; acceptable because the form submits normalized tags, but note the API behaves "reject" not "truncate" for raw >20.
-6. **Environment (STATE blocker, Q6).** The web-test flake is not fixable by any Vitest option I measured. The real fix is a devcontainer change (user rebuild). If the user declines, accept ~1 min web test runs, keep the web test count modest, and consider a pre-push retry. Not a Phase 2 code risk, but it affects the Nyquist sampling plan.
+6. **Environment (STATE blocker, Q6).** The web-test flake is not fixable by any Vitest option I measured. The real fix is a devcontainer change (user rebuild). If the user declines, accept ~1 min web test runs, keep the web test count modest, and consider a pre-push retry. Not a Phase 2 code risk, but it affects the Nyquist sampling plan. **Decided 2026-10-30: the user declined the volume for now; ~1 min web test runs are accepted.**
 
 ### Q6 detail: the `Failed to start forks worker` flake
 

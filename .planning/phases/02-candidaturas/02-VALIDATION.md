@@ -21,7 +21,7 @@ created: "2026-10-29"
 | **Config file** | `packages/contracts` (defaults), `apps/api/vitest.config.ts` (node, `@tfm/source` conditions), `apps/web/vitest.config.ts` (jsdom, `src/test/setup.ts`) |
 | **Quick run command** | contracts: `npm run test -w @tfm/contracts -- src/<file>`; API: `npm run test -w @tfm/api -- src/applications`; web: `npm run test -w @tfm/web -- src/pods/<pod>` |
 | **Full suite command** | `npm run typecheck && npm run lint && npm run test && npm run build` |
-| **Estimated runtime** | contracts ~24 s, API ~10 s, web ~55 s, typecheck ~113 s (9p mount; see Wave 0 volume decision) |
+| **Estimated runtime** | contracts ~24 s, API ~10 s, web ~55 s, typecheck ~113 s (9p mount; no `node_modules` volume for now, user decision 2026-10-30) |
 
 ---
 
@@ -61,12 +61,12 @@ Security rows (from RESEARCH § Security Domain, T-02-01…T-02-14): PUT cannot 
 
 ## Wave 0 Requirements
 
-- [ ] `apps/api/src/test/mongo.ts` — per-file test DB helper (`tfm_test_<suffix>`) + `ensureIndexes(db)` extraction in `db/mongo.ts`
+- [ ] `apps/api/src/test/mongo.ts` — test DB helper bound to the literal `tfm_test` (D-11), with API test files run one after another (`fileParallelism: false`, plan 02-01) + `ensureIndexes(db)` extraction in `db/mongo.ts`
 - [ ] `packages/contracts/src/tag.normalize.ts` + `tag.normalize.test.ts`; query-schema tightening (`q.max(100)`) + updates in `application.schema.test.ts`
 - [ ] `apps/web/src/test/mock-fetch.ts`; rewrite `core/router/router.test.tsx` and `pods/application-list/application-list.test.tsx` (Phase 1 tests encode the stub)
 - [ ] Install `@tanstack/react-form@1.33.5`; after install `npm ls @tanstack/devtools-event-client` must show 0.4.x
 - [ ] shadcn-style primitives: `input`, `label`, `textarea`, `native-select`, `alert-dialog`, `collapsible`, `skeleton`
-- [ ] Decision (user): devcontainer `node_modules` volume to cut web test/typecheck latency (RESEARCH Q6)
+- [x] Decision (user, 2026-10-30): no devcontainer `node_modules` volume for now; web test runs of about one minute are accepted (RESEARCH Q6, Open Question 3 resolved). Targeted per-pod web runs stay the per-task feedback loop
 
 ---
 
