@@ -85,19 +85,21 @@ Plans:
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 02-06-PLAN.md — Status, work mode, seniority and sort controls, mobile disclosure, stack tag filter from /api/tags (wave 5)
 - [ ] 02-07-PLAN.md — GET /api/applications/:id with strict id handling (wave 5)
-- [ ] 02-08-PLAN.md — Card link and the read-only detail with every Phase 2 section; APP-09 partial, documents in Phase 5 (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 02-09-PLAN.md — Atomic PATCH status with optimistic selector and rollback; DELETE behind a confirmation dialog with a notice on the list (wave 6)
+- [ ] 02-08-PLAN.md — Card link (supplied by the scene) and the read-only detail with every Phase 2 section; APP-09 partial, documents in Phase 5 (wave 6, after 02-06: shared list pod files)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 02-10-PLAN.md — Legitimacy checkpoint and install of @tanstack/react-form; create form path and entry points (wave 7, not autonomous)
+- [ ] 02-09-PLAN.md — Atomic PATCH status with optimistic selector and rollback; DELETE behind a confirmation dialog with a notice on the list; APP-13 partial (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 02-11-PLAN.md — Form sections Condiciones, Seguimiento and Etiquetas by group with normalization feedback (wave 8)
+- [ ] 02-10-PLAN.md — Legitimacy checkpoint and install of @tanstack/react-form; create form path and entry points (wave 8, not autonomous)
 
 **Wave 9** *(blocked on Wave 8 completion)*
-- [ ] 02-12-PLAN.md — PUT whitelist and edit mode from the detail (stored appliedAt kept unless edited); phase gate with a CRUD round trip in the compose smoke (wave 9)
+- [ ] 02-11-PLAN.md — Form sections Condiciones, Seguimiento and Etiquetas by group with normalization feedback (wave 9)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [ ] 02-12-PLAN.md — PUT whitelist and edit mode from the detail (stored appliedAt kept unless edited); phase gate with a CRUD round trip in the compose smoke; APP-13 partial, interview changes in Phase 4 (wave 10)
 **UI hint**: yes
 
 ### Phase 3: Autocompletado con IA

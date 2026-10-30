@@ -616,6 +616,7 @@ Not a rename/refactor/migration phase — omitted. (Greenfield collections; `app
 | MongoDB server | API integration tests | ✓ | 8.3.13 (ping + `serverInfo`) | — (memory server only if CI lacks Mongo, needs SUMMARY justification) |
 | `MONGO_URL` env | tests, API | ✓ | set in devcontainer (value never printed) | — |
 | npm registry access | installing `@tanstack/react-form` | ✓ | — | — |
+| Docker Engine + Compose plugin | phase-gate compose smoke (`scripts/compose-smoke.sh`, plan 02-12 Task 3) | ✓ | `Docker Compose version v5.6.1` (`docker compose version`, checked 2026-10-30) | — (no fallback: the gate needs the production image; if missing, stop and report) |
 | S3 / Ollama | not needed this phase | n/a | — | — |
 
 **Missing dependencies with no fallback:** none.
