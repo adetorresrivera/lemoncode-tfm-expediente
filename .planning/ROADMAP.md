@@ -67,7 +67,7 @@ Plans:
   3. The user can filter by free text (title/company), status (multi), stack tags picked from `GET /api/tags` ordered by count, work mode and seniority, and sort by last update or applied date; filters and sort live in the URL, survive a reload, and «Limpiar filtros» resets them.
   4. The detail shows offer data, tags grouped by type, status history, notes and a collapsible original offer text; the interview and linked-documents sections are not rendered until Phases 4 and 5 (no placeholders); the user can delete the application after a confirmation dialog and its documents are not deleted.
   5. The user can change status to any of the 7 states from the detail; each change appends `{ status, at }` to the history, re-selecting the same status adds nothing, the first move to `enviada` sets `appliedAt` when empty, and `updatedAt` changes on every modification.
-**Plans**: 9/12 plans executed
+**Plans**: 10/12 plans executed
 Plans:
 **Wave 1**
 - [x] 02-01-PLAN.md — Tracer: POST/GET applications on real Mongo listed at /applications through the list pod (wave 1)
@@ -93,7 +93,7 @@ Plans:
 - [x] 02-09-PLAN.md — Atomic PATCH status with optimistic selector and rollback; DELETE behind a confirmation dialog with a notice on the list; APP-13 partial (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 02-10-PLAN.md — Legitimacy checkpoint and install of @tanstack/react-form; create form path and entry points (wave 8, not autonomous)
+- [x] 02-10-PLAN.md — Legitimacy checkpoint and install of @tanstack/react-form; create form path and entry points (wave 8, not autonomous)
 
 **Wave 9** *(blocked on Wave 8 completion)*
 - [ ] 02-11-PLAN.md — Form sections Condiciones, Seguimiento and Etiquetas by group with normalization feedback (wave 9)
@@ -194,7 +194,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Fundaciones y walking skeleton | 6/6 | Complete    | 2026-10-29 |
-| 2. Candidaturas | 9/12 | In Progress | - |
+| 2. Candidaturas | 10/12 | In Progress | - |
 | 3. Autocompletado con IA | 0/TBD | Not started | - |
 | 4. Rondas de entrevista | 0/TBD | Not started | - |
 | 5. Documentos en S3 | 0/TBD | Not started | - |
