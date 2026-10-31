@@ -1,4 +1,5 @@
 import type {
+  ApplicationQuery,
   ApplicationStatus,
   ContractType,
   Interview,
@@ -7,6 +8,10 @@ import type {
   WorkMode,
 } from "@tfm/contracts";
 import type { Db, ObjectId } from "mongodb";
+import {
+  buildApplicationsFilter,
+  buildApplicationsSort,
+} from "./applications.query.js";
 
 // Stored tag: the contract Tag plus its normalized identity (tagKey(label)), never sent to the API.
 export interface TagDoc {
@@ -54,7 +59,7 @@ export type NewApplicationDoc = Omit<ApplicationDoc, "_id">;
 
 export interface ApplicationsRepository {
   insert(doc: NewApplicationDoc): Promise<ApplicationDoc>;
-  list(): Promise<ApplicationDoc[]>;
+  list(query: ApplicationQuery): Promise<ApplicationDoc[]>;
   tagSummaries(): Promise<TagCount[]>;
 }
 
@@ -68,8 +73,12 @@ export function createApplicationsRepository(db: Db): ApplicationsRepository {
       const { insertedId } = await insertions.insertOne({ ...doc });
       return { ...doc, _id: insertedId };
     },
-    async list() {
-      return collection.find({}).sort({ updatedAt: -1, _id: -1 }).toArray();
+    // No limit or skip: the list is complete by design (D-10).
+    async list(query) {
+      return collection
+        .find(buildApplicationsFilter(query))
+        .sort(buildApplicationsSort(query.sort))
+        .toArray();
     },
     // One row per (stored key, group). The key already merges case variants, so no server-side
     // lower-casing is needed (it would be ASCII-only). The label is the oldest application's.

@@ -148,6 +148,55 @@ describe("applicationQuerySchema", () => {
       "React",
     ]);
   });
+
+  it("accepts q of 100 characters and rejects 101", () => {
+    expect(
+      applicationQuerySchema.safeParse({ q: "a".repeat(100) }).success,
+    ).toBe(true);
+    expect(
+      applicationQuerySchema.safeParse({ q: "a".repeat(101) }).success,
+    ).toBe(false);
+  });
+
+  it("trims tag values and rejects a tag of 41 characters", () => {
+    expect(applicationQuerySchema.parse({ tags: ["  React  "] }).tags).toEqual([
+      "React",
+    ]);
+    expect(
+      applicationQuerySchema.safeParse({ tags: "a".repeat(40) }).success,
+    ).toBe(true);
+    expect(
+      applicationQuerySchema.safeParse({ tags: "a".repeat(41) }).success,
+    ).toBe(false);
+    expect(applicationQuerySchema.safeParse({ tags: "   " }).success).toBe(
+      false,
+    );
+  });
+
+  it("caps the tags and status arrays at 20 items", () => {
+    const tags = (n: number) => Array.from({ length: n }, (_, i) => `t${i}`);
+    const statuses = (n: number) => Array.from({ length: n }, () => "enviada");
+    expect(applicationQuerySchema.safeParse({ tags: tags(20) }).success).toBe(
+      true,
+    );
+    expect(applicationQuerySchema.safeParse({ tags: tags(21) }).success).toBe(
+      false,
+    );
+    expect(
+      applicationQuerySchema.safeParse({ status: statuses(20) }).success,
+    ).toBe(true);
+    expect(
+      applicationQuerySchema.safeParse({ status: statuses(21) }).success,
+    ).toBe(false);
+  });
+
+  it("strips unknown keys", () => {
+    const parsed = applicationQuerySchema.parse({
+      "status[$ne]": "x",
+      extra: "1",
+    });
+    expect(Object.keys(parsed)).toEqual(["sort"]);
+  });
 });
 
 describe("statusChangeSchema", () => {
