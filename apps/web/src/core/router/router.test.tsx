@@ -195,7 +195,11 @@ describe("list state in the URL", () => {
 
     expect(screen.getByText("Answer for B")).toBeInTheDocument();
     expect(screen.queryByText("Answer for A")).not.toBeInTheDocument();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      fetchMock.mock.calls.filter(([input]) =>
+        String(input).includes("/api/applications"),
+      ),
+    ).toHaveLength(2);
   });
 });
 

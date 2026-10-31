@@ -17,10 +17,11 @@ import { createAppRouter } from "@/core/router/router";
 import { jsonResponse, mockFetch } from "@/test/mock-fetch";
 import { ApplicationListComponent } from "./application-list.component";
 import { ApplicationListContainer } from "./application-list.container";
-import { useApplicationList } from "./application-list.hooks";
+import { useApplicationList, useStackTags } from "./application-list.hooks";
 import {
   mapApplicationFromApiToVm,
   mapApplicationListFromApiToVm,
+  mapStackTagsFromApiToVm,
 } from "./application-list.mapper";
 
 const defaultQuery: ListSearch = { sort: "updatedAt" };
@@ -35,6 +36,8 @@ const panelProps = {
   onQueryChange: () => {},
   onClear: () => {},
   clearCount: 0,
+  stackTags: { status: "ok" as const, options: [] },
+  onRetryStackTags: () => {},
 };
 
 const EMPTY_TEXT =
@@ -154,7 +157,7 @@ describe("ApplicationListContainer", () => {
     });
     render(<ApplicationListContainer {...listProps} />);
 
-    expect(screen.getByRole("status")).toHaveTextContent(
+    expect(within(resultsRegion()).getByRole("status")).toHaveTextContent(
       "Cargando candidaturas…",
     );
     const items = await screen.findAllByRole("listitem");
@@ -188,14 +191,14 @@ describe("ApplicationListContainer", () => {
     render(<ApplicationListContainer {...listProps} />);
 
     const retry = await screen.findByRole("button", { name: "Reintentar" });
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(countCalls(fetchMock, "/api/applications")).toBe(1);
 
     await userEvent.click(retry);
 
     expect(await screen.findByRole("listitem")).toHaveTextContent(
       "Frontend Developer",
     );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(countCalls(fetchMock, "/api/applications")).toBe(2);
     await waitFor(() =>
       expect(
         screen.queryByRole("button", { name: "Reintentar" }),
@@ -212,7 +215,13 @@ const INVALID_BODY =
 const OTHER_BODY = "Algo ha fallado. Inténtalo de nuevo.";
 
 const getCounter = () =>
-  document.querySelector<HTMLElement>('[aria-live="polite"]');
+  document.querySelector<HTMLElement>('p[aria-live="polite"]');
+
+const resultsRegion = () => screen.getByRole("region", { name: "Resultados" });
+
+// The pod also loads GET /api/tags, so call counts are per endpoint.
+const countCalls = (fetchMock: ReturnType<typeof mockFetch>, path: string) =>
+  fetchMock.mock.calls.filter(([input]) => String(input).includes(path)).length;
 
 describe("ApplicationListContainer loading state", () => {
   it("shows a status region with three hidden skeleton cards and an empty counter during the first load", () => {
@@ -221,7 +230,7 @@ describe("ApplicationListContainer loading state", () => {
     });
     render(<ApplicationListContainer {...listProps} />);
 
-    const status = screen.getByRole("status");
+    const status = within(resultsRegion()).getByRole("status");
     expect(status).toHaveTextContent("Cargando candidaturas…");
     const skeletons = status.querySelectorAll('[data-slot="skeleton"]');
     expect(skeletons.length).toBeGreaterThanOrEqual(3);
@@ -289,7 +298,7 @@ describe("ApplicationListContainer error state", () => {
       await screen.findByRole("button", { name: "Reintentar" }),
     );
 
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(countCalls(fetchMock, "/api/applications")).toBe(2);
     expect(screen.getByRole("region", { name: "Resultados" })).toHaveFocus();
   });
 });
@@ -365,7 +374,9 @@ describe("stale-while-refresh", () => {
       "true",
     );
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(
+      within(resultsRegion()).queryByRole("status"),
+    ).not.toBeInTheDocument();
     expect(getCounter()).toHaveTextContent("1 candidatura");
   });
 });
@@ -408,7 +419,9 @@ describe("application cards", () => {
     expect(heading).toHaveClass("font-serif");
     expect(heading).toHaveTextContent("Frontend Developer, Lemoncode");
     expect(screen.getByText("Lemoncode · Madrid")).toBeInTheDocument();
-    expect(screen.getByText("Enviada")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("article")).getByText("Enviada"),
+    ).toBeInTheDocument();
     const salary = screen.getByText(/^52\.000\s€$/);
     expect(salary).toHaveClass("font-mono", "tabular");
     expect(screen.getByText("Actualizada 12 oct. 2026")).toBeInTheDocument();
@@ -590,16 +603,21 @@ describe("search debounce", () => {
 
 function StatefulList({
   initial,
-  onClearFilters,
+  onClearFilters = () => {},
+  onChange,
 }: {
   initial: ListSearch;
-  onClearFilters: () => void;
+  onClearFilters?: () => void;
+  onChange?: (next: ListSearch) => void;
 }) {
   const [query, setQuery] = useState(initial);
   return (
     <ApplicationListContainer
       query={query}
-      onQueryChange={setQuery}
+      onQueryChange={(next) => {
+        onChange?.(next);
+        setQuery(next);
+      }}
       onClearFilters={() => {
         onClearFilters();
         setQuery({ sort: "updatedAt" });
@@ -691,5 +709,429 @@ describe("empty states", () => {
     expect(
       screen.queryByText("Ninguna candidatura coincide con los filtros"),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("status, work mode, seniority and sort controls", () => {
+  const panel = () =>
+    screen.getByRole("search", { name: "Filtrar candidaturas" });
+
+  it("offers the 7 statuses in enum order as pressed-state buttons", () => {
+    render(<ApplicationListContainer {...listProps} />);
+
+    const group = within(panel()).getByRole("toolbar", { name: "Estado" });
+    const names = within(group)
+      .getAllByRole("button")
+      .map((button) => button.textContent);
+    expect(names).toStrictEqual([
+      "Guardada",
+      "Enviada",
+      "En entrevistas",
+      "Oferta recibida",
+      "Aceptada",
+      "Rechazada",
+      "Descartada",
+    ]);
+    within(group)
+      .getAllByRole("button")
+      .forEach((button) =>
+        expect(button).toHaveAttribute("aria-pressed", "false"),
+      );
+  });
+
+  it("adds and removes statuses through onQueryChange", async () => {
+    const onChange = vi.fn();
+    render(<StatefulList initial={defaultQuery} onChange={onChange} />);
+    const group = within(panel()).getByRole("toolbar", { name: "Estado" });
+
+    await userEvent.click(
+      within(group).getByRole("button", { name: "Enviada" }),
+    );
+    expect(onChange).toHaveBeenLastCalledWith({
+      status: ["enviada"],
+      sort: "updatedAt",
+    });
+
+    await userEvent.click(
+      within(group).getByRole("button", { name: "Rechazada" }),
+    );
+    expect(onChange).toHaveBeenLastCalledWith({
+      status: ["enviada", "rechazada"],
+      sort: "updatedAt",
+    });
+    expect(
+      within(group).getByRole("button", { name: "Enviada" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    await userEvent.click(
+      within(group).getByRole("button", { name: "Enviada" }),
+    );
+    expect(onChange).toHaveBeenLastCalledWith({
+      status: ["rechazada"],
+      sort: "updatedAt",
+    });
+
+    await userEvent.click(
+      within(group).getByRole("button", { name: "Rechazada" }),
+    );
+    expect(onChange).toHaveBeenLastCalledWith({
+      status: undefined,
+      sort: "updatedAt",
+    });
+  });
+
+  it("changes work mode, seniority and sort through labelled native selects", async () => {
+    const onChange = vi.fn();
+    render(<StatefulList initial={defaultQuery} onChange={onChange} />);
+
+    const workMode = screen.getByRole("combobox", { name: "Modalidad" });
+    expect(
+      within(workMode)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toStrictEqual(["Todas", "Remoto", "Híbrido", "Presencial"]);
+    await userEvent.selectOptions(workMode, "Remoto");
+    expect(onChange).toHaveBeenLastCalledWith({
+      workMode: "remoto",
+      seniority: undefined,
+      sort: "updatedAt",
+    });
+    await userEvent.selectOptions(workMode, "Todas");
+    expect(onChange).toHaveBeenLastCalledWith({
+      workMode: undefined,
+      sort: "updatedAt",
+    });
+
+    const seniority = screen.getByRole("combobox", { name: "Seniority" });
+    expect(
+      within(seniority)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toStrictEqual(["Todos", "Junior", "Mid", "Senior", "Lead"]);
+    await userEvent.selectOptions(seniority, "Senior");
+    expect(onChange).toHaveBeenLastCalledWith({
+      seniority: "senior",
+      workMode: undefined,
+      sort: "updatedAt",
+    });
+
+    const sort = screen.getByRole("combobox", { name: "Ordenar por" });
+    expect(sort).toHaveValue("updatedAt");
+    await userEvent.selectOptions(sort, "Fecha de envío");
+    expect(onChange).toHaveBeenLastCalledWith({
+      seniority: "senior",
+      workMode: undefined,
+      sort: "appliedAt",
+    });
+  });
+
+  it("offers «Limpiar filtros» when only the work mode is set", () => {
+    render(
+      <ApplicationListContainer
+        {...listProps}
+        query={{ workMode: "remoto", sort: "updatedAt" }}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Limpiar filtros" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("«Filtros y orden» disclosure", () => {
+  const disclosure = (name: string) => screen.getByRole("button", { name });
+
+  it("starts closed with no count when nothing is active, and toggles on click", async () => {
+    render(<ApplicationListContainer {...listProps} />);
+
+    const button = disclosure("Filtros y orden");
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(button).toHaveAttribute("aria-controls", "filters-extra");
+    const extra = document.getElementById("filters-extra");
+    expect(extra).toHaveClass("hidden", "lg:flex");
+
+    await userEvent.click(button);
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(extra).not.toHaveClass("hidden");
+
+    await userEvent.click(button);
+    expect(button).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("counts active dimensions plus one for a non-default sort and starts open", () => {
+    render(
+      <ApplicationListContainer
+        {...listProps}
+        query={{ status: ["enviada", "rechazada"], sort: "appliedAt" }}
+      />,
+    );
+
+    const button = disclosure("Filtros y orden (2)");
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById("filters-extra")).not.toHaveClass("hidden");
+  });
+
+  it("counts a status group once however many statuses are picked", () => {
+    render(
+      <ApplicationListContainer
+        {...listProps}
+        query={{
+          status: ["enviada", "rechazada"],
+          workMode: "remoto",
+          sort: "updatedAt",
+        }}
+      />,
+    );
+    expect(disclosure("Filtros y orden (2)")).toBeInTheDocument();
+  });
+});
+
+const summary = (
+  label: string,
+  group: "stack" | "nice_to_have" | "language",
+  count: number,
+) => ({ label, group, count });
+
+describe("mapStackTagsFromApiToVm", () => {
+  it("keeps only stack tags in the served order", () => {
+    expect(
+      mapStackTagsFromApiToVm([
+        summary("React", "stack", 3),
+        summary("Docker", "nice_to_have", 2),
+        summary("TypeScript", "stack", 2),
+      ]),
+    ).toStrictEqual([{ label: "React" }, { label: "TypeScript" }]);
+  });
+
+  it("maps an empty list to an empty list", () => {
+    expect(mapStackTagsFromApiToVm([])).toStrictEqual([]);
+  });
+});
+
+describe("stack tag filter", () => {
+  const stackArea = () =>
+    screen.getByText("Stack").parentElement as HTMLElement;
+  const stackList = () => screen.getByRole("list", { name: "Stack" });
+  const manyTags = (n: number) =>
+    Array.from({ length: n }, (_, index) =>
+      summary(`Tag${index + 1}`, "stack", 20 - index),
+    );
+
+  it("shows 4 skeleton chips while GET /api/tags is pending", () => {
+    mockFetch({ "GET /api/tags": () => new Promise<Response>(() => {}) });
+    render(<ApplicationListContainer {...listProps} />);
+
+    const skeletons = stackArea().querySelectorAll('[data-slot="skeleton"]');
+    expect(skeletons).toHaveLength(4);
+    skeletons.forEach((node) => expect(node).toHaveClass("h-7", "w-16"));
+  });
+
+  it("shows the error with «Reintentar» after a 500, keeps the other filters working and refetches once per click", async () => {
+    let calls = 0;
+    const fetchMock = mockFetch({
+      "GET /api/applications": [],
+      "GET /api/tags": () => {
+        calls += 1;
+        return calls === 1
+          ? jsonResponse(
+              { error: { code: "INTERNAL_ERROR", message: "x" } },
+              500,
+            )
+          : jsonResponse([summary("React", "stack", 2)]);
+      },
+    });
+    const onChange = vi.fn();
+    render(<StatefulList initial={defaultQuery} onChange={onChange} />);
+
+    expect(
+      await screen.findByText("No se pudieron cargar las etiquetas."),
+    ).toBeInTheDocument();
+    expect(countCalls(fetchMock, "/api/tags")).toBe(1);
+
+    // The status filter is independent of the tags request.
+    await userEvent.click(screen.getByRole("button", { name: "Enviada" }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      status: ["enviada"],
+      sort: "updatedAt",
+    });
+
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+
+    expect(
+      await within(stackList()).findByRole("button", { name: "React" }),
+    ).toBeInTheDocument();
+    expect(countCalls(fetchMock, "/api/tags")).toBe(2);
+    expect(
+      screen.queryByText("No se pudieron cargar las etiquetas."),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps the error message inside an always-mounted status region", async () => {
+    mockFetch({
+      "GET /api/tags": () =>
+        jsonResponse({ error: { code: "INTERNAL_ERROR", message: "x" } }, 500),
+    });
+    render(<ApplicationListContainer {...listProps} />);
+
+    const region = stackArea().querySelector('[role="status"]');
+    expect(region).not.toBeNull();
+    expect(region).toHaveAttribute("aria-live", "polite");
+    expect(region).toBeEmptyDOMElement();
+    await waitFor(() =>
+      expect(region).toHaveTextContent("No se pudieron cargar las etiquetas."),
+    );
+  });
+
+  it("shows the muted line when there are no stack tags", async () => {
+    mockFetch({ "GET /api/tags": [summary("Docker", "nice_to_have", 2)] });
+    render(<ApplicationListContainer {...listProps} />);
+
+    expect(
+      await screen.findByText("Aún no hay etiquetas de stack."),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole("list", { name: "Stack" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("toggles chips through onQueryChange with a pressed state and the AND helper", async () => {
+    mockFetch({
+      "GET /api/tags": [
+        summary("React", "stack", 3),
+        summary("Docker", "nice_to_have", 2),
+        summary("TypeScript", "stack", 2),
+      ],
+    });
+    const onChange = vi.fn();
+    render(<StatefulList initial={defaultQuery} onChange={onChange} />);
+
+    const list = await waitFor(() => stackList());
+    expect(
+      within(list)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toStrictEqual(["React", "TypeScript"]);
+
+    await userEvent.click(within(list).getByRole("button", { name: "React" }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      tags: ["React"],
+      sort: "updatedAt",
+    });
+    expect(
+      screen.queryByText("Solo candidaturas con todas las etiquetas elegidas."),
+    ).not.toBeInTheDocument();
+
+    await userEvent.click(
+      within(list).getByRole("button", { name: "TypeScript" }),
+    );
+    expect(onChange).toHaveBeenLastCalledWith({
+      tags: ["React", "TypeScript"],
+      sort: "updatedAt",
+    });
+    within(list)
+      .getAllByRole("button")
+      .forEach((button) =>
+        expect(button).toHaveAttribute("aria-pressed", "true"),
+      );
+    expect(
+      screen.getByText("Solo candidaturas con todas las etiquetas elegidas."),
+    ).toBeInTheDocument();
+
+    await userEvent.click(within(list).getByRole("button", { name: "React" }));
+    await userEvent.click(
+      within(list).getByRole("button", { name: "TypeScript" }),
+    );
+    expect(onChange).toHaveBeenLastCalledWith({
+      tags: undefined,
+      sort: "updatedAt",
+    });
+  });
+
+  it("shows the first 10 options, expands with «Mostrar todas» and collapses again", async () => {
+    mockFetch({ "GET /api/tags": manyTags(12) });
+    render(<ApplicationListContainer {...listProps} />);
+
+    const more = await screen.findByRole("button", {
+      name: "Mostrar todas (12)",
+    });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    expect(within(stackList()).getAllByRole("button")).toHaveLength(10);
+
+    await userEvent.click(more);
+    const less = screen.getByRole("button", { name: "Mostrar menos" });
+    expect(less).toHaveAttribute("aria-expanded", "true");
+    expect(within(stackList()).getAllByRole("button")).toHaveLength(12);
+
+    await userEvent.click(less);
+    expect(within(stackList()).getAllByRole("button")).toHaveLength(10);
+  });
+
+  it("does not offer «Mostrar todas» for exactly 10 options", async () => {
+    mockFetch({ "GET /api/tags": manyTags(10) });
+    render(<ApplicationListContainer {...listProps} />);
+
+    await waitFor(() =>
+      expect(within(stackList()).getAllByRole("button")).toHaveLength(10),
+    );
+    expect(
+      screen.queryByRole("button", { name: /Mostrar/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders URL tags missing from the options, or beyond the first 10, as selected chips", async () => {
+    mockFetch({ "GET /api/tags": manyTags(12) });
+    const onChange = vi.fn();
+    render(
+      <ApplicationListContainer
+        {...listProps}
+        query={{ tags: ["Remix", "Tag12"], sort: "updatedAt" }}
+        onQueryChange={onChange}
+      />,
+    );
+
+    await screen.findByRole("button", { name: "Mostrar todas (12)" });
+    const list = stackList();
+    expect(within(list).getByRole("button", { name: "Remix" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+    expect(within(list).getByRole("button", { name: "Tag12" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+    );
+
+    await userEvent.click(within(list).getByRole("button", { name: "Remix" }));
+    expect(onChange).toHaveBeenLastCalledWith({
+      tags: ["Tag12"],
+      sort: "updatedAt",
+    });
+  });
+
+  it("keeps URL tags visible and removable while the options are still loading", () => {
+    mockFetch({ "GET /api/tags": () => new Promise<Response>(() => {}) });
+    render(
+      <ApplicationListContainer
+        {...listProps}
+        query={{ tags: ["Remix"], sort: "updatedAt" }}
+      />,
+    );
+
+    expect(
+      within(stackList()).getByRole("button", { name: "Remix" }),
+    ).toHaveAttribute("aria-pressed", "true");
+  });
+
+  it("useStackTags starts loading and exposes the mapped stack options", async () => {
+    mockFetch({
+      "GET /api/tags": [
+        summary("React", "stack", 3),
+        summary("Docker", "nice_to_have", 2),
+      ],
+    });
+    const { result } = renderHook(() => useStackTags());
+
+    expect(result.current.status).toBe("loading");
+    await waitFor(() => expect(result.current.status).toBe("ok"));
+    expect(result.current.options).toStrictEqual([{ label: "React" }]);
   });
 });

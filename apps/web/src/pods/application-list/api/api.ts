@@ -1,4 +1,9 @@
-import { applicationSchema, type Application } from "@tfm/contracts";
+import {
+  applicationSchema,
+  tagSummarySchema,
+  type Application,
+  type TagSummary,
+} from "@tfm/contracts";
 import { request } from "@/core/http/http-client";
 import type { ListSearch } from "@/core/router/application-search";
 
@@ -24,3 +29,7 @@ export const getApplications = (
     applicationSchema.array(),
     { signal },
   );
+
+// GET /api/tags answers every group; the list keeps only `stack` in the mapper (D-05).
+export const getTags = (signal?: AbortSignal): Promise<TagSummary[]> =>
+  request("/api/tags", tagSummarySchema.array(), { signal });

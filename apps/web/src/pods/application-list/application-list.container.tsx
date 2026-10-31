@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { ListSearch } from "@/core/router/application-search";
 import { ApplicationListComponent } from "./application-list.component";
-import { useApplicationList } from "./application-list.hooks";
+import { useApplicationList, useStackTags } from "./application-list.hooks";
 
 interface Props {
   query: ListSearch;
@@ -16,6 +16,7 @@ export function ApplicationListContainer({
 }: Props) {
   const { status, applications, errorCode, refreshing, retry } =
     useApplicationList(query);
+  const stackTags = useStackTags();
   const [clearCount, setClearCount] = useState(0);
 
   const handleClear = () => {
@@ -34,6 +35,8 @@ export function ApplicationListContainer({
       onQueryChange={onQueryChange}
       onClear={handleClear}
       clearCount={clearCount}
+      stackTags={{ status: stackTags.status, options: stackTags.options }}
+      onRetryStackTags={stackTags.retry}
     />
   );
 }
