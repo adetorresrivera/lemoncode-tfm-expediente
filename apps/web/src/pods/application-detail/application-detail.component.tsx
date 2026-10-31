@@ -1,9 +1,11 @@
+import type { ApplicationStatus } from "@tfm/contracts";
 import { ArrowLeft } from "lucide-react";
 import { StatusBadge } from "@/common/components/status-badge";
 import type { HttpErrorCode } from "@/core/http/http-client";
 import type {
   ApplicationDetailVm,
   RenderListLink,
+  StatusFeedback,
 } from "./application-detail.vm";
 import {
   BACK_LINK_CLASS,
@@ -14,6 +16,7 @@ import {
 import { NotesSection } from "./components/notes-section";
 import { OfferDataSection } from "./components/offer-data-section";
 import { OfferTextSection } from "./components/offer-text-section";
+import { StatusChange } from "./components/status-change";
 import { StatusHistory } from "./components/status-history";
 import { TagsSection } from "./components/tags-section";
 
@@ -22,6 +25,9 @@ interface Props {
   vm: ApplicationDetailVm | null;
   errorCode: HttpErrorCode | null;
   onRetry: () => void;
+  onChangeStatus: (next: ApplicationStatus) => void;
+  statusPending: boolean;
+  statusFeedback: StatusFeedback | null;
   renderListLink: RenderListLink;
 }
 
@@ -30,6 +36,9 @@ export function ApplicationDetailComponent({
   vm,
   errorCode,
   onRetry,
+  onChangeStatus,
+  statusPending,
+  statusFeedback,
   renderListLink,
 }: Props) {
   if (status === "loading") return <DetailSkeleton />;
@@ -72,7 +81,15 @@ export function ApplicationDetailComponent({
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
-          <StatusBadge status={vm.status} />
+          <div className="sm:flex sm:min-h-11 sm:items-center">
+            <StatusBadge status={vm.status} />
+          </div>
+          <StatusChange
+            value={vm.status}
+            pending={statusPending}
+            feedback={statusFeedback}
+            onChange={onChangeStatus}
+          />
         </div>
       </header>
       <div className="grid gap-6 lg:grid-cols-3">

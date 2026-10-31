@@ -321,7 +321,9 @@ describe("application detail navigation", () => {
     const main = within(screen.getByRole("main"));
     expect(main.getByText("Lemoncode")).toBeInTheDocument();
     expect(
-      within(heading.closest("header") as HTMLElement).getByText("Guardada"),
+      within(heading.closest("header") as HTMLElement).getByText("Guardada", {
+        selector: "span",
+      }),
     ).toBeInTheDocument();
 
     const back = main.getByRole("link", { name: "Mis candidaturas" });

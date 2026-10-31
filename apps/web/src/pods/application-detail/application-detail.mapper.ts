@@ -1,4 +1,4 @@
-import type { Application } from "@tfm/contracts";
+import type { Application, ApplicationStatus } from "@tfm/contracts";
 import {
   CONTRACT_TYPE_LABELS,
   SENIORITY_LABELS,
@@ -87,3 +87,15 @@ export const mapApplicationFromApiToDetailVm = (
       .reverse(),
   };
 };
+
+// Optimistic view of a status change: the new status and its history entry (newest first) before
+// the server answers. The input is never mutated; the server response replaces this view.
+export const withOptimisticStatus = (
+  vm: ApplicationDetailVm,
+  next: ApplicationStatus,
+  atLabel: string,
+): ApplicationDetailVm => ({
+  ...vm,
+  status: next,
+  history: [{ status: next, atLabel }, ...vm.history],
+});

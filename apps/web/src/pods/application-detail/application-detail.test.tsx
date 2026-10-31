@@ -18,6 +18,7 @@ import { useApplicationDetail } from "./application-detail.hooks";
 import {
   mapApplicationFromApiToDetailVm,
   toSafeHttpUrl,
+  withOptimisticStatus,
 } from "./application-detail.mapper";
 
 // The scene supplies the real router link; pod tests use a plain anchor.
@@ -216,7 +217,9 @@ describe("ApplicationDetailContainer header", () => {
       "Lemoncode · Madrid",
     );
     expect(
-      within(heading.closest("header") as HTMLElement).getByText("Enviada"),
+      within(heading.closest("header") as HTMLElement).getByText("Enviada", {
+        selector: "span",
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Mis candidaturas" }),
@@ -277,6 +280,9 @@ const renderOk = (overrides: Record<string, unknown> = {}) =>
       })}
       errorCode={null}
       onRetry={() => {}}
+      onChangeStatus={() => {}}
+      statusPending={false}
+      statusFeedback={null}
       renderListLink={renderListLink}
     />,
   );
@@ -509,6 +515,9 @@ const renderState = (
       vm={null}
       errorCode={errorCode}
       onRetry={() => {}}
+      onChangeStatus={() => {}}
+      statusPending={false}
+      statusFeedback={null}
       renderListLink={renderListLink}
     />,
   );
@@ -558,6 +567,9 @@ describe("detail page states", () => {
         vm={null}
         errorCode={code}
         onRetry={onRetry}
+        onChangeStatus={() => {}}
+        statusPending={false}
+        statusFeedback={null}
         renderListLink={renderListLink}
       />,
     );
@@ -573,5 +585,228 @@ describe("detail page states", () => {
       within(alert).getByRole("button", { name: "Reintentar" }),
     );
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("withOptimisticStatus", () => {
+  it("returns a new view model with the new status and a newest-first entry, without mutating the input", () => {
+    const vm = mapApplicationFromApiToDetailVm(makeApplication());
+    const before = structuredClone(vm);
+
+    const next = withOptimisticStatus(vm, "enviada", "30 oct. 2026");
+
+    expect(next).not.toBe(vm);
+    expect(next.status).toBe("enviada");
+    expect(next.history).toStrictEqual([
+      { status: "enviada", atLabel: "30 oct. 2026" },
+      { status: "guardada", atLabel: "12 oct. 2026" },
+    ]);
+    expect(vm).toStrictEqual(before);
+  });
+});
+
+const sentApplication = () =>
+  makeApplication({
+    status: "enviada",
+    appliedAt: "2026-10-30T09:00:00.000Z",
+    statusHistory: [
+      { status: "guardada", at: "2026-10-12T10:00:00.000Z" },
+      { status: "enviada", at: "2026-10-30T09:00:00.000Z" },
+    ],
+  });
+
+const renderDetail = () =>
+  render(
+    <ApplicationDetailContainer
+      applicationId="a1"
+      renderListLink={renderListLink}
+    />,
+  );
+
+const statusSelect = () =>
+  screen.findByRole("combobox", { name: "Cambiar estado" });
+
+const deferred = () => {
+  let resolve: (response: Response) => void = () => {};
+  const promise = new Promise<Response>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+};
+
+const serverError = () =>
+  jsonResponse({ error: { code: "INTERNAL_ERROR", message: "x" } }, 500);
+
+describe("status change", () => {
+  it("offers the 7 statuses in enum order with the current one selected", async () => {
+    mockFetch({ "GET /api/applications/a1": makeApplication() });
+    renderDetail();
+
+    const select = await statusSelect();
+    expect(select).toHaveValue("guardada");
+    expect(
+      within(select)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toStrictEqual([
+      "Guardada",
+      "Enviada",
+      "En entrevistas",
+      "Oferta recibida",
+      "Aceptada",
+      "Rechazada",
+      "Descartada",
+    ]);
+  });
+
+  it("updates badge, select and history before the response, then announces the success", async () => {
+    const patch = deferred();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "PATCH /api/applications/a1/status": () => patch.promise,
+    });
+    renderDetail();
+    const select = await statusSelect();
+    const header = (await screen.findByRole("heading", { level: 1 })).closest(
+      "header",
+    ) as HTMLElement;
+
+    await userEvent.selectOptions(select, "enviada");
+
+    expect(select).toHaveValue("enviada");
+    expect(
+      within(header).getByText("Enviada", { selector: "span" }),
+    ).toBeInTheDocument();
+    const history = screen.getByRole("region", {
+      name: "Historial de estados",
+    });
+    const entries = within(history).getAllByRole("listitem");
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toHaveTextContent("Actual");
+    expect(entries[0]).toHaveTextContent("Enviada");
+    expect(select).toHaveAttribute("aria-busy", "true");
+    expect(select).toHaveAttribute("aria-disabled", "true");
+    expect(select).not.toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Guardando…");
+
+    patch.resolve(jsonResponse(sentApplication()));
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Estado cambiado a Enviada.",
+      ),
+    );
+    expect(select).toHaveAttribute("aria-busy", "false");
+    expect(select).toHaveAttribute("aria-disabled", "false");
+    expect(select).toHaveValue("enviada");
+    expect(within(history).getAllByRole("listitem")[0]).toHaveTextContent(
+      "30 oct. 2026",
+    );
+    const patchCalls = fetchMock.mock.calls.filter(
+      ([, init]) => init?.method === "PATCH",
+    );
+    expect(patchCalls).toHaveLength(1);
+    expect(String(patchCalls[0]?.[0])).toBe("/api/applications/a1/status");
+    expect(patchCalls[0]?.[1]?.body).toBe(
+      JSON.stringify({ status: "enviada" }),
+    );
+  });
+
+  it("restores badge, select and history and announces the error when the PATCH fails", async () => {
+    mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "PATCH /api/applications/a1/status": serverError,
+    });
+    renderDetail();
+    const select = await statusSelect();
+    const header = (await screen.findByRole("heading", { level: 1 })).closest(
+      "header",
+    ) as HTMLElement;
+
+    await userEvent.selectOptions(select, "enviada");
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "No se pudo cambiar el estado. Inténtalo de nuevo.",
+      ),
+    );
+    expect(select).toHaveValue("guardada");
+    expect(
+      within(header).getByText("Guardada", { selector: "span" }),
+    ).toBeInTheDocument();
+    expect(
+      within(
+        screen.getByRole("region", { name: "Historial de estados" }),
+      ).getAllByRole("listitem"),
+    ).toHaveLength(1);
+    expect(select).toHaveAttribute("aria-busy", "false");
+    expect(select).toHaveFocus();
+  });
+
+  it("sends one PATCH when two statuses are selected while the first is pending", async () => {
+    const patch = deferred();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "PATCH /api/applications/a1/status": () => patch.promise,
+    });
+    renderDetail();
+    const select = await statusSelect();
+
+    await userEvent.selectOptions(select, "enviada");
+    await userEvent.selectOptions(select, "rechazada");
+
+    patch.resolve(jsonResponse(sentApplication()));
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Estado cambiado a Enviada.",
+      ),
+    );
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH"),
+    ).toHaveLength(1);
+    expect(select).toHaveValue("enviada");
+  });
+
+  it("sends no PATCH when the current status is selected", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+    });
+    renderDetail();
+    const select = await statusSelect();
+
+    await userEvent.selectOptions(select, "guardada");
+
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH"),
+    ).toHaveLength(0);
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("clears the success message after 5 seconds", async () => {
+    mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "PATCH /api/applications/a1/status": () =>
+        jsonResponse(sentApplication()),
+    });
+    renderDetail();
+    const select = await statusSelect();
+
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await userEvent
+        .setup({ advanceTimers: vi.advanceTimersByTime })
+        .selectOptions(select, "enviada");
+      await waitFor(() =>
+        expect(screen.getByRole("status")).toHaveTextContent(
+          "Estado cambiado a Enviada.",
+        ),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

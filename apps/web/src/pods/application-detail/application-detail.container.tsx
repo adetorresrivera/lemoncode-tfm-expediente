@@ -12,7 +12,15 @@ export function ApplicationDetailContainer({
   applicationId,
   renderListLink,
 }: Props) {
-  const { status, vm, errorCode, retry } = useApplicationDetail(applicationId);
+  const {
+    status,
+    vm,
+    errorCode,
+    retry,
+    changeStatus,
+    pendingStatus,
+    statusFeedback,
+  } = useApplicationDetail(applicationId);
   const title = vm?.title;
 
   useEffect(() => {
@@ -25,6 +33,9 @@ export function ApplicationDetailContainer({
       vm={vm}
       errorCode={errorCode}
       onRetry={retry}
+      onChangeStatus={changeStatus}
+      statusPending={pendingStatus !== null}
+      statusFeedback={statusFeedback}
       renderListLink={renderListLink}
     />
   );

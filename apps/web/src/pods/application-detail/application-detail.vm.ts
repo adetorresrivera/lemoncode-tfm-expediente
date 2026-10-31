@@ -34,6 +34,12 @@ export interface ApplicationDetailVm {
   history: DetailHistoryEntryVm[];
 }
 
+// Feedback of a mutation shown in an always-mounted polite status slot.
+export interface StatusFeedback {
+  kind: "loading" | "success" | "error";
+  message: string;
+}
+
 // Navigation seam: the scene decides where a link points and returns the router link; the pod
 // only supplies classes and content (React types only, no router import in a pod).
 export type RenderListLink = (link: {
