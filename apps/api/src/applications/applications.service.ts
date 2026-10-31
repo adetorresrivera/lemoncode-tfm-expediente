@@ -22,6 +22,7 @@ export interface ApplicationsService {
   create(input: ApplicationInput): Promise<Application>;
   listTags(): Promise<TagSummary[]>;
   changeStatus(id: ObjectId, status: ApplicationStatus): Promise<Application>;
+  remove(id: ObjectId): Promise<void>;
 }
 
 export function createApplicationsService(
@@ -89,6 +90,12 @@ export function createApplicationsService(
       if (doc !== null) return mapApplicationDocToApi(doc);
       // Null means unknown id or already in that status: the second case is an idempotent 200.
       return get(id);
+    },
+
+    async remove(id) {
+      if (!(await repository.deleteById(id))) {
+        throw new ApiError(404, "NOT_FOUND", "Candidatura no encontrada");
+      }
     },
 
     async listTags() {

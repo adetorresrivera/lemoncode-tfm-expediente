@@ -38,5 +38,10 @@ export function applicationsRoutes(service: ApplicationsService): Hono {
     return c.json(await service.changeStatus(id, status));
   });
 
+  routes.delete("/:id", async (c) => {
+    await service.remove(parseObjectId(c.req.param("id")));
+    return c.body(null, 204);
+  });
+
   return routes;
 }

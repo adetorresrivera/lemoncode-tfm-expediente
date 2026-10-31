@@ -339,6 +339,62 @@ describe("application detail navigation", () => {
     expect(router.state.location.pathname).toBe("/applications");
   });
 
+  it("deletes from the detail, lands on the list with focus on its heading and the notice, and drops the notice afterwards", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications": [],
+      "GET /api/applications/a1": stored,
+      "DELETE /api/applications/a1": () => new Response(null, { status: 204 }),
+    });
+    const history = createMemoryHistory({
+      initialEntries: ["/applications/a1"],
+    });
+    const router = createAppRouter(history);
+    render(<RouterProvider router={router} />);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Eliminar" }),
+    );
+    const dialog = await screen.findByRole("alertdialog");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar candidatura" }),
+    );
+
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Mis candidaturas",
+    });
+    expect(router.state.location.pathname).toBe("/applications");
+    await waitFor(() => expect(heading).toHaveFocus());
+    const notice = await screen.findByText("Candidatura eliminada.");
+    expect(notice).toHaveAttribute("role", "status");
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE"),
+    ).toHaveLength(1);
+    // The one-shot state is cleared from the history entry, and the entry was replaced.
+    await waitFor(() =>
+      expect(router.state.location.state.notice).toBeUndefined(),
+    );
+    expect(history.length).toBe(1);
+  });
+
+  it("shows no notice and does not move focus on a fresh load of the list", async () => {
+    mockFetch({ "GET /api/applications": [stored] });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Mis candidaturas",
+    });
+    await screen.findByText("Frontend Developer");
+    expect(
+      screen.queryByText("Candidatura eliminada."),
+    ).not.toBeInTheDocument();
+    expect(heading).not.toHaveFocus();
+  });
+
   it("requests only the encoded id when the detail is opened directly", async () => {
     const fetchMock = mockFetch({ "GET /api/applications/a1": stored });
     const router = createAppRouter(

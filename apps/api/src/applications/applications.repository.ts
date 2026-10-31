@@ -68,6 +68,9 @@ export interface ApplicationsRepository {
     status: ApplicationStatus,
     now: Date,
   ): Promise<ApplicationDoc | null>;
+  // True when one application was deleted. Only the applications collection is touched: stored
+  // documents are never deleted or unlinked here (APP-03).
+  deleteById(id: ObjectId): Promise<boolean>;
 }
 
 export function createApplicationsRepository(db: Db): ApplicationsRepository {
@@ -123,6 +126,10 @@ export function createApplicationsRepository(db: Db): ApplicationsRepository {
         ],
         { returnDocument: "after" },
       );
+    },
+    async deleteById(id) {
+      const { deletedCount } = await collection.deleteOne({ _id: id });
+      return deletedCount === 1;
     },
     // One row per (stored key, group). The key already merges case variants, so no server-side
     // lower-casing is needed (it would be ASCII-only). The label is the oldest application's.

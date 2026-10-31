@@ -4,6 +4,7 @@ import { StatusBadge } from "@/common/components/status-badge";
 import type { HttpErrorCode } from "@/core/http/http-client";
 import type {
   ApplicationDetailVm,
+  DeleteState,
   RenderListLink,
   StatusFeedback,
 } from "./application-detail.vm";
@@ -13,6 +14,7 @@ import {
   DetailNotFound,
   DetailSkeleton,
 } from "./components/detail-states";
+import { DeleteDialog } from "./components/delete-dialog";
 import { NotesSection } from "./components/notes-section";
 import { OfferDataSection } from "./components/offer-data-section";
 import { OfferTextSection } from "./components/offer-text-section";
@@ -28,6 +30,8 @@ interface Props {
   onChangeStatus: (next: ApplicationStatus) => void;
   statusPending: boolean;
   statusFeedback: StatusFeedback | null;
+  deleteState: DeleteState;
+  onDelete: () => void;
   renderListLink: RenderListLink;
 }
 
@@ -39,6 +43,8 @@ export function ApplicationDetailComponent({
   onChangeStatus,
   statusPending,
   statusFeedback,
+  deleteState,
+  onDelete,
   renderListLink,
 }: Props) {
   if (status === "loading") return <DetailSkeleton />;
@@ -63,22 +69,32 @@ export function ApplicationDetailComponent({
             </>
           ),
         })}
-        <div className="min-w-0">
-          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-            Expediente
-          </p>
-          <h1
-            tabIndex={-1}
-            className="min-w-0 break-words font-serif text-[28px] font-semibold leading-[1.2]"
-          >
-            {vm.title}
-          </h1>
-          <p className="min-w-0 break-words">
-            {vm.company}
-            {vm.location ? (
-              <span className="text-muted-foreground"> · {vm.location}</span>
-            ) : null}
-          </p>
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+              Expediente
+            </p>
+            <h1
+              tabIndex={-1}
+              className="min-w-0 break-words font-serif text-[28px] font-semibold leading-[1.2]"
+            >
+              {vm.title}
+            </h1>
+            <p className="min-w-0 break-words">
+              {vm.company}
+              {vm.location ? (
+                <span className="text-muted-foreground"> · {vm.location}</span>
+              ) : null}
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 lg:flex">
+            <DeleteDialog
+              title={vm.title}
+              company={vm.company}
+              state={deleteState}
+              onConfirm={onDelete}
+            />
+          </div>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
           <div className="sm:flex sm:min-h-11 sm:items-center">

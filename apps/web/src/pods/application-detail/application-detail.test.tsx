@@ -142,7 +142,9 @@ describe("application-detail mapper", () => {
 describe("useApplicationDetail", () => {
   it("loads and maps the application", async () => {
     mockFetch({ "GET /api/applications/a1": makeApplication() });
-    const { result } = renderHook(() => useApplicationDetail("a1"));
+    const { result } = renderHook(() =>
+      useApplicationDetail("a1", { onDeleted: () => {} }),
+    );
 
     expect(result.current.status).toBe("loading");
     await waitFor(() => expect(result.current.status).toBe("ok"));
@@ -151,7 +153,9 @@ describe("useApplicationDetail", () => {
 
   it("yields notFound for a 404 answer", async () => {
     mockFetch({ "GET /api/applications/zzz": notFoundResponse });
-    const { result } = renderHook(() => useApplicationDetail("zzz"));
+    const { result } = renderHook(() =>
+      useApplicationDetail("zzz", { onDeleted: () => {} }),
+    );
 
     await waitFor(() => expect(result.current.status).toBe("notFound"));
     expect(result.current.vm).toBeNull();
@@ -167,7 +171,9 @@ describe("useApplicationDetail", () => {
           : jsonResponse(makeApplication());
       },
     });
-    const { result } = renderHook(() => useApplicationDetail("a1"));
+    const { result } = renderHook(() =>
+      useApplicationDetail("a1", { onDeleted: () => {} }),
+    );
 
     await waitFor(() => expect(result.current.status).toBe("error"));
     expect(result.current.errorCode).toBe("NETWORK_ERROR");
@@ -180,7 +186,9 @@ describe("useApplicationDetail", () => {
 
   it("encodes the id before it reaches the API path", async () => {
     const fetchMock = mockFetch({});
-    const { result } = renderHook(() => useApplicationDetail("a/b?c"));
+    const { result } = renderHook(() =>
+      useApplicationDetail("a/b?c", { onDeleted: () => {} }),
+    );
 
     await waitFor(() => expect(result.current.status).toBe("notFound"));
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
@@ -204,6 +212,7 @@ describe("ApplicationDetailContainer header", () => {
     render(
       <ApplicationDetailContainer
         applicationId="a1"
+        onDeleted={() => {}}
         renderListLink={renderListLink}
       />,
     );
@@ -232,6 +241,7 @@ describe("ApplicationDetailContainer header", () => {
     render(
       <ApplicationDetailContainer
         applicationId="zzz"
+        onDeleted={() => {}}
         renderListLink={renderListLink}
       />,
     );
@@ -257,6 +267,7 @@ describe("ApplicationDetailContainer header", () => {
     render(
       <ApplicationDetailContainer
         applicationId="a1"
+        onDeleted={() => {}}
         renderListLink={renderListLink}
       />,
     );
@@ -283,6 +294,8 @@ const renderOk = (overrides: Record<string, unknown> = {}) =>
       onChangeStatus={() => {}}
       statusPending={false}
       statusFeedback={null}
+      deleteState="idle"
+      onDelete={() => {}}
       renderListLink={renderListLink}
     />,
   );
@@ -518,6 +531,8 @@ const renderState = (
       onChangeStatus={() => {}}
       statusPending={false}
       statusFeedback={null}
+      deleteState="idle"
+      onDelete={() => {}}
       renderListLink={renderListLink}
     />,
   );
@@ -570,6 +585,8 @@ describe("detail page states", () => {
         onChangeStatus={() => {}}
         statusPending={false}
         statusFeedback={null}
+        deleteState="idle"
+        onDelete={() => {}}
         renderListLink={renderListLink}
       />,
     );
@@ -615,10 +632,11 @@ const sentApplication = () =>
     ],
   });
 
-const renderDetail = () =>
+const renderDetail = (onDeleted: () => void = () => {}) =>
   render(
     <ApplicationDetailContainer
       applicationId="a1"
+      onDeleted={onDeleted}
       renderListLink={renderListLink}
     />,
   );
@@ -808,5 +826,172 @@ describe("status change", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+const deleteCalls = (fetchMock: ReturnType<typeof mockFetch>) =>
+  fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE");
+
+const noContent = () => new Response(null, { status: 204 });
+
+const openDeleteDialog = async () => {
+  const trigger = await screen.findByRole("button", { name: "Eliminar" });
+  await userEvent.click(trigger);
+  return {
+    trigger,
+    dialog: await screen.findByRole("alertdialog"),
+  };
+};
+
+describe("delete dialog", () => {
+  it("opens with the title, the description with title and company, and focus on «Conservar candidatura»", async () => {
+    mockFetch({ "GET /api/applications/a1": makeApplication() });
+    renderDetail();
+
+    const { dialog } = await openDeleteDialog();
+
+    expect(
+      within(dialog).getByText("¿Eliminar esta candidatura?"),
+    ).toBeInTheDocument();
+    const description = within(dialog).getByText(/Vas a eliminar/);
+    expect(description).toHaveTextContent(
+      "Vas a eliminar «Frontend Developer» de Lemoncode. Esta acción no se puede deshacer.",
+    );
+    expect(description).toHaveClass("break-words");
+    expect(
+      within(dialog).getByRole("button", { name: "Conservar candidatura" }),
+    ).toHaveFocus();
+    expect(dialog).toHaveClass("max-h-[calc(100dvh-2rem)]", "overflow-y-auto");
+  });
+
+  it("closes with Escape and returns focus to «Eliminar»", async () => {
+    mockFetch({ "GET /api/applications/a1": makeApplication() });
+    renderDetail();
+    const { trigger } = await openDeleteDialog();
+
+    await userEvent.keyboard("{Escape}");
+
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(trigger).toHaveFocus();
+  });
+
+  it("closes with «Conservar candidatura» and returns focus to «Eliminar»", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+    });
+    renderDetail();
+    const { trigger, dialog } = await openDeleteDialog();
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Conservar candidatura" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(trigger).toHaveFocus();
+    expect(deleteCalls(fetchMock)).toHaveLength(0);
+  });
+
+  it("closes when the overlay is clicked", async () => {
+    mockFetch({ "GET /api/applications/a1": makeApplication() });
+    renderDetail();
+    const { trigger } = await openDeleteDialog();
+    const overlay = document.querySelector(
+      '[data-slot="alert-dialog-overlay"]',
+    );
+    expect(overlay).not.toBeNull();
+
+    await userEvent.click(overlay as Element);
+
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(trigger).toHaveFocus();
+  });
+
+  it("sends one DELETE on confirm and reports the deletion", async () => {
+    const onDeleted = vi.fn();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "DELETE /api/applications/a1": noContent,
+    });
+    renderDetail(onDeleted);
+    const { dialog } = await openDeleteDialog();
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar candidatura" }),
+    );
+
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledTimes(1));
+    expect(deleteCalls(fetchMock)).toHaveLength(1);
+    expect(String(deleteCalls(fetchMock)[0]?.[0])).toBe("/api/applications/a1");
+  });
+
+  it("shows «Eliminando…», ignores Escape and a second click while the DELETE is pending", async () => {
+    const pending = deferred();
+    const onDeleted = vi.fn();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "DELETE /api/applications/a1": () => pending.promise,
+    });
+    renderDetail(onDeleted);
+    const { dialog } = await openDeleteDialog();
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar candidatura" }),
+    );
+
+    const confirm = await within(dialog).findByRole("button", {
+      name: "Eliminando…",
+    });
+    expect(confirm).toHaveAttribute("aria-disabled", "true");
+    expect(
+      within(dialog).getByRole("button", { name: "Conservar candidatura" }),
+    ).toHaveAttribute("aria-disabled", "true");
+
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(confirm);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Conservar candidatura" }),
+    );
+
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(deleteCalls(fetchMock)).toHaveLength(1);
+
+    pending.resolve(noContent());
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledTimes(1));
+  });
+
+  it("keeps the dialog open with the polite error and focus on the confirm button when the DELETE fails", async () => {
+    const onDeleted = vi.fn();
+    mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "DELETE /api/applications/a1": serverError,
+    });
+    renderDetail(onDeleted);
+    const { dialog } = await openDeleteDialog();
+    const confirm = within(dialog).getByRole("button", {
+      name: "Eliminar candidatura",
+    });
+    confirm.focus();
+
+    await userEvent.click(confirm);
+
+    expect(
+      await within(dialog).findByText(
+        "No se pudo eliminar la candidatura. Inténtalo de nuevo.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      "No se pudo eliminar la candidatura. Inténtalo de nuevo.",
+    );
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Eliminar candidatura" }),
+    ).toHaveFocus();
+    expect(onDeleted).not.toHaveBeenCalled();
   });
 });

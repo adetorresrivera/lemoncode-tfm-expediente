@@ -6,11 +6,13 @@ import type { RenderListLink } from "./application-detail.vm";
 interface Props {
   applicationId: string;
   renderListLink: RenderListLink;
+  onDeleted: () => void;
 }
 
 export function ApplicationDetailContainer({
   applicationId,
   renderListLink,
+  onDeleted,
 }: Props) {
   const {
     status,
@@ -20,7 +22,9 @@ export function ApplicationDetailContainer({
     changeStatus,
     pendingStatus,
     statusFeedback,
-  } = useApplicationDetail(applicationId);
+    remove,
+    deleteState,
+  } = useApplicationDetail(applicationId, { onDeleted });
   const title = vm?.title;
 
   useEffect(() => {
@@ -36,6 +40,8 @@ export function ApplicationDetailContainer({
       onChangeStatus={changeStatus}
       statusPending={pendingStatus !== null}
       statusFeedback={statusFeedback}
+      deleteState={deleteState}
+      onDelete={remove}
       renderListLink={renderListLink}
     />
   );

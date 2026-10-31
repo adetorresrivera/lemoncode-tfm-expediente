@@ -3,13 +3,18 @@ import { useEffect, useRef, useState } from "react";
 import { STATUS_LABELS } from "@/common/lib/enum-labels";
 import { formatDate } from "@/common/lib/format";
 import { HttpError, type HttpErrorCode } from "@/core/http/http-client";
-import { getApplication, patchApplicationStatus } from "./api/api";
+import {
+  deleteApplication,
+  getApplication,
+  patchApplicationStatus,
+} from "./api/api";
 import {
   mapApplicationFromApiToDetailVm,
   withOptimisticStatus,
 } from "./application-detail.mapper";
 import type {
   ApplicationDetailVm,
+  DeleteState,
   StatusFeedback,
 } from "./application-detail.vm";
 
@@ -39,17 +44,30 @@ export interface ApplicationDetailState {
   changeStatus: (next: ApplicationStatus) => void;
   pendingStatus: ApplicationStatus | null;
   statusFeedback: StatusFeedback | null;
+  remove: () => void;
+  deleteState: DeleteState;
+}
+
+interface Options {
+  // The pod reports the delete; the scene decides where to go next.
+  onDeleted: () => void;
 }
 
 // Keyed-result pattern (as the list hook): the key is the id plus the retry attempt, loading is
 // derived and an aborted request never writes state, so a fast id change cannot show stale data.
 export const useApplicationDetail = (
   applicationId: string,
+  { onDeleted }: Options,
 ): ApplicationDetailState => {
   const [result, setResult] = useState<Result | null>(null);
   const [attempt, setAttempt] = useState(0);
   const [mutation, setMutation] = useState<Mutation | null>(null);
+  const [deletion, setDeletion] = useState<{
+    key: string;
+    state: "deleting" | "error";
+  } | null>(null);
   const busyRef = useRef(false);
+  const deletingRef = useRef(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const key = `${applicationId}#${attempt}`;
 
@@ -156,6 +174,20 @@ export const useApplicationDetail = (
       });
   };
 
+  // One DELETE in flight. After a success the ref stays set: the scene is about to leave.
+  const remove = () => {
+    if (deletingRef.current) return;
+    deletingRef.current = true;
+    setDeletion({ key, state: "deleting" });
+    deleteApplication(applicationId).then(
+      () => onDeleted(),
+      () => {
+        deletingRef.current = false;
+        setDeletion({ key, state: "error" });
+      },
+    );
+  };
+
   return {
     status: current === null ? "loading" : current.outcome,
     vm: current?.outcome === "ok" ? current.vm : null,
@@ -164,5 +196,7 @@ export const useApplicationDetail = (
     changeStatus,
     pendingStatus: currentMutation?.pendingStatus ?? null,
     statusFeedback: currentMutation?.feedback ?? null,
+    remove,
+    deleteState: deletion?.key === key ? deletion.state : "idle",
   };
 };
