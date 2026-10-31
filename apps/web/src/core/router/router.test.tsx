@@ -413,3 +413,151 @@ describe("application detail navigation", () => {
     expect(String(detailCalls[0]?.[0])).toBe("/api/applications/a1");
   });
 });
+
+const createdApplication = applicationSchema.parse({
+  id: "new1",
+  title: "Frontend Developer",
+  company: "Acme",
+  status: "guardada",
+  statusHistory: [{ status: "guardada", at: "2026-10-31T10:00:00.000Z" }],
+  interviews: [],
+  createdAt: "2026-10-31T10:00:00.000Z",
+  updatedAt: "2026-10-31T10:00:00.000Z",
+  ownerId: null,
+});
+
+describe("create an application", () => {
+  it("links the list header to the form", async () => {
+    mockFetch({ "GET /api/applications": [stored] });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    await screen.findByText("Frontend Developer");
+    const link = within(screen.getByRole("main")).getByRole("link", {
+      name: "Añadir candidatura",
+    });
+    expect(link).toHaveAttribute("href", "/applications/new");
+    expect(link).toHaveAttribute("data-variant", "default");
+  });
+
+  it("links the empty state to the form", async () => {
+    mockFetch({ "GET /api/applications": [] });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    expect(await screen.findByText(EMPTY_TEXT)).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Añadir la primera candidatura" }),
+    ).toHaveAttribute("href", "/applications/new");
+  });
+
+  it("opens the form with its heading, intro and first section", async () => {
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications/new"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Añadir candidatura",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Los campos con * son obligatorios."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { level: 2, name: "Puesto y empresa" }),
+    ).toBeInTheDocument();
+    expect(document.title).toBe("Añadir candidatura · Expediente");
+  });
+
+  it("saves from the list, replaces the form with the detail, focuses its heading and shows the notice once", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications": [],
+      "POST /api/applications": () => jsonResponse(createdApplication, 201),
+      "GET /api/applications/new1": createdApplication,
+    });
+    const history = createMemoryHistory({
+      initialEntries: ["/applications"],
+    });
+    const router = createAppRouter(history);
+    render(<RouterProvider router={router} />);
+
+    await userEvent.click(
+      await screen.findByRole("link", { name: "Añadir candidatura" }),
+    );
+    await userEvent.type(
+      await screen.findByLabelText("Puesto *"),
+      "Frontend Developer",
+    );
+    await userEvent.type(screen.getByLabelText("Empresa *"), "Acme");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Frontend Developer",
+    });
+    expect(router.state.location.pathname).toBe("/applications/new1");
+    await waitFor(() => expect(heading).toHaveFocus());
+    const notice = await screen.findByText("Candidatura creada.");
+    expect(notice).toHaveAttribute("role", "status");
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "POST"),
+    ).toHaveLength(1);
+    // The one-shot state is cleared and the form entry was replaced, so Back leaves the flow.
+    await waitFor(() =>
+      expect(router.state.location.state.notice).toBeUndefined(),
+    );
+    expect(history.length).toBe(2);
+    act(() => history.back());
+    await waitFor(() =>
+      expect(router.state.location.pathname).toBe("/applications"),
+    );
+  });
+
+  it("shows no creation notice on a fresh load of the detail", async () => {
+    mockFetch({ "GET /api/applications/new1": createdApplication });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications/new1"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Frontend Developer",
+    });
+    expect(screen.queryByText("Candidatura creada.")).not.toBeInTheDocument();
+    expect(heading).not.toHaveFocus();
+  });
+
+  it("discards from the form back to the list with focus on its heading and no request", async () => {
+    const fetchMock = mockFetch({ "GET /api/applications": [] });
+    const router = createAppRouter(
+      createMemoryHistory({
+        initialEntries: ["/applications", "/applications/new"],
+      }),
+    );
+    render(<RouterProvider router={router} />);
+
+    await userEvent.click(
+      await screen.findByRole("link", { name: "Descartar cambios" }),
+    );
+
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Mis candidaturas",
+    });
+    expect(router.state.location.pathname).toBe("/applications");
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "POST"),
+    ).toHaveLength(0);
+  });
+});

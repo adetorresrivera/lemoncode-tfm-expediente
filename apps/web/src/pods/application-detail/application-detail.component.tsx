@@ -33,6 +33,8 @@ interface Props {
   deleteState: DeleteState;
   onDelete: () => void;
   renderListLink: RenderListLink;
+  notice: string;
+  focusHeadingRef: (node: HTMLElement | null) => void;
 }
 
 export function ApplicationDetailComponent({
@@ -46,6 +48,8 @@ export function ApplicationDetailComponent({
   deleteState,
   onDelete,
   renderListLink,
+  notice,
+  focusHeadingRef,
 }: Props) {
   if (status === "loading") return <DetailSkeleton />;
   if (status === "notFound") {
@@ -75,6 +79,7 @@ export function ApplicationDetailComponent({
               Expediente
             </p>
             <h1
+              ref={focusHeadingRef}
               tabIndex={-1}
               className="min-w-0 break-words font-serif text-[28px] font-semibold leading-[1.2]"
             >
@@ -108,6 +113,13 @@ export function ApplicationDetailComponent({
           />
         </div>
       </header>
+      <p
+        role="status"
+        aria-live="polite"
+        className="text-sm text-foreground empty:-mt-6"
+      >
+        {notice}
+      </p>
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
           <OfferDataSection vm={vm} />

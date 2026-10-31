@@ -1,0 +1,66 @@
+import type {
+  ApplicationStatus,
+  ContractType,
+  Seniority,
+  TagGroup,
+  WorkMode,
+} from "@tfm/contracts";
+import type { ReactElement, ReactNode } from "react";
+
+export interface ApplicationFormTag {
+  label: string;
+  group: TagGroup;
+}
+
+// What the form edits: every control holds a string (or the tag list), so nullable API fields are
+// "" here and become null in the mapper. Written field by field on purpose: the form model is not
+// derived from the API model (D-16).
+export interface ApplicationFormValues {
+  title: string;
+  company: string;
+  location: string;
+  workMode: WorkMode | "";
+  seniority: Seniority | "";
+  contractType: ContractType | "";
+  salaryMin: string;
+  salaryMax: string;
+  currency: string;
+  tags: ApplicationFormTag[];
+  status: ApplicationStatus;
+  // yyyy-mm-dd in the local calendar, the value of an <input type="date">.
+  appliedAt: string;
+  sourceUrl: string;
+  notes: string;
+}
+
+export type FormFieldName = keyof ApplicationFormValues;
+
+export const EMPTY_FORM_VALUES: ApplicationFormValues = {
+  title: "",
+  company: "",
+  location: "",
+  workMode: "",
+  seniority: "",
+  contractType: "",
+  salaryMin: "",
+  salaryMax: "",
+  currency: "EUR",
+  tags: [],
+  status: "guardada",
+  appliedAt: "",
+  sourceUrl: "",
+  notes: "",
+};
+
+// Form-level message shown in the always-mounted polite status slot above the actions.
+export interface FormMessage {
+  kind: "error";
+  message: string;
+}
+
+// Navigation seam: the scene decides where «Descartar cambios» goes and returns the router link;
+// the pod only supplies classes and content (React types only, no router import in a pod).
+export type RenderCancelLink = (link: {
+  className?: string;
+  children: ReactNode;
+}) => ReactElement;

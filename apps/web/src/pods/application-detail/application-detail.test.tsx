@@ -214,6 +214,8 @@ describe("ApplicationDetailContainer header", () => {
         applicationId="a1"
         onDeleted={() => {}}
         renderListLink={renderListLink}
+        notice=""
+        focusHeadingRef={() => {}}
       />,
     );
 
@@ -243,6 +245,8 @@ describe("ApplicationDetailContainer header", () => {
         applicationId="zzz"
         onDeleted={() => {}}
         renderListLink={renderListLink}
+        notice=""
+        focusHeadingRef={() => {}}
       />,
     );
 
@@ -269,6 +273,8 @@ describe("ApplicationDetailContainer header", () => {
         applicationId="a1"
         onDeleted={() => {}}
         renderListLink={renderListLink}
+        notice=""
+        focusHeadingRef={() => {}}
       />,
     );
 
@@ -297,6 +303,8 @@ const renderOk = (overrides: Record<string, unknown> = {}) =>
       deleteState="idle"
       onDelete={() => {}}
       renderListLink={renderListLink}
+      notice=""
+      focusHeadingRef={() => {}}
     />,
   );
 
@@ -534,6 +542,8 @@ const renderState = (
       deleteState="idle"
       onDelete={() => {}}
       renderListLink={renderListLink}
+      notice=""
+      focusHeadingRef={() => {}}
     />,
   );
 
@@ -588,6 +598,8 @@ describe("detail page states", () => {
         deleteState="idle"
         onDelete={() => {}}
         renderListLink={renderListLink}
+        notice=""
+        focusHeadingRef={() => {}}
       />,
     );
 
@@ -638,8 +650,18 @@ const renderDetail = (onDeleted: () => void = () => {}) =>
       applicationId="a1"
       onDeleted={onDeleted}
       renderListLink={renderListLink}
+      notice=""
+      focusHeadingRef={() => {}}
     />,
   );
+
+// The loaded view has two polite regions: the status-change feedback (inside the header) and the
+// arrival notice line that follows the header.
+const feedbackLine = (): HTMLElement => {
+  const [first] = screen.getAllByRole("status");
+  if (first === undefined) throw new Error("No status region rendered");
+  return first;
+};
 
 const statusSelect = () =>
   screen.findByRole("combobox", { name: "Cambiar estado" });
@@ -705,14 +727,12 @@ describe("status change", () => {
     expect(select).toHaveAttribute("aria-busy", "true");
     expect(select).toHaveAttribute("aria-disabled", "true");
     expect(select).not.toBeDisabled();
-    expect(screen.getByRole("status")).toHaveTextContent("Guardando…");
+    expect(feedbackLine()).toHaveTextContent("Guardando…");
 
     patch.resolve(jsonResponse(sentApplication()));
 
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "Estado cambiado a Enviada.",
-      ),
+      expect(feedbackLine()).toHaveTextContent("Estado cambiado a Enviada."),
     );
     expect(select).toHaveAttribute("aria-busy", "false");
     expect(select).toHaveAttribute("aria-disabled", "false");
@@ -744,7 +764,7 @@ describe("status change", () => {
     await userEvent.selectOptions(select, "enviada");
 
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
+      expect(feedbackLine()).toHaveTextContent(
         "No se pudo cambiar el estado. Inténtalo de nuevo.",
       ),
     );
@@ -775,9 +795,7 @@ describe("status change", () => {
 
     patch.resolve(jsonResponse(sentApplication()));
     await waitFor(() =>
-      expect(screen.getByRole("status")).toHaveTextContent(
-        "Estado cambiado a Enviada.",
-      ),
+      expect(feedbackLine()).toHaveTextContent("Estado cambiado a Enviada."),
     );
     expect(
       fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH"),
@@ -797,7 +815,7 @@ describe("status change", () => {
     expect(
       fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH"),
     ).toHaveLength(0);
-    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    expect(feedbackLine()).toBeEmptyDOMElement();
   });
 
   it("clears the success message after 5 seconds", async () => {
@@ -815,14 +833,12 @@ describe("status change", () => {
         .setup({ advanceTimers: vi.advanceTimersByTime })
         .selectOptions(select, "enviada");
       await waitFor(() =>
-        expect(screen.getByRole("status")).toHaveTextContent(
-          "Estado cambiado a Enviada.",
-        ),
+        expect(feedbackLine()).toHaveTextContent("Estado cambiado a Enviada."),
       );
       await act(async () => {
         await vi.advanceTimersByTimeAsync(5000);
       });
-      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+      expect(feedbackLine()).toBeEmptyDOMElement();
     } finally {
       vi.useRealTimers();
     }
@@ -993,5 +1009,39 @@ describe("delete dialog", () => {
       within(dialog).getByRole("button", { name: "Eliminar candidatura" }),
     ).toHaveFocus();
     expect(onDeleted).not.toHaveBeenCalled();
+  });
+});
+
+describe("arrival notice", () => {
+  it("renders the notice in a polite status line and hands the h1 to the heading ref", async () => {
+    mockFetch({ "GET /api/applications/a1": makeApplication() });
+    const attached: (HTMLElement | null)[] = [];
+    render(
+      <ApplicationDetailContainer
+        applicationId="a1"
+        onDeleted={() => {}}
+        renderListLink={renderListLink}
+        notice="Candidatura creada."
+        focusHeadingRef={(node) => {
+          attached.push(node);
+        }}
+      />,
+    );
+
+    const heading = await screen.findByRole("heading", { level: 1 });
+    expect(attached).toContain(heading);
+    const notice = screen.getByText("Candidatura creada.");
+    expect(notice).toHaveAttribute("role", "status");
+    expect(notice).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("keeps an empty status line when there is no notice", async () => {
+    mockFetch({ "GET /api/applications/a1": makeApplication() });
+    renderDetail();
+
+    await screen.findByRole("heading", { level: 1 });
+    const regions = screen.getAllByRole("status");
+    expect(regions).toHaveLength(2);
+    expect(regions[1]).toBeEmptyDOMElement();
   });
 });

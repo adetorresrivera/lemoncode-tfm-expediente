@@ -37,11 +37,21 @@ const renderApplicationLink = (link: {
   </a>
 );
 
+const renderCreateLink = (link: {
+  className?: string;
+  children: ReactNode;
+}) => (
+  <a href="/applications/new" className={link.className}>
+    {link.children}
+  </a>
+);
+
 const listProps = {
   query: defaultQuery,
   onQueryChange: () => {},
   onClearFilters: () => {},
   renderApplicationLink,
+  renderCreateLink,
 };
 
 const panelProps = {
@@ -52,6 +62,7 @@ const panelProps = {
   stackTags: { status: "ok" as const, options: [] },
   onRetryStackTags: () => {},
   renderApplicationLink,
+  renderCreateLink,
 };
 
 const EMPTY_TEXT =
@@ -653,6 +664,7 @@ function StatefulList({
         setQuery({ sort: "updatedAt" });
       }}
       renderApplicationLink={renderApplicationLink}
+      renderCreateLink={renderCreateLink}
     />
   );
 }
@@ -728,6 +740,34 @@ describe("empty states", () => {
 
     await userEvent.click(button);
     expect(onClearFilters).toHaveBeenCalledTimes(1);
+  });
+
+  it("renders «Añadir la primera candidatura» through renderCreateLink with the outline button classes", async () => {
+    mockFetch({ "GET /api/applications": [] });
+    render(<ApplicationListContainer {...listProps} />);
+
+    const link = await screen.findByRole("link", {
+      name: "Añadir la primera candidatura",
+    });
+    expect(link).toHaveAttribute("href", "/applications/new");
+    expect(link).toHaveAttribute("data-variant", "outline");
+    expect(link).toHaveClass("border", "h-11");
+    expect(screen.getByText(EMPTY_TEXT)).toBeInTheDocument();
+  });
+
+  it("offers no create link in the empty-by-filters card", async () => {
+    mockFetch({ "GET /api/applications": [] });
+    render(
+      <ApplicationListContainer
+        {...listProps}
+        query={{ q: "zzz", sort: "updatedAt" }}
+      />,
+    );
+
+    await screen.findByText("Ninguna candidatura coincide con los filtros");
+    expect(
+      screen.queryByRole("link", { name: "Añadir la primera candidatura" }),
+    ).not.toBeInTheDocument();
   });
 
   it("shows the plain empty state when only the sort is not the default", async () => {

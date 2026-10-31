@@ -9,7 +9,7 @@ import {
   type RenderApplicationLink,
 } from "./components/application-card";
 import { EmptyFilteredState } from "./components/empty-filtered-state";
-import { EmptyState } from "./components/empty-state";
+import { EmptyState, type RenderCreateLink } from "./components/empty-state";
 import { FilterPanel } from "./components/filter-panel";
 import { ListError } from "./components/list-error";
 import { ListSkeleton } from "./components/list-skeleton";
@@ -29,6 +29,7 @@ interface Props {
   stackTags: StackTagsVm;
   onRetryStackTags: () => void;
   renderApplicationLink: RenderApplicationLink;
+  renderCreateLink: RenderCreateLink;
 }
 
 export function ApplicationListComponent({
@@ -44,6 +45,7 @@ export function ApplicationListComponent({
   stackTags,
   onRetryStackTags,
   renderApplicationLink,
+  renderCreateLink,
 }: Props) {
   const resultsRef = useRef<HTMLElement>(null);
 
@@ -84,7 +86,7 @@ export function ApplicationListComponent({
           hasActiveFilters(query) ? (
             <EmptyFilteredState onClear={onClear} />
           ) : (
-            <EmptyState />
+            <EmptyState renderCreateLink={renderCreateLink} />
           )
         ) : (
           <ul aria-label="Candidaturas" className="flex flex-col gap-4">
