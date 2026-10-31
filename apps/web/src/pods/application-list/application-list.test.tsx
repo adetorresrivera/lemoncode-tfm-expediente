@@ -8,8 +8,10 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { describe, expect, it } from "vitest";
-import { ApplicationListScene } from "@/scenes/application-list.scene";
+import type { ListSearch } from "@/core/router/application-search";
+import { createAppRouter } from "@/core/router/router";
 import { jsonResponse, mockFetch } from "@/test/mock-fetch";
 import { ApplicationListComponent } from "./application-list.component";
 import { ApplicationListContainer } from "./application-list.container";
@@ -18,6 +20,13 @@ import {
   mapApplicationFromApiToVm,
   mapApplicationListFromApiToVm,
 } from "./application-list.mapper";
+
+const defaultQuery: ListSearch = { sort: "updatedAt" };
+const listProps = {
+  query: defaultQuery,
+  onQueryChange: () => {},
+  onClearFilters: () => {},
+};
 
 const EMPTY_TEXT =
   "Aún no has guardado ninguna oferta. Empieza añadiendo la primera.";
@@ -134,7 +143,7 @@ describe("ApplicationListContainer", () => {
         makeApplication("a1", "Alpha Engineer", "Alpha"),
       ],
     });
-    render(<ApplicationListContainer />);
+    render(<ApplicationListContainer {...listProps} />);
 
     expect(screen.getByRole("status")).toHaveTextContent(
       "Cargando candidaturas…",
@@ -148,7 +157,7 @@ describe("ApplicationListContainer", () => {
 
   it("shows the empty text and no list for an empty response", async () => {
     mockFetch({ "GET /api/applications": [] });
-    render(<ApplicationListContainer />);
+    render(<ApplicationListContainer {...listProps} />);
 
     expect(await screen.findByText(EMPTY_TEXT)).toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
@@ -167,7 +176,7 @@ describe("ApplicationListContainer", () => {
           : jsonResponse([application]);
       },
     });
-    render(<ApplicationListContainer />);
+    render(<ApplicationListContainer {...listProps} />);
 
     const retry = await screen.findByRole("button", { name: "Reintentar" });
     expect(fetchMock).toHaveBeenCalledTimes(1);
@@ -201,7 +210,7 @@ describe("ApplicationListContainer loading state", () => {
     mockFetch({
       "GET /api/applications": () => new Promise<Response>(() => {}),
     });
-    render(<ApplicationListContainer />);
+    render(<ApplicationListContainer {...listProps} />);
 
     const status = screen.getByRole("status");
     expect(status).toHaveTextContent("Cargando candidaturas…");
@@ -240,7 +249,7 @@ describe("ApplicationListContainer error state", () => {
     "shows fixed copy for %s and never the server message",
     async (_, handler, body) => {
       mockFetch({ "GET /api/applications": handler });
-      render(<ApplicationListContainer />);
+      render(<ApplicationListContainer {...listProps} />);
 
       const alert = await screen.findByRole("alert");
       expect(
@@ -265,7 +274,7 @@ describe("ApplicationListContainer error state", () => {
           : new Promise<Response>(() => {});
       },
     });
-    render(<ApplicationListContainer />);
+    render(<ApplicationListContainer {...listProps} />);
 
     await userEvent.click(
       await screen.findByRole("button", { name: "Reintentar" }),
@@ -279,7 +288,7 @@ describe("ApplicationListContainer error state", () => {
 describe("ApplicationListContainer counter", () => {
   it("reads «Sin candidaturas» for an empty list", async () => {
     mockFetch({ "GET /api/applications": [] });
-    render(<ApplicationListContainer />);
+    render(<ApplicationListContainer {...listProps} />);
 
     await screen.findByText(EMPTY_TEXT);
     expect(getCounter()).toHaveTextContent("Sin candidaturas");
@@ -287,7 +296,7 @@ describe("ApplicationListContainer counter", () => {
 
   it("reads «1 candidatura» for exactly one application", async () => {
     mockFetch({ "GET /api/applications": [application] });
-    render(<ApplicationListContainer />);
+    render(<ApplicationListContainer {...listProps} />);
 
     await screen.findByRole("listitem");
     expect(getCounter()).toHaveTextContent(/^1 candidatura$/);
@@ -301,7 +310,7 @@ describe("ApplicationListContainer counter", () => {
         makeApplication("a3", "Three", "C"),
       ],
     });
-    render(<ApplicationListContainer />);
+    render(<ApplicationListContainer {...listProps} />);
 
     await waitFor(() =>
       expect(screen.getAllByRole("listitem")).toHaveLength(3),
@@ -321,7 +330,7 @@ describe("stale-while-refresh", () => {
           : new Promise<Response>(() => {});
       },
     });
-    const { result } = renderHook(() => useApplicationList());
+    const { result } = renderHook(() => useApplicationList(defaultQuery));
     await waitFor(() => expect(result.current.status).toBe("ok"));
 
     act(() => result.current.retry());
@@ -451,11 +460,14 @@ describe("application cards", () => {
 });
 
 describe("ApplicationListScene", () => {
-  it("uses the display heading size, a focusable h1 and sets the document title", () => {
+  it("uses the display heading size, a focusable h1 and sets the document title", async () => {
     mockFetch({ "GET /api/applications": [] });
-    render(<ApplicationListScene />);
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications"] }),
+    );
+    render(<RouterProvider router={router} />);
 
-    const heading = screen.getByRole("heading", {
+    const heading = await screen.findByRole("heading", {
       level: 1,
       name: "Mis candidaturas",
     });

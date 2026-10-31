@@ -1,9 +1,16 @@
+import type { ListSearch } from "@/core/router/application-search";
 import { ApplicationListComponent } from "./application-list.component";
 import { useApplicationList } from "./application-list.hooks";
 
-export function ApplicationListContainer() {
+interface Props {
+  query: ListSearch;
+  onQueryChange: (next: ListSearch) => void;
+  onClearFilters: () => void;
+}
+
+export function ApplicationListContainer({ query }: Props) {
   const { status, applications, errorCode, refreshing, retry } =
-    useApplicationList();
+    useApplicationList(query);
 
   return (
     <ApplicationListComponent
