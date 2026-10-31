@@ -5,6 +5,8 @@ export async function ensureIndexes(db: Db): Promise<void> {
     { key: { status: 1 }, name: "status_1" },
     { key: { updatedAt: -1 }, name: "updatedAt_-1" },
     { key: { "tags.label": 1 }, name: "tags.label_1" },
+    // Backs the stack filter ($all on the stored normalized key).
+    { key: { "tags.key": 1 }, name: "tags.key_1" },
     // Titles are mixed ES/EN: no language-specific stemming (cannot change later without IndexOptionsConflict).
     {
       key: { title: "text", company: "text" },
