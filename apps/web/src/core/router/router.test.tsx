@@ -313,14 +313,16 @@ describe("application detail navigation", () => {
 
     await userEvent.click(cardLink);
 
-    await screen.findByRole("heading", {
+    const heading = await screen.findByRole("heading", {
       level: 1,
       name: "Frontend Developer",
     });
     expect(router.state.location.pathname).toBe("/applications/a1");
     const main = within(screen.getByRole("main"));
     expect(main.getByText("Lemoncode")).toBeInTheDocument();
-    expect(main.getByText("Guardada")).toBeInTheDocument();
+    expect(
+      within(heading.closest("header") as HTMLElement).getByText("Guardada"),
+    ).toBeInTheDocument();
 
     const back = main.getByRole("link", { name: "Mis candidaturas" });
     expect(back).toHaveAttribute("href", "/applications");

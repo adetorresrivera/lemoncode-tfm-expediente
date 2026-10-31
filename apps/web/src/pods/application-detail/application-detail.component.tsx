@@ -5,6 +5,17 @@ import type {
   ApplicationDetailVm,
   RenderListLink,
 } from "./application-detail.vm";
+import {
+  BACK_LINK_CLASS,
+  DetailLoadError,
+  DetailNotFound,
+  DetailSkeleton,
+} from "./components/detail-states";
+import { NotesSection } from "./components/notes-section";
+import { OfferDataSection } from "./components/offer-data-section";
+import { OfferTextSection } from "./components/offer-text-section";
+import { StatusHistory } from "./components/status-history";
+import { TagsSection } from "./components/tags-section";
 
 interface Props {
   status: "loading" | "ok" | "notFound" | "error";
@@ -14,9 +25,6 @@ interface Props {
   renderListLink: RenderListLink;
 }
 
-const BACK_LINK_CLASS =
-  "inline-flex h-11 items-center gap-2 self-start rounded-sm text-sm font-semibold text-primary underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring";
-
 export function ApplicationDetailComponent({
   status,
   vm,
@@ -24,33 +32,13 @@ export function ApplicationDetailComponent({
   onRetry,
   renderListLink,
 }: Props) {
-  if (status === "loading") {
-    return (
-      <div role="status" aria-busy="true">
-        Cargando candidatura…
-      </div>
-    );
-  }
+  if (status === "loading") return <DetailSkeleton />;
   if (status === "notFound") {
-    return (
-      <div role="alert">
-        <p>No encontramos esta candidatura</p>
-        {renderListLink({
-          className: BACK_LINK_CLASS,
-          children: "Volver a Mis candidaturas",
-        })}
-      </div>
-    );
+    return <DetailNotFound renderListLink={renderListLink} />;
   }
   if (status === "error" || vm === null) {
     return (
-      <div role="alert">
-        <p>No se pudo cargar la candidatura</p>
-        <p>{errorCode}</p>
-        <button type="button" onClick={onRetry}>
-          Reintentar
-        </button>
-      </div>
+      <DetailLoadError code={errorCode ?? "INTERNAL_ERROR"} onRetry={onRetry} />
     );
   }
 
@@ -87,6 +75,17 @@ export function ApplicationDetailComponent({
           <StatusBadge status={vm.status} />
         </div>
       </header>
+      <div className="grid gap-6 lg:grid-cols-3">
+        <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
+          <OfferDataSection vm={vm} />
+          <TagsSection groups={vm.tagGroups} />
+          <NotesSection notes={vm.notes} />
+          {vm.offerText ? <OfferTextSection offerText={vm.offerText} /> : null}
+        </div>
+        <div className="min-w-0 lg:col-span-1">
+          <StatusHistory history={vm.history} />
+        </div>
+      </div>
     </div>
   );
 }

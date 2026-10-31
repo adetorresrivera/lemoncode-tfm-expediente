@@ -5,11 +5,14 @@ import {
   renderHook,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import type { HttpErrorCode } from "@/core/http/http-client";
 import { jsonResponse, mockFetch } from "@/test/mock-fetch";
+import { ApplicationDetailComponent } from "./application-detail.component";
 import { ApplicationDetailContainer } from "./application-detail.container";
 import { useApplicationDetail } from "./application-detail.hooks";
 import {
@@ -212,7 +215,9 @@ describe("ApplicationDetailContainer header", () => {
     expect(screen.getByText(/Lemoncode/)).toHaveTextContent(
       "Lemoncode · Madrid",
     );
-    expect(screen.getByText("Enviada")).toBeInTheDocument();
+    expect(
+      within(heading.closest("header") as HTMLElement).getByText("Enviada"),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Mis candidaturas" }),
     ).toHaveAttribute("href", "/applications");
@@ -259,5 +264,314 @@ describe("ApplicationDetailContainer header", () => {
     expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
       "Frontend Developer",
     );
+  });
+});
+
+const renderOk = (overrides: Record<string, unknown> = {}) =>
+  render(
+    <ApplicationDetailComponent
+      status="ok"
+      vm={mapApplicationFromApiToDetailVm({
+        ...makeApplication(),
+        ...overrides,
+      })}
+      errorCode={null}
+      onRetry={() => {}}
+      renderListLink={renderListLink}
+    />,
+  );
+
+const FULL = {
+  location: "Madrid",
+  salaryMin: 52000,
+  salaryMax: 65000,
+  appliedAt: "2026-10-13T08:00:00.000Z",
+  sourceUrl: "https://example.com/job",
+  notes: "Notas de ejemplo",
+  offerText: "Texto de la oferta",
+  workMode: "remoto",
+  seniority: "mid",
+  contractType: "indefinido",
+  tags: [
+    { label: "React", group: "stack" },
+    { label: "Docker", group: "nice_to_have" },
+    { label: "Inglés", group: "language" },
+  ],
+};
+
+describe("detail sections", () => {
+  it("renders every offer row and the safe external link for a complete application", () => {
+    renderOk(FULL);
+
+    const labels = [
+      "Ubicación",
+      "Salario",
+      "Fecha de envío",
+      "Enlace",
+      "Creada",
+      "Actualizada",
+    ];
+    labels.forEach((label) => expect(screen.getByText(label)).toBeVisible());
+    expect(screen.getByText("Madrid")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "DD" &&
+          element.textContent?.replace(/\s/g, " ") ===
+            "52.000 € – 65.000 € brutos al año",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("13 oct. 2026")).toBeInTheDocument();
+
+    const link = screen.getByRole("link", { name: /Ver oferta original/ });
+    expect(link).toHaveAttribute("href", "https://example.com/job");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(link).toHaveTextContent("(se abre en una pestaña nueva)");
+  });
+
+  it("shows only Creada and Actualizada plus the muted fallbacks for a bare application", () => {
+    renderOk();
+
+    expect(screen.getByText("Creada")).toBeInTheDocument();
+    expect(screen.getByText("Actualizada")).toBeInTheDocument();
+    ["Ubicación", "Salario", "Fecha de envío", "Enlace"].forEach((label) =>
+      expect(screen.queryByText(label)).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText("Esta candidatura aún no tiene más datos de la oferta."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Sin etiquetas.")).toBeInTheDocument();
+    expect(screen.getByText("Sin notas.")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Texto original de la oferta" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders no link for a legacy javascript: URL", () => {
+    renderOk({ sourceUrl: "javascript:alert(1)" });
+
+    expect(
+      screen.queryByRole("link", { name: /Ver oferta original/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Enlace")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Esta candidatura aún no tiene más datos de la oferta."),
+    ).toBeInTheDocument();
+  });
+
+  it("groups the tags and renders soft chips dashed, with empty groups omitted", () => {
+    renderOk(FULL);
+
+    const tags = screen.getByRole("region", { name: "Etiquetas" });
+    [
+      "Stack tecnológico",
+      "Se valora",
+      "Modelo de trabajo",
+      "Seniority",
+      "Contrato",
+      "Idiomas",
+    ].forEach((title) => expect(within(tags).getByText(title)).toBeVisible());
+    expect(within(tags).getByText("Remoto")).toBeInTheDocument();
+    expect(within(tags).getByText("Mid")).toBeInTheDocument();
+    expect(within(tags).getByText("Indefinido")).toBeInTheDocument();
+    expect(within(tags).getByText("Docker").parentElement).toHaveClass(
+      "border-dashed",
+    );
+    expect(within(tags).getByText("React").parentElement).not.toHaveClass(
+      "border-dashed",
+    );
+    expect(within(tags).queryByText("Sin etiquetas.")).not.toBeInTheDocument();
+  });
+
+  it("omits the groups that have no tags", () => {
+    renderOk({ tags: [{ label: "React", group: "stack" }] });
+
+    const tags = screen.getByRole("region", { name: "Etiquetas" });
+    expect(within(tags).getByText("Stack tecnológico")).toBeInTheDocument();
+    expect(within(tags).queryByText("Se valora")).not.toBeInTheDocument();
+    expect(within(tags).queryByText("Idiomas")).not.toBeInTheDocument();
+  });
+
+  it("keeps line breaks and renders notes as text, never as markup", () => {
+    renderOk({ notes: "línea 1\nlínea 2 <img src=x onerror=alert(1)>" });
+
+    const notes = screen.getByRole("region", { name: "Notas" });
+    const paragraph = within(notes).getByText(/línea 1/);
+    expect(paragraph).toHaveClass("whitespace-pre-wrap", "break-words");
+    expect(paragraph.textContent).toBe(
+      "línea 1\nlínea 2 <img src=x onerror=alert(1)>",
+    );
+    expect(document.querySelector("img")).toBeNull();
+  });
+
+  it("keeps the offer text unmounted until «Mostrar texto original» is opened", async () => {
+    renderOk({ offerText: "Buscamos <img src=x onerror=alert(1)> perfil" });
+
+    const trigger = screen.getByRole("button", {
+      name: "Mostrar texto original",
+    });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText(/Buscamos/)).not.toBeInTheDocument();
+
+    await userEvent.click(trigger);
+
+    expect(
+      screen.getByRole("button", { name: "Ocultar texto original" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    const text = screen.getByText(/Buscamos/);
+    expect(text).toHaveClass("whitespace-pre-wrap", "break-words");
+    expect(text.textContent).toBe(
+      "Buscamos <img src=x onerror=alert(1)> perfil",
+    );
+    expect(document.querySelector("img")).toBeNull();
+  });
+
+  it("shows the history newest first with «Actual» on the first entry only", () => {
+    renderOk({
+      status: "enviada",
+      statusHistory: [
+        { status: "guardada", at: "2026-10-12T10:00:00.000Z" },
+        { status: "enviada", at: "2026-10-14T10:00:00.000Z" },
+      ],
+    });
+
+    const history = screen.getByRole("region", {
+      name: "Historial de estados",
+    });
+    const items = within(history).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent("Enviada");
+    expect(items[0]).toHaveTextContent("14 oct. 2026");
+    expect(items[0]).toHaveTextContent("Actual");
+    expect(items[1]).toHaveTextContent("Guardada");
+    expect(items[1]).toHaveTextContent("12 oct. 2026");
+    expect(items[1]).not.toHaveTextContent("Actual");
+  });
+
+  it("marks a single history entry as «Actual»", () => {
+    renderOk();
+
+    const items = within(
+      screen.getByRole("region", { name: "Historial de estados" }),
+    ).getAllByRole("listitem");
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent("Actual");
+  });
+
+  it("grows with 15 history entries and adds no inner scroll box", () => {
+    const entries = Array.from({ length: 15 }, (_, index) => ({
+      status: "guardada",
+      at: `2026-10-${String(index + 1).padStart(2, "0")}T10:00:00.000Z`,
+    }));
+    renderOk({ statusHistory: entries });
+
+    const list = within(
+      screen.getByRole("region", { name: "Historial de estados" }),
+    ).getByRole("list");
+    expect(within(list).getAllByRole("listitem")).toHaveLength(15);
+    expect(list.className).not.toMatch(/overflow|max-h/);
+  });
+
+  it("never renders interview rounds or linked documents", () => {
+    renderOk(FULL);
+
+    expect(
+      screen.queryByRole("heading", { name: /ronda|entrevista/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /documento|CV|carta/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /ronda/i })).toBeNull();
+  });
+
+  it("wraps a long title and company instead of overflowing", () => {
+    renderOk({ title: "T".repeat(120), company: "C".repeat(120) });
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveClass(
+      "min-w-0",
+      "break-words",
+    );
+    expect(screen.getByText("C".repeat(120))).toHaveClass(
+      "min-w-0",
+      "break-words",
+    );
+  });
+});
+
+const renderState = (
+  status: "loading" | "notFound" | "error",
+  errorCode: HttpErrorCode | null = null,
+) =>
+  render(
+    <ApplicationDetailComponent
+      status={status}
+      vm={null}
+      errorCode={errorCode}
+      onRetry={() => {}}
+      renderListLink={renderListLink}
+    />,
+  );
+
+describe("detail page states", () => {
+  it("shows skeletons inside a busy status with sr-only text while loading", () => {
+    renderState("loading");
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveAttribute("aria-busy", "true");
+    expect(status).toHaveTextContent("Cargando candidatura…");
+    expect(
+      status.querySelectorAll('[data-slot="skeleton"]').length,
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  it("shows the not-found alert with the link back to the list", () => {
+    renderState("notFound");
+
+    const alert = screen.getByRole("alert");
+    expect(
+      within(alert).getByRole("heading", {
+        name: "No encontramos esta candidatura",
+      }),
+    ).toBeInTheDocument();
+    expect(alert).toHaveTextContent("Puede que la hayas eliminado.");
+    expect(
+      within(alert).getByRole("link", { name: "Volver a Mis candidaturas" }),
+    ).toHaveAttribute("href", "/applications");
+  });
+
+  it.each([
+    [
+      "NETWORK_ERROR" as const,
+      "No se pudo conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.",
+    ],
+    [
+      "INVALID_RESPONSE" as const,
+      "El servidor respondió algo inesperado. Inténtalo de nuevo.",
+    ],
+    ["INTERNAL_ERROR" as const, "Algo ha fallado. Inténtalo de nuevo."],
+  ])("shows fixed copy for %s with a retry button", async (code, body) => {
+    const onRetry = vi.fn();
+    render(
+      <ApplicationDetailComponent
+        status="error"
+        vm={null}
+        errorCode={code}
+        onRetry={onRetry}
+        renderListLink={renderListLink}
+      />,
+    );
+
+    const alert = screen.getByRole("alert");
+    expect(
+      within(alert).getByRole("heading", {
+        name: "No se pudo cargar la candidatura",
+      }),
+    ).toBeInTheDocument();
+    expect(alert).toHaveTextContent(body);
+    await userEvent.click(
+      within(alert).getByRole("button", { name: "Reintentar" }),
+    );
+    expect(onRetry).toHaveBeenCalledTimes(1);
   });
 });
