@@ -499,6 +499,7 @@ describe("ApplicationEditContainer conditions and tracking", () => {
     expect(headings).toStrictEqual([
       "Puesto y empresa",
       "Condiciones",
+      "Etiquetas",
       "Seguimiento",
     ]);
     expect(screen.getByLabelText("Puesto *")).toHaveValue("");
@@ -720,5 +721,206 @@ describe("ApplicationEditContainer conditions and tracking", () => {
     expect(
       await screen.findByText("El salario no puede ser negativo."),
     ).toBeInTheDocument();
+  });
+});
+
+const GROUPS = {
+  stack: "Stack tecnológico",
+  nice: "Se valora",
+  language: "Idiomas",
+} as const;
+
+const groupOf = (legend: string) => screen.getByRole("group", { name: legend });
+const tagInput = (legend: string) =>
+  screen.getByLabelText(`Añadir etiqueta a ${legend}`);
+const addButton = (legend: string) =>
+  within(groupOf(legend)).getByRole("button", { name: "Añadir" });
+const chip = (label: string) =>
+  screen.queryByRole("button", { name: `Quitar ${label}` });
+const typeTag = async (
+  user: ReturnType<typeof userEvent.setup>,
+  legend: string,
+  text: string,
+) => {
+  await user.type(tagInput(legend), `${text}{Enter}`);
+};
+
+describe("ApplicationEditContainer tags", () => {
+  it("shows three labelled groups, the counter and always-mounted status lines", () => {
+    renderForm();
+
+    for (const legend of Object.values(GROUPS)) {
+      const group = groupOf(legend);
+      const input = tagInput(legend);
+      expect(input).toHaveAttribute("placeholder", "Ej.: React");
+      expect(input).toHaveAttribute("maxlength", "40");
+      const status = group.querySelector("[role='status']");
+      expect(status).toHaveAttribute("aria-live", "polite");
+      expect(status).toBeEmptyDOMElement();
+      expect(within(group).queryAllByRole("listitem")).toHaveLength(0);
+    }
+    expect(screen.getByText("0 de 20")).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("adds a tag with Enter, clears the input, keeps focus, announces it and does not submit", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    await typeTag(user, GROUPS.stack, "React");
+
+    expect(chip("React")).toBeInTheDocument();
+    expect(tagInput(GROUPS.stack)).toHaveValue("");
+    expect(tagInput(GROUPS.stack)).toHaveFocus();
+    expect(
+      within(groupOf(GROUPS.stack)).getByText("React añadida."),
+    ).toBeVisible();
+    expect(screen.getByText("1 de 20")).toBeInTheDocument();
+    expect(posts(fetchMock)).toHaveLength(0);
+  });
+
+  it("adds with the Añadir button and normalizes the spelling", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(tagInput(GROUPS.language), "  Inglés   técnico ");
+    await user.click(addButton(GROUPS.language));
+
+    expect(chip("Inglés técnico")).toBeInTheDocument();
+    expect(
+      within(groupOf(GROUPS.language)).getByText("Inglés técnico añadida."),
+    ).toBeInTheDocument();
+  });
+
+  it("announces a duplicate in the same group and in another group", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await typeTag(user, GROUPS.stack, "React");
+    await user.type(tagInput(GROUPS.stack), " react ");
+    await user.click(addButton(GROUPS.stack));
+    expect(
+      within(groupOf(GROUPS.stack)).getByText("Ya está en la lista"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+
+    await typeTag(user, GROUPS.nice, "React");
+    expect(
+      within(groupOf(GROUPS.nice)).getByText("Ya está en la lista"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText("1 de 20")).toBeInTheDocument();
+  });
+
+  it("adds nothing and says nothing for an empty or whitespace-only input", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(tagInput(GROUPS.stack));
+    await user.keyboard("{Enter}");
+    await user.type(tagInput(GROUPS.stack), "   ");
+    await user.click(addButton(GROUPS.stack));
+
+    expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+    expect(
+      groupOf(GROUPS.stack).querySelector("[role='status']"),
+    ).toBeEmptyDOMElement();
+  });
+
+  it("stops at 20 tags with the cap message", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    for (let index = 1; index <= 20; index += 1) {
+      await typeTag(user, GROUPS.stack, `Tag ${index}`);
+    }
+    expect(screen.getByText("20 de 20")).toBeInTheDocument();
+
+    await typeTag(user, GROUPS.stack, "Tag 21");
+
+    expect(
+      within(groupOf(GROUPS.stack)).getByText("Máximo 20 etiquetas"),
+    ).toBeInTheDocument();
+    expect(chip("Tag 21")).toBeNull();
+    expect(screen.getAllByRole("listitem")).toHaveLength(20);
+    expect(screen.getByText("20 de 20")).toBeInTheDocument();
+  });
+
+  it("accepts a 40-character label and does not accept a 41st character", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(tagInput(GROUPS.stack), "a".repeat(41));
+
+    expect(tagInput(GROUPS.stack)).toHaveValue("a".repeat(40));
+    await user.keyboard("{Enter}");
+    expect(chip("a".repeat(40))).toBeInTheDocument();
+  });
+
+  it("removes a chip, announces it and moves focus to the next remove button", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await typeTag(user, GROUPS.stack, "A");
+    await typeTag(user, GROUPS.stack, "B");
+    await typeTag(user, GROUPS.stack, "C");
+
+    await user.click(chip("B") as HTMLElement);
+    expect(chip("B")).toBeNull();
+    expect(
+      within(groupOf(GROUPS.stack)).getByText("B quitada."),
+    ).toBeInTheDocument();
+    expect(chip("C")).toHaveFocus();
+
+    await user.click(chip("C") as HTMLElement);
+    expect(chip("A")).toHaveFocus();
+
+    await user.click(chip("A") as HTMLElement);
+    expect(tagInput(GROUPS.stack)).toHaveFocus();
+    expect(screen.getByText("0 de 20")).toBeInTheDocument();
+  });
+
+  it("posts the tags of the three groups", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    await typeTag(user, GROUPS.stack, "React");
+    await typeTag(user, GROUPS.nice, "Docker");
+    await typeTag(user, GROUPS.language, "Inglés");
+    await submit(user);
+
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(1));
+    expect(lastPostBody(fetchMock).tags).toStrictEqual([
+      { label: "React", group: "stack" },
+      { label: "Docker", group: "nice_to_have" },
+      { label: "Inglés", group: "language" },
+    ]);
+  });
+
+  it("uses a soft chip for Se valora only", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await typeTag(user, GROUPS.nice, "Docker");
+    await typeTag(user, GROUPS.stack, "React");
+
+    const soft = chip("Docker")?.closest("span");
+    const hard = chip("React")?.closest("span");
+    expect(soft?.className).toContain("border-dashed");
+    expect(hard?.className).not.toContain("border-dashed");
+  });
+
+  it("wraps the chips of a group", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await typeTag(user, GROUPS.stack, "React");
+
+    expect(within(groupOf(GROUPS.stack)).getByRole("list").className).toContain(
+      "flex-wrap",
+    );
   });
 });
