@@ -1,4 +1,4 @@
-import { getRouteApi } from "@tanstack/react-router";
+import { getRouteApi, Link } from "@tanstack/react-router";
 import { useEffect } from "react";
 import {
   pickListSearch,
@@ -44,6 +44,15 @@ export function ApplicationListScene() {
         query={query}
         onQueryChange={handleQueryChange}
         onClearFilters={handleClearFilters}
+        renderApplicationLink={({ applicationId, className, children }) => (
+          <Link
+            to="/applications/$applicationId"
+            params={{ applicationId }}
+            className={className}
+          >
+            {children}
+          </Link>
+        )}
       />
     </div>
   );

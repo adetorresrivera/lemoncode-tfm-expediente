@@ -1,13 +1,22 @@
+import type { ReactElement, ReactNode } from "react";
 import { StatusBadge } from "@/common/components/status-badge";
 import { TagChip } from "@/common/components/tag-chip";
 import type { ApplicationListItem } from "../application-list.vm";
 
+export type RenderApplicationLink = (link: {
+  applicationId: string;
+  className?: string;
+  children: ReactNode;
+}) => ReactElement;
+
 interface Props {
   application: ApplicationListItem;
+  renderApplicationLink: RenderApplicationLink;
 }
 
-export function ApplicationCard({ application }: Props) {
+export function ApplicationCard({ application, renderApplicationLink }: Props) {
   const {
+    id,
     title,
     company,
     location,
@@ -20,10 +29,19 @@ export function ApplicationCard({ application }: Props) {
 
   return (
     <li>
-      <article className="relative flex flex-col gap-2 rounded-md border border-border bg-card p-4 hover:border-input lg:p-6">
+      <article className="relative flex flex-col gap-2 rounded-md border border-border bg-card p-4 hover:border-input has-[a:focus-visible]:ring-2 has-[a:focus-visible]:ring-ring lg:p-6">
         <h2 className="min-w-0 break-words font-serif text-base font-semibold leading-[1.2]">
-          {title}
-          <span className="sr-only">, {company}</span>
+          {renderApplicationLink({
+            applicationId: id,
+            className:
+              "outline-none after:absolute after:inset-0 hover:underline underline-offset-4",
+            children: (
+              <>
+                {title}
+                <span className="sr-only">, {company}</span>
+              </>
+            ),
+          })}
         </h2>
         <p className="min-w-0 break-words text-sm text-muted-foreground">
           {location ? `${company} · ${location}` : company}
