@@ -1,7 +1,13 @@
 import { useRef } from "react";
 import type { HttpErrorCode } from "@/core/http/http-client";
+import {
+  hasActiveFilters,
+  type ListSearch,
+} from "@/core/router/application-search";
 import { ApplicationCard } from "./components/application-card";
+import { EmptyFilteredState } from "./components/empty-filtered-state";
 import { EmptyState } from "./components/empty-state";
+import { FilterPanel } from "./components/filter-panel";
 import { ListError } from "./components/list-error";
 import { ListSkeleton } from "./components/list-skeleton";
 import { ResultCount } from "./components/result-count";
@@ -13,6 +19,10 @@ interface Props {
   errorCode: HttpErrorCode | null;
   refreshing: boolean;
   onRetry: () => void;
+  query: ListSearch;
+  onQueryChange: (next: ListSearch) => void;
+  onClear: () => void;
+  clearCount: number;
 }
 
 export function ApplicationListComponent({
@@ -21,6 +31,10 @@ export function ApplicationListComponent({
   errorCode,
   refreshing,
   onRetry,
+  query,
+  onQueryChange,
+  onClear,
+  clearCount,
 }: Props) {
   const resultsRef = useRef<HTMLElement>(null);
 
@@ -34,6 +48,12 @@ export function ApplicationListComponent({
 
   return (
     <div className="flex flex-col gap-4">
+      <FilterPanel
+        query={query}
+        onQueryChange={onQueryChange}
+        onClear={onClear}
+        clearCount={clearCount}
+      />
       <ResultCount count={count} />
       <section
         ref={resultsRef}
@@ -50,7 +70,11 @@ export function ApplicationListComponent({
             onRetry={handleRetry}
           />
         ) : applications.length === 0 ? (
-          <EmptyState />
+          hasActiveFilters(query) ? (
+            <EmptyFilteredState onClear={onClear} />
+          ) : (
+            <EmptyState />
+          )
         ) : (
           <ul aria-label="Candidaturas" className="flex flex-col gap-4">
             {applications.map((application) => (

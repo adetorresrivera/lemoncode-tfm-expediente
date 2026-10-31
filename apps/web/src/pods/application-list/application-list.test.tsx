@@ -1,6 +1,7 @@
 import { applicationSchema } from "@tfm/contracts";
 import {
   act,
+  fireEvent,
   render,
   renderHook,
   screen,
@@ -9,7 +10,8 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { describe, expect, it } from "vitest";
+import { useState } from "react";
+import { describe, expect, it, vi } from "vitest";
 import type { ListSearch } from "@/core/router/application-search";
 import { createAppRouter } from "@/core/router/router";
 import { jsonResponse, mockFetch } from "@/test/mock-fetch";
@@ -26,6 +28,13 @@ const listProps = {
   query: defaultQuery,
   onQueryChange: () => {},
   onClearFilters: () => {},
+};
+
+const panelProps = {
+  query: defaultQuery,
+  onQueryChange: () => {},
+  onClear: () => {},
+  clearCount: 0,
 };
 
 const EMPTY_TEXT =
@@ -347,6 +356,7 @@ describe("stale-while-refresh", () => {
         errorCode={null}
         refreshing
         onRetry={() => {}}
+        {...panelProps}
       />,
     );
 
@@ -368,6 +378,7 @@ const renderCards = (...apps: ReturnType<typeof makeFull>[]) =>
       errorCode={null}
       refreshing={false}
       onRetry={() => {}}
+      {...panelProps}
     />,
   );
 
@@ -478,5 +489,207 @@ describe("ApplicationListScene", () => {
     );
     expect(heading).toHaveAttribute("tabindex", "-1");
     expect(document.title).toBe("Mis candidaturas · Expediente");
+  });
+});
+
+describe("filter panel", () => {
+  it("is a search region named «Filtrar candidaturas» with a labelled «Buscar» field", () => {
+    render(<ApplicationListContainer {...listProps} />);
+
+    const panel = screen.getByRole("search", { name: "Filtrar candidaturas" });
+    const field = within(panel).getByRole("searchbox", { name: "Buscar" });
+    expect(field).toHaveAttribute("placeholder", "Puesto o empresa");
+    expect(field).toHaveAttribute("maxlength", "100");
+    expect(field).toHaveAttribute("autocomplete", "off");
+  });
+
+  it("stays rendered while the list is loading and when it fails", async () => {
+    mockFetch({
+      "GET /api/applications": () =>
+        jsonResponse({ error: { code: "INTERNAL_ERROR", message: "x" } }, 500),
+    });
+    render(<ApplicationListContainer {...listProps} />);
+
+    expect(screen.getByRole("search")).toBeInTheDocument();
+    await screen.findByRole("alert");
+    expect(screen.getByRole("search")).toBeInTheDocument();
+  });
+
+  it("starts with the text of the query", () => {
+    render(
+      <ApplicationListContainer
+        {...listProps}
+        query={{ q: "acme", sort: "updatedAt" }}
+      />,
+    );
+    expect(screen.getByRole("searchbox", { name: "Buscar" })).toHaveValue(
+      "acme",
+    );
+  });
+});
+
+describe("search debounce", () => {
+  const typeInto = (value: string) =>
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar" }), {
+      target: { value },
+    });
+
+  it("calls onQueryChange once with the text 300 ms after the last keystroke", () => {
+    vi.useFakeTimers();
+    try {
+      const onQueryChange = vi.fn();
+      render(
+        <ApplicationListContainer
+          {...listProps}
+          onQueryChange={onQueryChange}
+        />,
+      );
+
+      typeInto("ac");
+      act(() => vi.advanceTimersByTime(200));
+      typeInto("acme");
+      act(() => vi.advanceTimersByTime(299));
+      expect(onQueryChange).not.toHaveBeenCalled();
+
+      act(() => vi.advanceTimersByTime(1));
+      expect(onQueryChange).toHaveBeenCalledTimes(1);
+      expect(onQueryChange).toHaveBeenCalledWith({
+        q: "acme",
+        sort: "updatedAt",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("sends q undefined when the text is cleared or only blanks", () => {
+    vi.useFakeTimers();
+    try {
+      const onQueryChange = vi.fn();
+      render(
+        <ApplicationListContainer
+          {...listProps}
+          query={{ q: "acme", sort: "appliedAt" }}
+          onQueryChange={onQueryChange}
+        />,
+      );
+
+      typeInto("   ");
+      act(() => vi.advanceTimersByTime(300));
+
+      expect(onQueryChange).toHaveBeenCalledTimes(1);
+      expect(onQueryChange.mock.calls[0]?.[0]).toEqual({
+        q: undefined,
+        sort: "appliedAt",
+      });
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+function StatefulList({
+  initial,
+  onClearFilters,
+}: {
+  initial: ListSearch;
+  onClearFilters: () => void;
+}) {
+  const [query, setQuery] = useState(initial);
+  return (
+    <ApplicationListContainer
+      query={query}
+      onQueryChange={setQuery}
+      onClearFilters={() => {
+        onClearFilters();
+        setQuery({ sort: "updatedAt" });
+      }}
+    />
+  );
+}
+
+describe("«Limpiar filtros»", () => {
+  const clearButton = () =>
+    screen.queryByRole("button", { name: "Limpiar filtros" });
+
+  it("is absent with no active filter and the default sort", () => {
+    render(<ApplicationListContainer {...listProps} />);
+    expect(clearButton()).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["q is set", { q: "acme", sort: "updatedAt" }],
+    ["the sort is not the default", { sort: "appliedAt" }],
+  ] as const)("is present when %s", (_, query) => {
+    render(<ApplicationListContainer {...listProps} query={query} />);
+    expect(clearButton()).toBeInTheDocument();
+  });
+
+  it("calls onClearFilters, empties the field and leaves it focused", async () => {
+    const onClearFilters = vi.fn();
+    render(
+      <StatefulList
+        initial={{ q: "acme", sort: "appliedAt" }}
+        onClearFilters={onClearFilters}
+      />,
+    );
+    const field = screen.getByRole("searchbox", { name: "Buscar" });
+    expect(field).toHaveValue("acme");
+
+    await userEvent.click(
+      screen.getByRole("button", { name: "Limpiar filtros" }),
+    );
+
+    expect(onClearFilters).toHaveBeenCalledTimes(1);
+    const remounted = screen.getByRole("searchbox", { name: "Buscar" });
+    expect(remounted).toHaveValue("");
+    expect(remounted).toHaveFocus();
+    expect(clearButton()).not.toBeInTheDocument();
+  });
+});
+
+describe("empty states", () => {
+  it("shows the empty-by-filters card with an outline «Limpiar filtros» when a filter is active", async () => {
+    mockFetch({ "GET /api/applications": [] });
+    const onClearFilters = vi.fn();
+    render(
+      <ApplicationListContainer
+        {...listProps}
+        query={{ q: "zzz", sort: "updatedAt" }}
+        onClearFilters={onClearFilters}
+      />,
+    );
+
+    const results = screen.getByRole("region", { name: "Resultados" });
+    expect(
+      await within(results).findByText(
+        "Ninguna candidatura coincide con los filtros",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(results).getByText(
+        "Prueba con otros términos o quita algún filtro.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(EMPTY_TEXT)).not.toBeInTheDocument();
+    const button = within(results).getByRole("button", {
+      name: "Limpiar filtros",
+    });
+    expect(button).toHaveAttribute("data-variant", "outline");
+
+    await userEvent.click(button);
+    expect(onClearFilters).toHaveBeenCalledTimes(1);
+  });
+
+  it("shows the plain empty state when only the sort is not the default", async () => {
+    mockFetch({ "GET /api/applications": [] });
+    render(
+      <ApplicationListContainer {...listProps} query={{ sort: "appliedAt" }} />,
+    );
+
+    expect(await screen.findByText(EMPTY_TEXT)).toBeInTheDocument();
+    expect(
+      screen.queryByText("Ninguna candidatura coincide con los filtros"),
+    ).not.toBeInTheDocument();
   });
 });

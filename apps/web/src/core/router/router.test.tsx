@@ -1,6 +1,14 @@
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
 import { applicationSchema } from "@tfm/contracts";
-import { act, render, screen, waitFor, within } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 import { jsonResponse, mockFetch } from "@/test/mock-fetch";
 import { createAppRouter } from "./router";
@@ -188,5 +196,97 @@ describe("list state in the URL", () => {
     expect(screen.getByText("Answer for B")).toBeInTheDocument();
     expect(screen.queryByText("Answer for A")).not.toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+});
+
+describe("search field and «Limpiar filtros» in the URL", () => {
+  it("shows the URL state in the field and requests it", async () => {
+    mockFetch({ "GET /api/applications": [stored] });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications?q=123"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole("searchbox", { name: "Buscar" }),
+    ).toHaveValue("123");
+  });
+
+  it("shows hostile values as not applied: empty field and no clear button", async () => {
+    mockFetch({ "GET /api/applications": [stored] });
+    const router = createAppRouter(
+      createMemoryHistory({
+        initialEntries: ["/applications?status=foo&sort=title&q="],
+      }),
+    );
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole("searchbox", { name: "Buscar" }),
+    ).toHaveValue("");
+    expect(
+      screen.queryByRole("button", { name: "Limpiar filtros" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("updates the URL 300 ms after typing without adding history entries", async () => {
+    const fetchMock = mockFetch({ "GET /api/applications": [stored] });
+    const history = createMemoryHistory({ initialEntries: ["/applications"] });
+    const router = createAppRouter(history);
+    render(<RouterProvider router={router} />);
+    const field = await screen.findByRole("searchbox", { name: "Buscar" });
+
+    fireEvent.change(field, { target: { value: "acme" } });
+    expect(router.state.location.href).toBe("/applications");
+    await waitFor(() =>
+      expect(router.state.location.href).toBe("/applications?q=acme"),
+    );
+
+    expect(history.length).toBe(1);
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([input]) =>
+          String(input).includes("q=acme"),
+        ),
+      ).toBe(true),
+    );
+  });
+
+  it("«Limpiar filtros» returns to exactly /applications, replaces the entry and focuses the empty field", async () => {
+    mockFetch({ "GET /api/applications": [stored] });
+    const history = createMemoryHistory({
+      initialEntries: ["/applications?q=acme&status=enviada&sort=appliedAt"],
+    });
+    const router = createAppRouter(history);
+    render(<RouterProvider router={router} />);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Limpiar filtros" }),
+    );
+
+    await waitFor(() =>
+      expect(router.state.location.href).toBe("/applications"),
+    );
+    expect(history.length).toBe(1);
+    const field = screen.getByRole("searchbox", { name: "Buscar" });
+    expect(field).toHaveValue("");
+    expect(field).toHaveFocus();
+    expect(
+      screen.queryByRole("button", { name: "Limpiar filtros" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("applies no filter and the default sort at /applications", async () => {
+    const fetchMock = mockFetch({ "GET /api/applications": [stored] });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    await screen.findByText("Frontend Developer");
+    expect(firstRequestUrl(fetchMock).search).toBe("?sort=updatedAt");
+    expect(
+      screen.queryByRole("button", { name: "Limpiar filtros" }),
+    ).not.toBeInTheDocument();
   });
 });
