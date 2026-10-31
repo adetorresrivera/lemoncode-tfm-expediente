@@ -62,6 +62,15 @@ export interface ApplicationsRepository {
   list(query: ApplicationQuery): Promise<ApplicationDoc[]>;
   findById(id: ObjectId): Promise<ApplicationDoc | null>;
   tagSummaries(): Promise<TagCount[]>;
+  // Null when the id is unknown OR the status is already `status` (nothing written).
+  changeStatus(
+    id: ObjectId,
+    status: ApplicationStatus,
+    now: Date,
+  ): Promise<ApplicationDoc | null>;
+  // True when one application was deleted. Only the applications collection is touched: stored
+  // documents are never deleted or unlinked here (APP-03).
+  deleteById(id: ObjectId): Promise<boolean>;
 }
 
 export function createApplicationsRepository(db: Db): ApplicationsRepository {
@@ -83,6 +92,44 @@ export function createApplicationsRepository(db: Db): ApplicationsRepository {
     },
     async findById(id) {
       return collection.findOne({ _id: id });
+    },
+    // One atomic pipeline update guarded by `status: { $ne }`: the status, its history entry,
+    // appliedAt and updatedAt change together or not at all, and concurrent identical moves write
+    // one entry. appliedAt is only filled on a move to enviada while it is null or missing. No
+    // insert-on-miss option: a deleted application is never recreated.
+    async changeStatus(id, status, now) {
+      return collection.findOneAndUpdate(
+        { _id: id, status: { $ne: status } },
+        [
+          {
+            $set: {
+              status: { $literal: status },
+              statusHistory: {
+                $concatArrays: [
+                  "$statusHistory",
+                  [{ status: { $literal: status }, at: now }],
+                ],
+              },
+              appliedAt:
+                status === "enviada"
+                  ? {
+                      $cond: [
+                        { $eq: [{ $ifNull: ["$appliedAt", null] }, null] },
+                        now,
+                        "$appliedAt",
+                      ],
+                    }
+                  : "$appliedAt",
+              updatedAt: now,
+            },
+          },
+        ],
+        { returnDocument: "after" },
+      );
+    },
+    async deleteById(id) {
+      const { deletedCount } = await collection.deleteOne({ _id: id });
+      return deletedCount === 1;
     },
     // One row per (stored key, group). The key already merges case variants, so no server-side
     // lower-casing is needed (it would be ASCII-only). The label is the oldest application's.

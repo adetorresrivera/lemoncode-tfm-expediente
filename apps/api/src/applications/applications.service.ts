@@ -5,6 +5,7 @@ import {
   type Application,
   type ApplicationQuery,
   type ApplicationInput,
+  type ApplicationStatus,
   type TagSummary,
 } from "@tfm/contracts";
 import type { ObjectId } from "mongodb";
@@ -20,25 +21,29 @@ export interface ApplicationsService {
   get(id: ObjectId): Promise<Application>;
   create(input: ApplicationInput): Promise<Application>;
   listTags(): Promise<TagSummary[]>;
+  changeStatus(id: ObjectId, status: ApplicationStatus): Promise<Application>;
+  remove(id: ObjectId): Promise<void>;
 }
 
 export function createApplicationsService(
   repository: ApplicationsRepository,
   now: () => Date = () => new Date(),
 ): ApplicationsService {
+  async function get(id: ObjectId): Promise<Application> {
+    const doc = await repository.findById(id);
+    if (doc === null) {
+      throw new ApiError(404, "NOT_FOUND", "Candidatura no encontrada");
+    }
+    return mapApplicationDocToApi(doc);
+  }
+
   return {
     async list(query) {
       const docs = await repository.list(query);
       return docs.map(mapApplicationDocToApi);
     },
 
-    async get(id) {
-      const doc = await repository.findById(id);
-      if (doc === null) {
-        throw new ApiError(404, "NOT_FOUND", "Candidatura no encontrada");
-      }
-      return mapApplicationDocToApi(doc);
-    },
+    get,
 
     async create(input) {
       const at = now();
@@ -78,6 +83,19 @@ export function createApplicationsService(
         ownerId: null,
       };
       return mapApplicationDocToApi(await repository.insert(doc));
+    },
+
+    async changeStatus(id, status) {
+      const doc = await repository.changeStatus(id, status, now());
+      if (doc !== null) return mapApplicationDocToApi(doc);
+      // Null means unknown id or already in that status: the second case is an idempotent 200.
+      return get(id);
+    },
+
+    async remove(id) {
+      if (!(await repository.deleteById(id))) {
+        throw new ApiError(404, "NOT_FOUND", "Candidatura no encontrada");
+      }
     },
 
     async listTags() {

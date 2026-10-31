@@ -13,3 +13,12 @@ declare module "@tanstack/react-router" {
     router: typeof router;
   }
 }
+
+// State a scene passes through the history entry of a navigation (UI-SPEC A-7); read once by
+// `useArrivalNotice` in the destination scene.
+declare module "@tanstack/history" {
+  interface HistoryState {
+    focusHeading?: boolean;
+    notice?: string;
+  }
+}

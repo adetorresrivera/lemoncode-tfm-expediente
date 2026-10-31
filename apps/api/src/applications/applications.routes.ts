@@ -1,4 +1,8 @@
-import { applicationInputSchema, applicationQuerySchema } from "@tfm/contracts";
+import {
+  applicationInputSchema,
+  applicationQuerySchema,
+  statusChangeSchema,
+} from "@tfm/contracts";
 import { Hono } from "hono";
 import { parseObjectId } from "../http/object-id.js";
 import { queryInput } from "../http/query-input.js";
@@ -26,6 +30,17 @@ export function applicationsRoutes(service: ApplicationsService): Hono {
   routes.post("/", async (c) => {
     const input = applicationInputSchema.parse(await c.req.json());
     return c.json(await service.create(input), 201);
+  });
+
+  routes.patch("/:id/status", async (c) => {
+    const id = parseObjectId(c.req.param("id"));
+    const { status } = statusChangeSchema.parse(await c.req.json());
+    return c.json(await service.changeStatus(id, status));
+  });
+
+  routes.delete("/:id", async (c) => {
+    await service.remove(parseObjectId(c.req.param("id")));
+    return c.body(null, 204);
   });
 
   return routes;

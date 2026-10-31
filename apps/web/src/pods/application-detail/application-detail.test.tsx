@@ -18,6 +18,7 @@ import { useApplicationDetail } from "./application-detail.hooks";
 import {
   mapApplicationFromApiToDetailVm,
   toSafeHttpUrl,
+  withOptimisticStatus,
 } from "./application-detail.mapper";
 
 // The scene supplies the real router link; pod tests use a plain anchor.
@@ -141,7 +142,9 @@ describe("application-detail mapper", () => {
 describe("useApplicationDetail", () => {
   it("loads and maps the application", async () => {
     mockFetch({ "GET /api/applications/a1": makeApplication() });
-    const { result } = renderHook(() => useApplicationDetail("a1"));
+    const { result } = renderHook(() =>
+      useApplicationDetail("a1", { onDeleted: () => {} }),
+    );
 
     expect(result.current.status).toBe("loading");
     await waitFor(() => expect(result.current.status).toBe("ok"));
@@ -150,7 +153,9 @@ describe("useApplicationDetail", () => {
 
   it("yields notFound for a 404 answer", async () => {
     mockFetch({ "GET /api/applications/zzz": notFoundResponse });
-    const { result } = renderHook(() => useApplicationDetail("zzz"));
+    const { result } = renderHook(() =>
+      useApplicationDetail("zzz", { onDeleted: () => {} }),
+    );
 
     await waitFor(() => expect(result.current.status).toBe("notFound"));
     expect(result.current.vm).toBeNull();
@@ -166,7 +171,9 @@ describe("useApplicationDetail", () => {
           : jsonResponse(makeApplication());
       },
     });
-    const { result } = renderHook(() => useApplicationDetail("a1"));
+    const { result } = renderHook(() =>
+      useApplicationDetail("a1", { onDeleted: () => {} }),
+    );
 
     await waitFor(() => expect(result.current.status).toBe("error"));
     expect(result.current.errorCode).toBe("NETWORK_ERROR");
@@ -179,7 +186,9 @@ describe("useApplicationDetail", () => {
 
   it("encodes the id before it reaches the API path", async () => {
     const fetchMock = mockFetch({});
-    const { result } = renderHook(() => useApplicationDetail("a/b?c"));
+    const { result } = renderHook(() =>
+      useApplicationDetail("a/b?c", { onDeleted: () => {} }),
+    );
 
     await waitFor(() => expect(result.current.status).toBe("notFound"));
     expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
@@ -203,6 +212,7 @@ describe("ApplicationDetailContainer header", () => {
     render(
       <ApplicationDetailContainer
         applicationId="a1"
+        onDeleted={() => {}}
         renderListLink={renderListLink}
       />,
     );
@@ -216,7 +226,9 @@ describe("ApplicationDetailContainer header", () => {
       "Lemoncode · Madrid",
     );
     expect(
-      within(heading.closest("header") as HTMLElement).getByText("Enviada"),
+      within(heading.closest("header") as HTMLElement).getByText("Enviada", {
+        selector: "span",
+      }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("link", { name: "Mis candidaturas" }),
@@ -229,6 +241,7 @@ describe("ApplicationDetailContainer header", () => {
     render(
       <ApplicationDetailContainer
         applicationId="zzz"
+        onDeleted={() => {}}
         renderListLink={renderListLink}
       />,
     );
@@ -254,6 +267,7 @@ describe("ApplicationDetailContainer header", () => {
     render(
       <ApplicationDetailContainer
         applicationId="a1"
+        onDeleted={() => {}}
         renderListLink={renderListLink}
       />,
     );
@@ -277,6 +291,11 @@ const renderOk = (overrides: Record<string, unknown> = {}) =>
       })}
       errorCode={null}
       onRetry={() => {}}
+      onChangeStatus={() => {}}
+      statusPending={false}
+      statusFeedback={null}
+      deleteState="idle"
+      onDelete={() => {}}
       renderListLink={renderListLink}
     />,
   );
@@ -509,6 +528,11 @@ const renderState = (
       vm={null}
       errorCode={errorCode}
       onRetry={() => {}}
+      onChangeStatus={() => {}}
+      statusPending={false}
+      statusFeedback={null}
+      deleteState="idle"
+      onDelete={() => {}}
       renderListLink={renderListLink}
     />,
   );
@@ -558,6 +582,11 @@ describe("detail page states", () => {
         vm={null}
         errorCode={code}
         onRetry={onRetry}
+        onChangeStatus={() => {}}
+        statusPending={false}
+        statusFeedback={null}
+        deleteState="idle"
+        onDelete={() => {}}
         renderListLink={renderListLink}
       />,
     );
@@ -573,5 +602,396 @@ describe("detail page states", () => {
       within(alert).getByRole("button", { name: "Reintentar" }),
     );
     expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("withOptimisticStatus", () => {
+  it("returns a new view model with the new status and a newest-first entry, without mutating the input", () => {
+    const vm = mapApplicationFromApiToDetailVm(makeApplication());
+    const before = structuredClone(vm);
+
+    const next = withOptimisticStatus(vm, "enviada", "30 oct. 2026");
+
+    expect(next).not.toBe(vm);
+    expect(next.status).toBe("enviada");
+    expect(next.history).toStrictEqual([
+      { status: "enviada", atLabel: "30 oct. 2026" },
+      { status: "guardada", atLabel: "12 oct. 2026" },
+    ]);
+    expect(vm).toStrictEqual(before);
+  });
+});
+
+const sentApplication = () =>
+  makeApplication({
+    status: "enviada",
+    appliedAt: "2026-10-30T09:00:00.000Z",
+    statusHistory: [
+      { status: "guardada", at: "2026-10-12T10:00:00.000Z" },
+      { status: "enviada", at: "2026-10-30T09:00:00.000Z" },
+    ],
+  });
+
+const renderDetail = (onDeleted: () => void = () => {}) =>
+  render(
+    <ApplicationDetailContainer
+      applicationId="a1"
+      onDeleted={onDeleted}
+      renderListLink={renderListLink}
+    />,
+  );
+
+const statusSelect = () =>
+  screen.findByRole("combobox", { name: "Cambiar estado" });
+
+const deferred = () => {
+  let resolve: (response: Response) => void = () => {};
+  const promise = new Promise<Response>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+};
+
+const serverError = () =>
+  jsonResponse({ error: { code: "INTERNAL_ERROR", message: "x" } }, 500);
+
+describe("status change", () => {
+  it("offers the 7 statuses in enum order with the current one selected", async () => {
+    mockFetch({ "GET /api/applications/a1": makeApplication() });
+    renderDetail();
+
+    const select = await statusSelect();
+    expect(select).toHaveValue("guardada");
+    expect(
+      within(select)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toStrictEqual([
+      "Guardada",
+      "Enviada",
+      "En entrevistas",
+      "Oferta recibida",
+      "Aceptada",
+      "Rechazada",
+      "Descartada",
+    ]);
+  });
+
+  it("updates badge, select and history before the response, then announces the success", async () => {
+    const patch = deferred();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "PATCH /api/applications/a1/status": () => patch.promise,
+    });
+    renderDetail();
+    const select = await statusSelect();
+    const header = (await screen.findByRole("heading", { level: 1 })).closest(
+      "header",
+    ) as HTMLElement;
+
+    await userEvent.selectOptions(select, "enviada");
+
+    expect(select).toHaveValue("enviada");
+    expect(
+      within(header).getByText("Enviada", { selector: "span" }),
+    ).toBeInTheDocument();
+    const history = screen.getByRole("region", {
+      name: "Historial de estados",
+    });
+    const entries = within(history).getAllByRole("listitem");
+    expect(entries).toHaveLength(2);
+    expect(entries[0]).toHaveTextContent("Actual");
+    expect(entries[0]).toHaveTextContent("Enviada");
+    expect(select).toHaveAttribute("aria-busy", "true");
+    expect(select).toHaveAttribute("aria-disabled", "true");
+    expect(select).not.toBeDisabled();
+    expect(screen.getByRole("status")).toHaveTextContent("Guardando…");
+
+    patch.resolve(jsonResponse(sentApplication()));
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Estado cambiado a Enviada.",
+      ),
+    );
+    expect(select).toHaveAttribute("aria-busy", "false");
+    expect(select).toHaveAttribute("aria-disabled", "false");
+    expect(select).toHaveValue("enviada");
+    expect(within(history).getAllByRole("listitem")[0]).toHaveTextContent(
+      "30 oct. 2026",
+    );
+    const patchCalls = fetchMock.mock.calls.filter(
+      ([, init]) => init?.method === "PATCH",
+    );
+    expect(patchCalls).toHaveLength(1);
+    expect(String(patchCalls[0]?.[0])).toBe("/api/applications/a1/status");
+    expect(patchCalls[0]?.[1]?.body).toBe(
+      JSON.stringify({ status: "enviada" }),
+    );
+  });
+
+  it("restores badge, select and history and announces the error when the PATCH fails", async () => {
+    mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "PATCH /api/applications/a1/status": serverError,
+    });
+    renderDetail();
+    const select = await statusSelect();
+    const header = (await screen.findByRole("heading", { level: 1 })).closest(
+      "header",
+    ) as HTMLElement;
+
+    await userEvent.selectOptions(select, "enviada");
+
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "No se pudo cambiar el estado. Inténtalo de nuevo.",
+      ),
+    );
+    expect(select).toHaveValue("guardada");
+    expect(
+      within(header).getByText("Guardada", { selector: "span" }),
+    ).toBeInTheDocument();
+    expect(
+      within(
+        screen.getByRole("region", { name: "Historial de estados" }),
+      ).getAllByRole("listitem"),
+    ).toHaveLength(1);
+    expect(select).toHaveAttribute("aria-busy", "false");
+    expect(select).toHaveFocus();
+  });
+
+  it("sends one PATCH when two statuses are selected while the first is pending", async () => {
+    const patch = deferred();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "PATCH /api/applications/a1/status": () => patch.promise,
+    });
+    renderDetail();
+    const select = await statusSelect();
+
+    await userEvent.selectOptions(select, "enviada");
+    await userEvent.selectOptions(select, "rechazada");
+
+    patch.resolve(jsonResponse(sentApplication()));
+    await waitFor(() =>
+      expect(screen.getByRole("status")).toHaveTextContent(
+        "Estado cambiado a Enviada.",
+      ),
+    );
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH"),
+    ).toHaveLength(1);
+    expect(select).toHaveValue("enviada");
+  });
+
+  it("sends no PATCH when the current status is selected", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+    });
+    renderDetail();
+    const select = await statusSelect();
+
+    await userEvent.selectOptions(select, "guardada");
+
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH"),
+    ).toHaveLength(0);
+    expect(screen.getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("clears the success message after 5 seconds", async () => {
+    mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "PATCH /api/applications/a1/status": () =>
+        jsonResponse(sentApplication()),
+    });
+    renderDetail();
+    const select = await statusSelect();
+
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      await userEvent
+        .setup({ advanceTimers: vi.advanceTimersByTime })
+        .selectOptions(select, "enviada");
+      await waitFor(() =>
+        expect(screen.getByRole("status")).toHaveTextContent(
+          "Estado cambiado a Enviada.",
+        ),
+      );
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(5000);
+      });
+      expect(screen.getByRole("status")).toBeEmptyDOMElement();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+const deleteCalls = (fetchMock: ReturnType<typeof mockFetch>) =>
+  fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE");
+
+const noContent = () => new Response(null, { status: 204 });
+
+const openDeleteDialog = async () => {
+  const trigger = await screen.findByRole("button", { name: "Eliminar" });
+  await userEvent.click(trigger);
+  return {
+    trigger,
+    dialog: await screen.findByRole("alertdialog"),
+  };
+};
+
+describe("delete dialog", () => {
+  it("opens with the title, the description with title and company, and focus on «Conservar candidatura»", async () => {
+    mockFetch({ "GET /api/applications/a1": makeApplication() });
+    renderDetail();
+
+    const { dialog } = await openDeleteDialog();
+
+    expect(
+      within(dialog).getByText("¿Eliminar esta candidatura?"),
+    ).toBeInTheDocument();
+    const description = within(dialog).getByText(/Vas a eliminar/);
+    expect(description).toHaveTextContent(
+      "Vas a eliminar «Frontend Developer» de Lemoncode. Esta acción no se puede deshacer.",
+    );
+    expect(description).toHaveClass("break-words");
+    expect(
+      within(dialog).getByRole("button", { name: "Conservar candidatura" }),
+    ).toHaveFocus();
+    expect(dialog).toHaveClass("max-h-[calc(100dvh-2rem)]", "overflow-y-auto");
+  });
+
+  it("closes with Escape and returns focus to «Eliminar»", async () => {
+    mockFetch({ "GET /api/applications/a1": makeApplication() });
+    renderDetail();
+    const { trigger } = await openDeleteDialog();
+
+    await userEvent.keyboard("{Escape}");
+
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(trigger).toHaveFocus();
+  });
+
+  it("closes with «Conservar candidatura» and returns focus to «Eliminar»", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+    });
+    renderDetail();
+    const { trigger, dialog } = await openDeleteDialog();
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Conservar candidatura" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(trigger).toHaveFocus();
+    expect(deleteCalls(fetchMock)).toHaveLength(0);
+  });
+
+  it("closes when the overlay is clicked", async () => {
+    mockFetch({ "GET /api/applications/a1": makeApplication() });
+    renderDetail();
+    const { trigger } = await openDeleteDialog();
+    const overlay = document.querySelector(
+      '[data-slot="alert-dialog-overlay"]',
+    );
+    expect(overlay).not.toBeNull();
+
+    await userEvent.click(overlay as Element);
+
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(trigger).toHaveFocus();
+  });
+
+  it("sends one DELETE on confirm and reports the deletion", async () => {
+    const onDeleted = vi.fn();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "DELETE /api/applications/a1": noContent,
+    });
+    renderDetail(onDeleted);
+    const { dialog } = await openDeleteDialog();
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar candidatura" }),
+    );
+
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledTimes(1));
+    expect(deleteCalls(fetchMock)).toHaveLength(1);
+    expect(String(deleteCalls(fetchMock)[0]?.[0])).toBe("/api/applications/a1");
+  });
+
+  it("shows «Eliminando…», ignores Escape and a second click while the DELETE is pending", async () => {
+    const pending = deferred();
+    const onDeleted = vi.fn();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "DELETE /api/applications/a1": () => pending.promise,
+    });
+    renderDetail(onDeleted);
+    const { dialog } = await openDeleteDialog();
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar candidatura" }),
+    );
+
+    const confirm = await within(dialog).findByRole("button", {
+      name: "Eliminando…",
+    });
+    expect(confirm).toHaveAttribute("aria-disabled", "true");
+    expect(
+      within(dialog).getByRole("button", { name: "Conservar candidatura" }),
+    ).toHaveAttribute("aria-disabled", "true");
+
+    await userEvent.keyboard("{Escape}");
+    await userEvent.click(confirm);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Conservar candidatura" }),
+    );
+
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(deleteCalls(fetchMock)).toHaveLength(1);
+
+    pending.resolve(noContent());
+    await waitFor(() => expect(onDeleted).toHaveBeenCalledTimes(1));
+  });
+
+  it("keeps the dialog open with the polite error and focus on the confirm button when the DELETE fails", async () => {
+    const onDeleted = vi.fn();
+    mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "DELETE /api/applications/a1": serverError,
+    });
+    renderDetail(onDeleted);
+    const { dialog } = await openDeleteDialog();
+    const confirm = within(dialog).getByRole("button", {
+      name: "Eliminar candidatura",
+    });
+    confirm.focus();
+
+    await userEvent.click(confirm);
+
+    expect(
+      await within(dialog).findByText(
+        "No se pudo eliminar la candidatura. Inténtalo de nuevo.",
+      ),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      "No se pudo eliminar la candidatura. Inténtalo de nuevo.",
+    );
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Eliminar candidatura" }),
+    ).toHaveFocus();
+    expect(onDeleted).not.toHaveBeenCalled();
   });
 });

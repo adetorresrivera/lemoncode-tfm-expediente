@@ -4,6 +4,7 @@ import {
   pickListSearch,
   type ListSearch,
 } from "@/core/router/application-search";
+import { useArrivalNotice } from "@/core/router/use-arrival-notice";
 import { ApplicationListContainer } from "@/pods/application-list";
 
 const routeApi = getRouteApi("/applications/");
@@ -12,6 +13,7 @@ export function ApplicationListScene() {
   const search = routeApi.useSearch();
   const navigate = routeApi.useNavigate();
   const query = pickListSearch(search);
+  const { notice, focusHeadingRef } = useArrivalNotice();
 
   useEffect(() => {
     document.title = "Mis candidaturas · Expediente";
@@ -34,12 +36,16 @@ export function ApplicationListScene() {
           Expediente
         </p>
         <h1
+          ref={focusHeadingRef}
           tabIndex={-1}
           className="font-serif text-[28px] font-semibold leading-[1.2]"
         >
           Mis candidaturas
         </h1>
       </header>
+      <p role="status" aria-live="polite" className="text-sm text-foreground">
+        {notice}
+      </p>
       <ApplicationListContainer
         query={query}
         onQueryChange={handleQueryChange}
