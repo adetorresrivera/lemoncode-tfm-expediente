@@ -76,18 +76,19 @@ export const statusChangeSchema = z.strictObject({
 });
 
 // Query strings carry one value as a scalar and several as a repeated key.
-const multi = <T extends z.ZodType>(item: T) =>
+// The array is capped so a hostile query cannot build an unbounded Mongo filter.
+const multi = <T extends z.ZodType>(item: T, max = 20) =>
   z.preprocess(
     (v) => (v === undefined ? undefined : Array.isArray(v) ? v : [v]),
-    z.array(item).optional(),
+    z.array(item).max(max).optional(),
   );
 
 export const applicationQuerySchema = z.object({
   status: multi(applicationStatusSchema),
-  tags: multi(z.string().min(1)),
+  tags: multi(z.string().trim().min(1).max(40)),
   workMode: workModeSchema.optional(),
   seniority: senioritySchema.optional(),
-  q: z.string().trim().min(1).optional(),
+  q: z.string().trim().min(1).max(100).optional(),
   sort: z.enum(["updatedAt", "appliedAt"]).default("updatedAt"),
 });
 

@@ -1,5 +1,6 @@
-import { applicationInputSchema } from "@tfm/contracts";
+import { applicationInputSchema, applicationQuerySchema } from "@tfm/contracts";
 import { Hono } from "hono";
+import { queryInput } from "../http/query-input.js";
 import { requireJson } from "../http/require-json.js";
 import type { ApplicationsService } from "./applications.service.js";
 
@@ -9,7 +10,13 @@ export function applicationsRoutes(service: ApplicationsService): Hono {
 
   routes.use("*", requireJson);
 
-  routes.get("/", async (c) => c.json(await service.list()));
+  routes.get("/", async (c) =>
+    c.json(
+      await service.list(
+        applicationQuerySchema.parse(queryInput(c.req.queries())),
+      ),
+    ),
+  );
 
   routes.post("/", async (c) => {
     const input = applicationInputSchema.parse(await c.req.json());

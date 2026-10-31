@@ -17,7 +17,8 @@ export function mapApplicationDocToApi(doc: ApplicationDoc): Application {
     tags: doc.tags.map((tag) => ({ label: tag.label, group: tag.group })),
     sourceUrl: doc.sourceUrl,
     offerText: doc.offerText,
-    appliedAt: doc.appliedAt === null ? null : doc.appliedAt.toISOString(),
+    // A document written without the field (older data) reads as null, like an explicit null.
+    appliedAt: doc.appliedAt ? doc.appliedAt.toISOString() : null,
     notes: doc.notes,
     cvDocumentId: doc.cvDocumentId,
     coverLetterDocumentId: doc.coverLetterDocumentId,

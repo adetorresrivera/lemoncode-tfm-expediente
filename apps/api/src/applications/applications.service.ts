@@ -3,6 +3,7 @@ import {
   tagGroupSchema,
   tagKey,
   type Application,
+  type ApplicationQuery,
   type ApplicationInput,
   type TagSummary,
 } from "@tfm/contracts";
@@ -13,7 +14,7 @@ import type {
 } from "./applications.repository.js";
 
 export interface ApplicationsService {
-  list(): Promise<Application[]>;
+  list(query: ApplicationQuery): Promise<Application[]>;
   create(input: ApplicationInput): Promise<Application>;
   listTags(): Promise<TagSummary[]>;
 }
@@ -23,8 +24,8 @@ export function createApplicationsService(
   now: () => Date = () => new Date(),
 ): ApplicationsService {
   return {
-    async list() {
-      const docs = await repository.list();
+    async list(query) {
+      const docs = await repository.list(query);
       return docs.map(mapApplicationDocToApi);
     },
 
