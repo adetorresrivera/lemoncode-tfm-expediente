@@ -67,7 +67,7 @@ Plans:
   3. The user can filter by free text (title/company), status (multi), stack tags picked from `GET /api/tags` ordered by count, work mode and seniority, and sort by last update or applied date; filters and sort live in the URL, survive a reload, and «Limpiar filtros» resets them.
   4. The detail shows offer data, tags grouped by type, status history, notes and a collapsible original offer text; the interview and linked-documents sections are not rendered until Phases 4 and 5 (no placeholders); the user can delete the application after a confirmation dialog and its documents are not deleted.
   5. The user can change status to any of the 7 states from the detail; each change appends `{ status, at }` to the history, re-selecting the same status adds nothing, the first move to `enviada` sets `appliedAt` when empty, and `updatedAt` changes on every modification.
-**Plans**: 5/12 plans executed
+**Plans**: 7/12 plans executed
 Plans:
 **Wave 1**
 - [x] 02-01-PLAN.md — Tracer: POST/GET applications on real Mongo listed at /applications through the list pod (wave 1)
@@ -83,8 +83,8 @@ Plans:
 - [x] 02-05-PLAN.md — Filter state in the URL; search field, «Limpiar filtros» and empty-by-filters (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 02-06-PLAN.md — Status, work mode, seniority and sort controls, mobile disclosure, stack tag filter from /api/tags (wave 5)
-- [ ] 02-07-PLAN.md — GET /api/applications/:id with strict id handling (wave 5)
+- [x] 02-06-PLAN.md — Status, work mode, seniority and sort controls, mobile disclosure, stack tag filter from /api/tags (wave 5)
+- [x] 02-07-PLAN.md — GET /api/applications/:id with strict id handling (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 02-08-PLAN.md — Card link (supplied by the scene) and the read-only detail with every Phase 2 section; APP-09 partial, documents in Phase 5 (wave 6, after 02-06: shared list pod files)
@@ -194,7 +194,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Fundaciones y walking skeleton | 6/6 | Complete    | 2026-10-29 |
-| 2. Candidaturas | 5/12 | In Progress | - |
+| 2. Candidaturas | 7/12 | In Progress | - |
 | 3. Autocompletado con IA | 0/TBD | Not started | - |
 | 4. Rondas de entrevista | 0/TBD | Not started | - |
 | 5. Documentos en S3 | 0/TBD | Not started | - |
