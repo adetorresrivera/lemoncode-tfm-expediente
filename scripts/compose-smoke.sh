@@ -55,6 +55,39 @@ http_get() {
   return 1
 }
 
+# Same probe for any method: `http_send METHOD PATH [JSON_BODY]` prints "<status>\n<body>". Method,
+# path and body travel as argv, so the JSON needs no shell or JavaScript quoting.
+http_send() {
+  local out="" deadline=$((SECONDS + 30))
+  docker compose exec -T app rm -f /tmp/smoke.out
+  docker compose exec -T app node -e "
+    const fs = require('node:fs');
+    const [method, path, body] = process.argv.slice(1);
+    const done = (text) => { fs.writeFileSync('/tmp/smoke.tmp', text); fs.renameSync('/tmp/smoke.tmp', '/tmp/smoke.out'); };
+    fetch('http://127.0.0.1:8080' + path, {
+      method,
+      headers: body ? { 'content-type': 'application/json' } : {},
+      body: body || undefined,
+    })
+      .then(async (r) => done(r.status + '\n' + (await r.text())))
+      .catch(() => done('000\n'));
+  " "$1" "$2" "${3:-}"
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    out="$(docker compose exec -T app cat /tmp/smoke.out 2>/dev/null || true)"
+    if [ -n "$out" ]; then
+      printf '%s\n' "$out"
+      return 0
+    fi
+    sleep 0.5
+  done
+  return 1
+}
+
+# Asserts the status line of an http_send answer: `expect_status LABEL EXPECTED ANSWER`.
+expect_status() {
+  echo "$3" | head -n 1 | grep -qx "$2" || fail "$1 answered '$(echo "$3" | head -n 1)', expected $2: $3"
+}
+
 health() {
   http_get /api/health
 }
@@ -99,6 +132,38 @@ echo "$spa" | grep -q 'id="root"' || fail "/applications/1 does not return the i
 nope="$(http_get /api/nope)" || true
 echo "$nope" | head -n 1 | grep -qx '404' || fail "/api/nope is not 404"
 echo "$nope" | grep -q 'NOT_FOUND' || fail "/api/nope body lacks NOT_FOUND"
+
+echo "== applications round trip =="
+# Writes one record into the compose Mongo volume and deletes it before finishing (T-02-29).
+created="$(http_send POST /api/applications '{"title":"Smoke test","company":"Expediente"}')" \
+  || fail "POST /api/applications did not answer"
+expect_status "POST /api/applications" 201 "$created"
+app_id="$(echo "$created" | grep -o '"id":"[0-9a-f]*"' | head -n 1 | cut -d'"' -f4)"
+[ -n "$app_id" ] || fail "POST /api/applications returned no id: $created"
+
+listed="$(http_send GET /api/applications)" || fail "GET /api/applications did not answer"
+expect_status "GET /api/applications" 200 "$listed"
+echo "$listed" | grep -q "$app_id" || fail "GET /api/applications does not list $app_id"
+
+edited="$(http_send PUT "/api/applications/$app_id" '{"title":"Smoke test editado","company":"Expediente"}')" \
+  || fail "PUT /api/applications/$app_id did not answer"
+expect_status "PUT /api/applications/$app_id" 200 "$edited"
+echo "$edited" | grep -q '"title":"Smoke test editado"' || fail "PUT did not store the new title: $edited"
+
+moved="$(http_send PATCH "/api/applications/$app_id/status" '{"status":"enviada"}')" \
+  || fail "PATCH status did not answer"
+expect_status "PATCH /api/applications/$app_id/status" 200 "$moved"
+echo "$moved" | grep -q '"appliedAt":"' || fail "move to enviada did not fill appliedAt: $moved"
+
+tags="$(http_send GET /api/tags)" || fail "GET /api/tags did not answer"
+expect_status "GET /api/tags" 200 "$tags"
+
+removed="$(http_send DELETE "/api/applications/$app_id")" \
+  || fail "DELETE /api/applications/$app_id did not answer"
+expect_status "DELETE /api/applications/$app_id" 204 "$removed"
+
+gone="$(http_send GET "/api/applications/$app_id")" || true
+expect_status "GET /api/applications/$app_id after delete" 404 "$gone"
 
 echo "== mongo stop/start =="
 docker compose stop mongo
