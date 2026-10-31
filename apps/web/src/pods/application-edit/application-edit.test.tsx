@@ -1,10 +1,18 @@
 import { applicationSchema } from "@tfm/contracts";
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { jsonResponse, mockFetch } from "@/test/mock-fetch";
 import { ApplicationEditContainer } from "./application-edit.container";
+import { useApplicationForm } from "./application-edit.hooks";
+import { TrackingSection } from "./components/tracking-section";
 import {
   issueToMessage,
   mapFormValuesToApiInput,
@@ -469,5 +477,248 @@ describe("ApplicationEditContainer", () => {
     const status = container.querySelector("[role='status']");
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toBeEmptyDOMElement();
+  });
+});
+
+const lastPostBody = (fetchMock: ReturnType<typeof mockFetch>) => {
+  const sent = posts(fetchMock);
+  const init = sent[sent.length - 1]?.[1];
+  return JSON.parse(String(init?.body)) as Record<string, unknown>;
+};
+
+const mockCreate = () =>
+  mockFetch({ "POST /api/applications": () => jsonResponse(created, 201) });
+
+describe("ApplicationEditContainer conditions and tracking", () => {
+  it("renders the sections in order with blank fields and the defaults", () => {
+    renderForm();
+
+    const headings = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((heading) => heading.textContent);
+    expect(headings).toStrictEqual([
+      "Puesto y empresa",
+      "Condiciones",
+      "Seguimiento",
+    ]);
+    expect(screen.getByLabelText("Puesto *")).toHaveValue("");
+    expect(screen.getByLabelText("Empresa *")).toHaveValue("");
+    expect(screen.getByLabelText("Estado inicial")).toHaveValue("guardada");
+    expect(screen.getByLabelText("Moneda")).toHaveValue("EUR");
+    expect(screen.getByLabelText("Modalidad")).toHaveValue("");
+    expect(screen.getByLabelText("Ubicación")).toHaveValue("");
+    expect(screen.getByLabelText("Notas")).toHaveValue("");
+    expect(screen.getByLabelText("Enlace de la oferta")).toHaveValue("");
+    expect(document.querySelector("[aria-invalid='true']")).toBeNull();
+    expect(screen.queryByText(/Revisa los campos|Escribe el/)).toBeNull();
+  });
+
+  it("describes the controls of the conditions section", () => {
+    renderForm();
+
+    const none = within(screen.getByLabelText("Modalidad")).getByRole(
+      "option",
+      { name: "Sin indicar" },
+    );
+    expect(none).toHaveValue("");
+    const min = screen.getByLabelText("Salario mínimo");
+    const max = screen.getByLabelText("Salario máximo");
+    for (const control of [min, max]) {
+      expect(control).toHaveAttribute("type", "number");
+      expect(control).toHaveAttribute("inputmode", "numeric");
+      expect(control).toHaveAttribute("min", "0");
+    }
+    expect(screen.getByText("Importe anual bruto.")).toBeInTheDocument();
+    expect(min).toHaveAccessibleDescription("Importe anual bruto.");
+    const currencies = within(screen.getByLabelText("Moneda"))
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+    expect(currencies).toStrictEqual(["EUR", "USD", "GBP"]);
+  });
+
+  it("describes the controls of the tracking section", () => {
+    renderForm();
+
+    expect(screen.getByLabelText("Fecha de envío")).toHaveAttribute(
+      "type",
+      "date",
+    );
+    expect(
+      screen.getByText(
+        "Si la dejas vacía, se rellena sola al pasar a Enviada.",
+      ),
+    ).toBeInTheDocument();
+    const url = screen.getByLabelText("Enlace de la oferta");
+    expect(url).toHaveAttribute("type", "url");
+    expect(url).toHaveAttribute("placeholder", "https://");
+    expect(screen.getByLabelText("Notas")).toHaveAttribute("rows", "5");
+    expect(
+      within(screen.getByLabelText("Estado inicial")).getAllByRole("option"),
+    ).toHaveLength(7);
+  });
+
+  it("posts the chosen conditions, salary range and status", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    await user.selectOptions(screen.getByLabelText("Modalidad"), "Remoto");
+    await user.selectOptions(screen.getByLabelText("Seniority"), "Senior");
+    await user.selectOptions(
+      screen.getByLabelText("Tipo de contrato"),
+      "Indefinido",
+    );
+    await user.type(screen.getByLabelText("Salario mínimo"), "52000");
+    await user.type(screen.getByLabelText("Salario máximo"), "65000");
+    await user.selectOptions(
+      screen.getByLabelText("Estado inicial"),
+      "Enviada",
+    );
+    await submit(user);
+
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(1));
+    expect(lastPostBody(fetchMock)).toMatchObject({
+      workMode: "remoto",
+      seniority: "senior",
+      contractType: "indefinido",
+      salaryMin: 52000,
+      salaryMax: 65000,
+      currency: "EUR",
+      status: "enviada",
+    });
+  });
+
+  it("posts the applied date as local noon", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    fireEvent.change(screen.getByLabelText("Fecha de envío"), {
+      target: { value: "2026-10-12" },
+    });
+    await submit(user);
+
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(1));
+    expect(lastPostBody(fetchMock).appliedAt).toBe(
+      new Date(2026, 9, 12, 12).toISOString(),
+    );
+  });
+
+  it("posts an empty date, link, notes and conditions as null", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    await submit(user);
+
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(1));
+    expect(lastPostBody(fetchMock)).toMatchObject({
+      appliedAt: null,
+      sourceUrl: null,
+      notes: null,
+      location: null,
+      workMode: null,
+      currency: null,
+    });
+  });
+
+  it("flags a maximum below the minimum on Salario máximo and focuses it", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    await user.type(screen.getByLabelText("Salario mínimo"), "60000");
+    await user.type(screen.getByLabelText("Salario máximo"), "50000");
+    await submit(user);
+
+    expect(
+      await screen.findByText("El máximo no puede ser menor que el mínimo."),
+    ).toBeInTheDocument();
+    const max = screen.getByLabelText("Salario máximo");
+    expect(max).toHaveAttribute("aria-invalid", "true");
+    await waitFor(() => expect(max).toHaveFocus());
+    expect(posts(fetchMock)).toHaveLength(0);
+  });
+
+  it("flags a non-http link and an over-long note", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await fillRequired(user);
+    await user.type(screen.getByLabelText("Enlace de la oferta"), "ftp://x");
+    fireEvent.change(screen.getByLabelText("Notas"), {
+      target: { value: "a".repeat(5001) },
+    });
+    await submit(user);
+
+    expect(
+      await screen.findByText(
+        "Introduce una dirección válida que empiece por http:// o https://.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Las notas admiten hasta 5.000 caracteres."),
+    ).toBeInTheDocument();
+  });
+
+  it("limits title, company and location with the Spanish too_big messages", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    fireEvent.change(screen.getByLabelText("Puesto *"), {
+      target: { value: "a".repeat(121) },
+    });
+    fireEvent.change(screen.getByLabelText("Empresa *"), {
+      target: { value: "b".repeat(121) },
+    });
+    fireEvent.change(screen.getByLabelText("Ubicación"), {
+      target: { value: "c".repeat(121) },
+    });
+    await submit(user);
+
+    expect(
+      await screen.findByText("El puesto admite hasta 120 caracteres."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("La empresa admite hasta 120 caracteres."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("La ubicación admite hasta 120 caracteres."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Puesto *")).toHaveValue("a".repeat(121));
+  });
+
+  it("renders no initial status selector in edit mode", () => {
+    function Harness({ mode }: { mode: "create" | "edit" }) {
+      const { form } = useApplicationForm({
+        initialValues: EMPTY_FORM_VALUES,
+        save: () => Promise.resolve(created),
+        onSaved: () => {},
+      });
+      return <TrackingSection form={form} mode={mode} />;
+    }
+    const { unmount } = render(<Harness mode="edit" />);
+    expect(screen.queryByLabelText("Estado inicial")).toBeNull();
+    expect(screen.getByLabelText("Notas")).toBeInTheDocument();
+    unmount();
+    render(<Harness mode="create" />);
+    expect(screen.getByLabelText("Estado inicial")).toBeInTheDocument();
+  });
+
+  it("explains a negative salary", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await fillRequired(user);
+    await user.type(screen.getByLabelText("Salario mínimo"), "-5");
+    await submit(user);
+
+    expect(
+      await screen.findByText("El salario no puede ser negativo."),
+    ).toBeInTheDocument();
   });
 });
