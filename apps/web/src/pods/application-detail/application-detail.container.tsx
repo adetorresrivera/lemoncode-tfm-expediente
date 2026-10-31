@@ -7,12 +7,16 @@ interface Props {
   applicationId: string;
   renderListLink: RenderListLink;
   onDeleted: () => void;
+  notice: string;
+  focusHeadingRef: (node: HTMLElement | null) => void;
 }
 
 export function ApplicationDetailContainer({
   applicationId,
   renderListLink,
   onDeleted,
+  notice,
+  focusHeadingRef,
 }: Props) {
   const {
     status,
@@ -43,6 +47,8 @@ export function ApplicationDetailContainer({
       deleteState={deleteState}
       onDelete={remove}
       renderListLink={renderListLink}
+      notice={notice}
+      focusHeadingRef={focusHeadingRef}
     />
   );
 }

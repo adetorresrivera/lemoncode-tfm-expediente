@@ -1,6 +1,7 @@
 import { useState } from "react";
 import type { ListSearch } from "@/core/router/application-search";
 import type { RenderApplicationLink } from "./components/application-card";
+import type { RenderCreateLink } from "./components/empty-state";
 import { ApplicationListComponent } from "./application-list.component";
 import { useApplicationList, useStackTags } from "./application-list.hooks";
 
@@ -9,6 +10,7 @@ interface Props {
   onQueryChange: (next: ListSearch) => void;
   onClearFilters: () => void;
   renderApplicationLink: RenderApplicationLink;
+  renderCreateLink: RenderCreateLink;
 }
 
 export function ApplicationListContainer({
@@ -16,6 +18,7 @@ export function ApplicationListContainer({
   onQueryChange,
   onClearFilters,
   renderApplicationLink,
+  renderCreateLink,
 }: Props) {
   const { status, applications, errorCode, refreshing, retry } =
     useApplicationList(query);
@@ -41,6 +44,7 @@ export function ApplicationListContainer({
       stackTags={{ status: stackTags.status, options: stackTags.options }}
       onRetryStackTags={stackTags.retry}
       renderApplicationLink={renderApplicationLink}
+      renderCreateLink={renderCreateLink}
     />
   );
 }

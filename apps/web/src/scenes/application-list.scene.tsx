@@ -1,5 +1,7 @@
 import { getRouteApi, Link } from "@tanstack/react-router";
+import { Plus } from "lucide-react";
 import { useEffect } from "react";
+import { Button } from "@/common/components/ui/button";
 import {
   pickListSearch,
   type ListSearch,
@@ -31,17 +33,25 @@ export function ApplicationListScene() {
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="flex flex-col gap-1">
-        <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
-          Expediente
-        </p>
-        <h1
-          ref={focusHeadingRef}
-          tabIndex={-1}
-          className="font-serif text-[28px] font-semibold leading-[1.2]"
-        >
-          Mis candidaturas
-        </h1>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+        <div className="flex flex-col gap-1">
+          <p className="text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+            Expediente
+          </p>
+          <h1
+            ref={focusHeadingRef}
+            tabIndex={-1}
+            className="font-serif text-[28px] font-semibold leading-[1.2]"
+          >
+            Mis candidaturas
+          </h1>
+        </div>
+        <Button asChild className="h-11 w-full sm:w-auto">
+          <Link to="/applications/new">
+            <Plus aria-hidden="true" />
+            Añadir candidatura
+          </Link>
+        </Button>
       </header>
       <p role="status" aria-live="polite" className="text-sm text-foreground">
         {notice}
@@ -56,6 +66,11 @@ export function ApplicationListScene() {
             params={{ applicationId }}
             className={className}
           >
+            {children}
+          </Link>
+        )}
+        renderCreateLink={({ className, children }) => (
+          <Link to="/applications/new" className={className}>
             {children}
           </Link>
         )}
