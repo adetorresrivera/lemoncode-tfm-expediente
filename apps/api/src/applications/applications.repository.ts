@@ -60,6 +60,7 @@ export type NewApplicationDoc = Omit<ApplicationDoc, "_id">;
 export interface ApplicationsRepository {
   insert(doc: NewApplicationDoc): Promise<ApplicationDoc>;
   list(query: ApplicationQuery): Promise<ApplicationDoc[]>;
+  findById(id: ObjectId): Promise<ApplicationDoc | null>;
   tagSummaries(): Promise<TagCount[]>;
 }
 
@@ -79,6 +80,9 @@ export function createApplicationsRepository(db: Db): ApplicationsRepository {
         .find(buildApplicationsFilter(query))
         .sort(buildApplicationsSort(query.sort))
         .toArray();
+    },
+    async findById(id) {
+      return collection.findOne({ _id: id });
     },
     // One row per (stored key, group). The key already merges case variants, so no server-side
     // lower-casing is needed (it would be ASCII-only). The label is the oldest application's.

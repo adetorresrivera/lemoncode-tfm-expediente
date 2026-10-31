@@ -7,6 +7,8 @@ import {
   type ApplicationInput,
   type TagSummary,
 } from "@tfm/contracts";
+import type { ObjectId } from "mongodb";
+import { ApiError } from "../errors.js";
 import { mapApplicationDocToApi } from "./applications.mapper.js";
 import type {
   ApplicationsRepository,
@@ -15,6 +17,7 @@ import type {
 
 export interface ApplicationsService {
   list(query: ApplicationQuery): Promise<Application[]>;
+  get(id: ObjectId): Promise<Application>;
   create(input: ApplicationInput): Promise<Application>;
   listTags(): Promise<TagSummary[]>;
 }
@@ -27,6 +30,14 @@ export function createApplicationsService(
     async list(query) {
       const docs = await repository.list(query);
       return docs.map(mapApplicationDocToApi);
+    },
+
+    async get(id) {
+      const doc = await repository.findById(id);
+      if (doc === null) {
+        throw new ApiError(404, "NOT_FOUND", "Candidatura no encontrada");
+      }
+      return mapApplicationDocToApi(doc);
     },
 
     async create(input) {
