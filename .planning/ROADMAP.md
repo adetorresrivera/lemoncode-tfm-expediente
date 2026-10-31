@@ -114,7 +114,27 @@ Plans:
   3. A model timeout answers 504 `LLM_TIMEOUT` after `LLM_TIMEOUT_MS`, and unparseable or schema-invalid output is retried once and then answers 502 `LLM_ERROR`; in the form the user sees a non-blocking «Analizando la oferta…» state or a clear error and can keep editing.
   4. The «Pegar oferta» panel is open when creating and collapsed when editing; «Autocompletar con IA» fills only empty fields, merges tags without duplicates, and persists nothing until the user saves.
   5. Fields filled by the AI show the «IA» mark that disappears when the user edits them, relevant fields still empty (title, company, work mode, seniority) are highlighted with «Complétalo tú», and the pasted text is stored as `offerText` on save.
-**Plans**: TBD
+**Plans**: 8 plans
+Plans:
+**Wave 1**
+- [ ] 03-01-PLAN.md — Tracer: «Pegar oferta» panel → POST /api/offers/extract → extract service (literal prompt) → LlmClient (mock end to end) → fill-only-empty merge of the text/enum fields (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-02-PLAN.md — callStructured (one LLM_TIMEOUT_MS budget, one retry, 502/504) and the real Ollama (think:false, num_ctx 8192) and OpenAI-compatible (json_schema strict) providers (wave 2)
+- [ ] 03-03-PLAN.md — normalizeExtraction, length/duration-only logging, body limit, the three fixtures with expectations, dev-only `npm run try-extract` (wave 2)
+- [ ] 03-04-PLAN.md — Salary/currency merge rules and missing fields; «IA» badge (AiMark) and «Complétalo tú» with the mark lifecycle via the form listener (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 03-05-PLAN.md — Tag union without duplicates and the per-chip AI mark; tag counts in the summary (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 03-06-PLAN.md — offerText stored on POST and PUT, set only by a successful analysis, prefilled in edit mode (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 03-07-PLAN.md — Panel limits and counter from contracts, read-only while analysing, «Cancelar análisis» (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 03-08-PLAN.md — Phase gate (compose smoke + full suite), D-24 manual run against gemma4:e2b, blocking human review and D-25 decision (wave 6, not autonomous)
 **UI hint**: yes
 
 ### Phase 4: Rondas de entrevista
@@ -195,7 +215,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Fundaciones y walking skeleton | 6/6 | Complete    | 2026-10-29 |
 | 2. Candidaturas | 12/12 | Complete    | 2026-10-31 |
-| 3. Autocompletado con IA | 0/TBD | Not started | - |
+| 3. Autocompletado con IA | 0/8 | Planned | - |
 | 4. Rondas de entrevista | 0/TBD | Not started | - |
 | 5. Documentos en S3 | 0/TBD | Not started | - |
 | 6. Pulido de demo | 0/TBD | Not started | - |
