@@ -4,7 +4,10 @@ import {
   hasActiveFilters,
   type ListSearch,
 } from "@/core/router/application-search";
-import { ApplicationCard } from "./components/application-card";
+import {
+  ApplicationCard,
+  type RenderApplicationLink,
+} from "./components/application-card";
 import { EmptyFilteredState } from "./components/empty-filtered-state";
 import { EmptyState } from "./components/empty-state";
 import { FilterPanel } from "./components/filter-panel";
@@ -25,6 +28,7 @@ interface Props {
   clearCount: number;
   stackTags: StackTagsVm;
   onRetryStackTags: () => void;
+  renderApplicationLink: RenderApplicationLink;
 }
 
 export function ApplicationListComponent({
@@ -39,6 +43,7 @@ export function ApplicationListComponent({
   clearCount,
   stackTags,
   onRetryStackTags,
+  renderApplicationLink,
 }: Props) {
   const resultsRef = useRef<HTMLElement>(null);
 
@@ -84,7 +89,11 @@ export function ApplicationListComponent({
         ) : (
           <ul aria-label="Candidaturas" className="flex flex-col gap-4">
             {applications.map((application) => (
-              <ApplicationCard key={application.id} application={application} />
+              <ApplicationCard
+                key={application.id}
+                application={application}
+                renderApplicationLink={renderApplicationLink}
+              />
             ))}
           </ul>
         )}

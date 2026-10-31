@@ -10,7 +10,7 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { ListSearch } from "@/core/router/application-search";
 import { createAppRouter } from "@/core/router/router";
@@ -25,10 +25,23 @@ import {
 } from "./application-list.mapper";
 
 const defaultQuery: ListSearch = { sort: "updatedAt" };
+
+// The scene supplies the real router link; pod tests use a plain anchor.
+const renderApplicationLink = (link: {
+  applicationId: string;
+  className?: string;
+  children: ReactNode;
+}) => (
+  <a href={`/applications/${link.applicationId}`} className={link.className}>
+    {link.children}
+  </a>
+);
+
 const listProps = {
   query: defaultQuery,
   onQueryChange: () => {},
   onClearFilters: () => {},
+  renderApplicationLink,
 };
 
 const panelProps = {
@@ -38,6 +51,7 @@ const panelProps = {
   clearCount: 0,
   stackTags: { status: "ok" as const, options: [] },
   onRetryStackTags: () => {},
+  renderApplicationLink,
 };
 
 const EMPTY_TEXT =
@@ -467,6 +481,22 @@ describe("application cards", () => {
     expect(within(counter).getByText("etiquetas más")).toHaveClass("sr-only");
   });
 
+  it("renders the title through the scene link with the stretched-link classes and the sr-only company", () => {
+    renderCards(makeFull({ id: "a9", location: "Madrid" }));
+
+    const link = screen.getByRole("link", {
+      name: "Frontend Developer, Lemoncode",
+    });
+    expect(link).toHaveAttribute("href", "/applications/a9");
+    expect(link).toHaveClass("after:absolute", "after:inset-0");
+    expect(screen.getByRole("heading", { level: 2 })).toContainElement(link);
+    expect(within(link).getByText(", Lemoncode")).toHaveClass("sr-only");
+    expect(screen.getAllByRole("link")).toHaveLength(1);
+    expect(screen.getByRole("article")).toHaveClass(
+      "has-[a:focus-visible]:ring-2",
+    );
+  });
+
   it("renders user text as text, never as markup", () => {
     renderCards(
       makeFull({
@@ -622,6 +652,7 @@ function StatefulList({
         onClearFilters();
         setQuery({ sort: "updatedAt" });
       }}
+      renderApplicationLink={renderApplicationLink}
     />
   );
 }

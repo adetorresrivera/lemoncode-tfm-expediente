@@ -294,3 +294,64 @@ describe("search field and «Limpiar filtros» in the URL", () => {
     ).not.toBeInTheDocument();
   });
 });
+
+describe("application detail navigation", () => {
+  it("opens the detail from the card title and returns through «Mis candidaturas»", async () => {
+    mockFetch({
+      "GET /api/applications": [stored],
+      "GET /api/applications/a1": stored,
+    });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    const cardLink = await screen.findByRole("link", {
+      name: "Frontend Developer, Lemoncode",
+    });
+    expect(cardLink).toHaveAttribute("href", "/applications/a1");
+
+    await userEvent.click(cardLink);
+
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Frontend Developer",
+    });
+    expect(router.state.location.pathname).toBe("/applications/a1");
+    const main = within(screen.getByRole("main"));
+    expect(main.getByText("Lemoncode")).toBeInTheDocument();
+    expect(
+      within(heading.closest("header") as HTMLElement).getByText("Guardada"),
+    ).toBeInTheDocument();
+
+    const back = main.getByRole("link", { name: "Mis candidaturas" });
+    expect(back).toHaveAttribute("href", "/applications");
+    await userEvent.click(back);
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Mis candidaturas",
+      }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/applications");
+  });
+
+  it("requests only the encoded id when the detail is opened directly", async () => {
+    const fetchMock = mockFetch({ "GET /api/applications/a1": stored });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications/a1"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Frontend Developer",
+    });
+    const detailCalls = fetchMock.mock.calls.filter(([input]) =>
+      String(input).startsWith("/api/applications/"),
+    );
+    expect(detailCalls).toHaveLength(1);
+    expect(String(detailCalls[0]?.[0])).toBe("/api/applications/a1");
+  });
+});

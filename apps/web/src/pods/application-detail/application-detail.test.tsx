@@ -1,0 +1,577 @@
+import { applicationSchema } from "@tfm/contracts";
+import {
+  act,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import type { ReactNode } from "react";
+import { describe, expect, it, vi } from "vitest";
+import type { HttpErrorCode } from "@/core/http/http-client";
+import { jsonResponse, mockFetch } from "@/test/mock-fetch";
+import { ApplicationDetailComponent } from "./application-detail.component";
+import { ApplicationDetailContainer } from "./application-detail.container";
+import { useApplicationDetail } from "./application-detail.hooks";
+import {
+  mapApplicationFromApiToDetailVm,
+  toSafeHttpUrl,
+} from "./application-detail.mapper";
+
+// The scene supplies the real router link; pod tests use a plain anchor.
+const renderListLink = (link: { className?: string; children: ReactNode }) => (
+  <a href="/applications" className={link.className}>
+    {link.children}
+  </a>
+);
+
+const makeApplication = (overrides: Record<string, unknown> = {}) =>
+  applicationSchema.parse({
+    id: "a1",
+    title: "Frontend Developer",
+    company: "Lemoncode",
+    status: "guardada",
+    statusHistory: [{ status: "guardada", at: "2026-10-12T10:00:00.000Z" }],
+    interviews: [],
+    createdAt: "2026-10-12T10:00:00.000Z",
+    updatedAt: "2026-10-12T10:00:00.000Z",
+    ownerId: null,
+    ...overrides,
+  });
+
+const notFoundResponse = () =>
+  jsonResponse(
+    { error: { code: "NOT_FOUND", message: "Candidatura no encontrada" } },
+    404,
+  );
+
+describe("toSafeHttpUrl", () => {
+  it.each([
+    ["http://example.com/job", "http://example.com/job"],
+    ["https://example.com/job?id=1", "https://example.com/job?id=1"],
+    ["javascript:alert(1)", null],
+    ["data:text/html,<b>x</b>", null],
+    ["not a url", null],
+    ["", null],
+    [null, null],
+  ])("maps %s to %s", (input, expected) => {
+    expect(toSafeHttpUrl(input)).toBe(expected);
+  });
+});
+
+describe("application-detail mapper", () => {
+  it("maps a bare application to the exact view-model fields", () => {
+    expect(mapApplicationFromApiToDetailVm(makeApplication())).toStrictEqual({
+      id: "a1",
+      title: "Frontend Developer",
+      company: "Lemoncode",
+      location: null,
+      status: "guardada",
+      salaryLine: null,
+      appliedAtLabel: null,
+      sourceUrl: null,
+      createdAtLabel: "12 oct. 2026",
+      updatedAtLabel: "12 oct. 2026",
+      tagGroups: [],
+      notes: null,
+      offerText: null,
+      history: [{ status: "guardada", atLabel: "12 oct. 2026" }],
+    });
+  });
+
+  it("orders the history newest first", () => {
+    const vm = mapApplicationFromApiToDetailVm(
+      makeApplication({
+        status: "enviada",
+        statusHistory: [
+          { status: "guardada", at: "2026-10-12T10:00:00.000Z" },
+          { status: "enviada", at: "2026-10-14T10:00:00.000Z" },
+        ],
+      }),
+    );
+    expect(vm.history).toStrictEqual([
+      { status: "enviada", atLabel: "14 oct. 2026" },
+      { status: "guardada", atLabel: "12 oct. 2026" },
+    ]);
+  });
+
+  it("builds the tag groups in order and drops the empty ones", () => {
+    const vm = mapApplicationFromApiToDetailVm(
+      makeApplication({
+        workMode: "hibrido",
+        seniority: "senior",
+        contractType: "indefinido",
+        tags: [
+          { label: "Inglés", group: "language" },
+          { label: "Docker", group: "nice_to_have" },
+          { label: "React", group: "stack" },
+        ],
+      }),
+    );
+    expect(vm.tagGroups).toStrictEqual([
+      { title: "Stack tecnológico", tags: [{ label: "React", soft: false }] },
+      { title: "Se valora", tags: [{ label: "Docker", soft: true }] },
+      {
+        title: "Modelo de trabajo",
+        tags: [{ label: "Híbrido", soft: false }],
+      },
+      { title: "Seniority", tags: [{ label: "Senior", soft: false }] },
+      { title: "Contrato", tags: [{ label: "Indefinido", soft: false }] },
+      { title: "Idiomas", tags: [{ label: "Inglés", soft: false }] },
+    ]);
+  });
+
+  it("builds the salary line with «brutos al año» and drops unsafe links", () => {
+    const vm = mapApplicationFromApiToDetailVm(
+      makeApplication({
+        salaryMin: 52000,
+        salaryMax: 65000,
+        appliedAt: "2026-10-13T08:00:00.000Z",
+        sourceUrl: "https://example.com/job",
+      }),
+    );
+    expect(vm.salaryLine).toBe("52.000 € – 65.000 € brutos al año");
+    expect(vm.appliedAtLabel).toBe("13 oct. 2026");
+    expect(vm.sourceUrl).toBe("https://example.com/job");
+  });
+});
+
+describe("useApplicationDetail", () => {
+  it("loads and maps the application", async () => {
+    mockFetch({ "GET /api/applications/a1": makeApplication() });
+    const { result } = renderHook(() => useApplicationDetail("a1"));
+
+    expect(result.current.status).toBe("loading");
+    await waitFor(() => expect(result.current.status).toBe("ok"));
+    expect(result.current.vm?.title).toBe("Frontend Developer");
+  });
+
+  it("yields notFound for a 404 answer", async () => {
+    mockFetch({ "GET /api/applications/zzz": notFoundResponse });
+    const { result } = renderHook(() => useApplicationDetail("zzz"));
+
+    await waitFor(() => expect(result.current.status).toBe("notFound"));
+    expect(result.current.vm).toBeNull();
+  });
+
+  it("yields error for a network failure and refetches once on retry", async () => {
+    let calls = 0;
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": () => {
+        calls += 1;
+        return calls === 1
+          ? Promise.reject(new TypeError("offline"))
+          : jsonResponse(makeApplication());
+      },
+    });
+    const { result } = renderHook(() => useApplicationDetail("a1"));
+
+    await waitFor(() => expect(result.current.status).toBe("error"));
+    expect(result.current.errorCode).toBe("NETWORK_ERROR");
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+
+    act(() => result.current.retry());
+    await waitFor(() => expect(result.current.status).toBe("ok"));
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("encodes the id before it reaches the API path", async () => {
+    const fetchMock = mockFetch({});
+    const { result } = renderHook(() => useApplicationDetail("a/b?c"));
+
+    await waitFor(() => expect(result.current.status).toBe("notFound"));
+    expect(String(fetchMock.mock.calls[0]?.[0])).toBe(
+      "/api/applications/a%2Fb%3Fc",
+    );
+  });
+});
+
+describe("ApplicationDetailContainer header", () => {
+  it("shows the back link, eyebrow, h1, company with location and the status badge", async () => {
+    mockFetch({
+      "GET /api/applications/a1": makeApplication({
+        location: "Madrid",
+        status: "enviada",
+        statusHistory: [
+          { status: "guardada", at: "2026-10-12T10:00:00.000Z" },
+          { status: "enviada", at: "2026-10-14T10:00:00.000Z" },
+        ],
+      }),
+    });
+    render(
+      <ApplicationDetailContainer
+        applicationId="a1"
+        renderListLink={renderListLink}
+      />,
+    );
+
+    const heading = await screen.findByRole("heading", { level: 1 });
+    expect(heading).toHaveTextContent("Frontend Developer");
+    expect(heading).toHaveAttribute("tabindex", "-1");
+    expect(heading).toHaveClass("min-w-0", "break-words", "font-serif");
+    expect(screen.getByText("Expediente")).toBeInTheDocument();
+    expect(screen.getByText(/Lemoncode/)).toHaveTextContent(
+      "Lemoncode · Madrid",
+    );
+    expect(
+      within(heading.closest("header") as HTMLElement).getByText("Enviada"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Mis candidaturas" }),
+    ).toHaveAttribute("href", "/applications");
+    expect(document.title).toBe("Frontend Developer · Expediente");
+  });
+
+  it("shows the not-found link to the list for a 404", async () => {
+    mockFetch({ "GET /api/applications/zzz": notFoundResponse });
+    render(
+      <ApplicationDetailContainer
+        applicationId="zzz"
+        renderListLink={renderListLink}
+      />,
+    );
+
+    expect(
+      await screen.findByRole("link", { name: "Volver a Mis candidaturas" }),
+    ).toHaveAttribute("href", "/applications");
+  });
+
+  it("offers «Reintentar» after a failure and refetches", async () => {
+    let calls = 0;
+    mockFetch({
+      "GET /api/applications/a1": () => {
+        calls += 1;
+        return calls === 1
+          ? jsonResponse(
+              { error: { code: "INTERNAL_ERROR", message: "x" } },
+              500,
+            )
+          : jsonResponse(makeApplication());
+      },
+    });
+    render(
+      <ApplicationDetailContainer
+        applicationId="a1"
+        renderListLink={renderListLink}
+      />,
+    );
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Reintentar" }),
+    );
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
+      "Frontend Developer",
+    );
+  });
+});
+
+const renderOk = (overrides: Record<string, unknown> = {}) =>
+  render(
+    <ApplicationDetailComponent
+      status="ok"
+      vm={mapApplicationFromApiToDetailVm({
+        ...makeApplication(),
+        ...overrides,
+      })}
+      errorCode={null}
+      onRetry={() => {}}
+      renderListLink={renderListLink}
+    />,
+  );
+
+const FULL = {
+  location: "Madrid",
+  salaryMin: 52000,
+  salaryMax: 65000,
+  appliedAt: "2026-10-13T08:00:00.000Z",
+  sourceUrl: "https://example.com/job",
+  notes: "Notas de ejemplo",
+  offerText: "Texto de la oferta",
+  workMode: "remoto",
+  seniority: "mid",
+  contractType: "indefinido",
+  tags: [
+    { label: "React", group: "stack" },
+    { label: "Docker", group: "nice_to_have" },
+    { label: "Inglés", group: "language" },
+  ],
+};
+
+describe("detail sections", () => {
+  it("renders every offer row and the safe external link for a complete application", () => {
+    renderOk(FULL);
+
+    const labels = [
+      "Ubicación",
+      "Salario",
+      "Fecha de envío",
+      "Enlace",
+      "Creada",
+      "Actualizada",
+    ];
+    labels.forEach((label) => expect(screen.getByText(label)).toBeVisible());
+    expect(screen.getByText("Madrid")).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        (_, element) =>
+          element?.tagName === "DD" &&
+          element.textContent?.replace(/\s/g, " ") ===
+            "52.000 € – 65.000 € brutos al año",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("13 oct. 2026")).toBeInTheDocument();
+
+    const link = screen.getByRole("link", { name: /Ver oferta original/ });
+    expect(link).toHaveAttribute("href", "https://example.com/job");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    expect(link).toHaveTextContent("(se abre en una pestaña nueva)");
+  });
+
+  it("shows only Creada and Actualizada plus the muted fallbacks for a bare application", () => {
+    renderOk();
+
+    expect(screen.getByText("Creada")).toBeInTheDocument();
+    expect(screen.getByText("Actualizada")).toBeInTheDocument();
+    ["Ubicación", "Salario", "Fecha de envío", "Enlace"].forEach((label) =>
+      expect(screen.queryByText(label)).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.getByText("Esta candidatura aún no tiene más datos de la oferta."),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Sin etiquetas.")).toBeInTheDocument();
+    expect(screen.getByText("Sin notas.")).toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Texto original de la oferta" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders no link for a legacy javascript: URL", () => {
+    renderOk({ sourceUrl: "javascript:alert(1)" });
+
+    expect(
+      screen.queryByRole("link", { name: /Ver oferta original/ }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Enlace")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Esta candidatura aún no tiene más datos de la oferta."),
+    ).toBeInTheDocument();
+  });
+
+  it("groups the tags and renders soft chips dashed, with empty groups omitted", () => {
+    renderOk(FULL);
+
+    const tags = screen.getByRole("region", { name: "Etiquetas" });
+    [
+      "Stack tecnológico",
+      "Se valora",
+      "Modelo de trabajo",
+      "Seniority",
+      "Contrato",
+      "Idiomas",
+    ].forEach((title) => expect(within(tags).getByText(title)).toBeVisible());
+    expect(within(tags).getByText("Remoto")).toBeInTheDocument();
+    expect(within(tags).getByText("Mid")).toBeInTheDocument();
+    expect(within(tags).getByText("Indefinido")).toBeInTheDocument();
+    expect(within(tags).getByText("Docker").parentElement).toHaveClass(
+      "border-dashed",
+    );
+    expect(within(tags).getByText("React").parentElement).not.toHaveClass(
+      "border-dashed",
+    );
+    expect(within(tags).queryByText("Sin etiquetas.")).not.toBeInTheDocument();
+  });
+
+  it("omits the groups that have no tags", () => {
+    renderOk({ tags: [{ label: "React", group: "stack" }] });
+
+    const tags = screen.getByRole("region", { name: "Etiquetas" });
+    expect(within(tags).getByText("Stack tecnológico")).toBeInTheDocument();
+    expect(within(tags).queryByText("Se valora")).not.toBeInTheDocument();
+    expect(within(tags).queryByText("Idiomas")).not.toBeInTheDocument();
+  });
+
+  it("keeps line breaks and renders notes as text, never as markup", () => {
+    renderOk({ notes: "línea 1\nlínea 2 <img src=x onerror=alert(1)>" });
+
+    const notes = screen.getByRole("region", { name: "Notas" });
+    const paragraph = within(notes).getByText(/línea 1/);
+    expect(paragraph).toHaveClass("whitespace-pre-wrap", "break-words");
+    expect(paragraph.textContent).toBe(
+      "línea 1\nlínea 2 <img src=x onerror=alert(1)>",
+    );
+    expect(document.querySelector("img")).toBeNull();
+  });
+
+  it("keeps the offer text unmounted until «Mostrar texto original» is opened", async () => {
+    renderOk({ offerText: "Buscamos <img src=x onerror=alert(1)> perfil" });
+
+    const trigger = screen.getByRole("button", {
+      name: "Mostrar texto original",
+    });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText(/Buscamos/)).not.toBeInTheDocument();
+
+    await userEvent.click(trigger);
+
+    expect(
+      screen.getByRole("button", { name: "Ocultar texto original" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    const text = screen.getByText(/Buscamos/);
+    expect(text).toHaveClass("whitespace-pre-wrap", "break-words");
+    expect(text.textContent).toBe(
+      "Buscamos <img src=x onerror=alert(1)> perfil",
+    );
+    expect(document.querySelector("img")).toBeNull();
+  });
+
+  it("shows the history newest first with «Actual» on the first entry only", () => {
+    renderOk({
+      status: "enviada",
+      statusHistory: [
+        { status: "guardada", at: "2026-10-12T10:00:00.000Z" },
+        { status: "enviada", at: "2026-10-14T10:00:00.000Z" },
+      ],
+    });
+
+    const history = screen.getByRole("region", {
+      name: "Historial de estados",
+    });
+    const items = within(history).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    expect(items[0]).toHaveTextContent("Enviada");
+    expect(items[0]).toHaveTextContent("14 oct. 2026");
+    expect(items[0]).toHaveTextContent("Actual");
+    expect(items[1]).toHaveTextContent("Guardada");
+    expect(items[1]).toHaveTextContent("12 oct. 2026");
+    expect(items[1]).not.toHaveTextContent("Actual");
+  });
+
+  it("marks a single history entry as «Actual»", () => {
+    renderOk();
+
+    const items = within(
+      screen.getByRole("region", { name: "Historial de estados" }),
+    ).getAllByRole("listitem");
+    expect(items).toHaveLength(1);
+    expect(items[0]).toHaveTextContent("Actual");
+  });
+
+  it("grows with 15 history entries and adds no inner scroll box", () => {
+    const entries = Array.from({ length: 15 }, (_, index) => ({
+      status: "guardada",
+      at: `2026-10-${String(index + 1).padStart(2, "0")}T10:00:00.000Z`,
+    }));
+    renderOk({ statusHistory: entries });
+
+    const list = within(
+      screen.getByRole("region", { name: "Historial de estados" }),
+    ).getByRole("list");
+    expect(within(list).getAllByRole("listitem")).toHaveLength(15);
+    expect(list.className).not.toMatch(/overflow|max-h/);
+  });
+
+  it("never renders interview rounds or linked documents", () => {
+    renderOk(FULL);
+
+    expect(
+      screen.queryByRole("heading", { name: /ronda|entrevista/i }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: /documento|CV|carta/i }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /ronda/i })).toBeNull();
+  });
+
+  it("wraps a long title and company instead of overflowing", () => {
+    renderOk({ title: "T".repeat(120), company: "C".repeat(120) });
+
+    expect(screen.getByRole("heading", { level: 1 })).toHaveClass(
+      "min-w-0",
+      "break-words",
+    );
+    expect(screen.getByText("C".repeat(120))).toHaveClass(
+      "min-w-0",
+      "break-words",
+    );
+  });
+});
+
+const renderState = (
+  status: "loading" | "notFound" | "error",
+  errorCode: HttpErrorCode | null = null,
+) =>
+  render(
+    <ApplicationDetailComponent
+      status={status}
+      vm={null}
+      errorCode={errorCode}
+      onRetry={() => {}}
+      renderListLink={renderListLink}
+    />,
+  );
+
+describe("detail page states", () => {
+  it("shows skeletons inside a busy status with sr-only text while loading", () => {
+    renderState("loading");
+
+    const status = screen.getByRole("status");
+    expect(status).toHaveAttribute("aria-busy", "true");
+    expect(status).toHaveTextContent("Cargando candidatura…");
+    expect(
+      status.querySelectorAll('[data-slot="skeleton"]').length,
+    ).toBeGreaterThanOrEqual(3);
+  });
+
+  it("shows the not-found alert with the link back to the list", () => {
+    renderState("notFound");
+
+    const alert = screen.getByRole("alert");
+    expect(
+      within(alert).getByRole("heading", {
+        name: "No encontramos esta candidatura",
+      }),
+    ).toBeInTheDocument();
+    expect(alert).toHaveTextContent("Puede que la hayas eliminado.");
+    expect(
+      within(alert).getByRole("link", { name: "Volver a Mis candidaturas" }),
+    ).toHaveAttribute("href", "/applications");
+  });
+
+  it.each([
+    [
+      "NETWORK_ERROR" as const,
+      "No se pudo conectar con el servidor. Comprueba tu conexión e inténtalo de nuevo.",
+    ],
+    [
+      "INVALID_RESPONSE" as const,
+      "El servidor respondió algo inesperado. Inténtalo de nuevo.",
+    ],
+    ["INTERNAL_ERROR" as const, "Algo ha fallado. Inténtalo de nuevo."],
+  ])("shows fixed copy for %s with a retry button", async (code, body) => {
+    const onRetry = vi.fn();
+    render(
+      <ApplicationDetailComponent
+        status="error"
+        vm={null}
+        errorCode={code}
+        onRetry={onRetry}
+        renderListLink={renderListLink}
+      />,
+    );
+
+    const alert = screen.getByRole("alert");
+    expect(
+      within(alert).getByRole("heading", {
+        name: "No se pudo cargar la candidatura",
+      }),
+    ).toBeInTheDocument();
+    expect(alert).toHaveTextContent(body);
+    await userEvent.click(
+      within(alert).getByRole("button", { name: "Reintentar" }),
+    );
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+});
