@@ -1,7 +1,10 @@
-import type { Application } from "@tfm/contracts";
+import type { Application, TagSummary } from "@tfm/contracts";
 import { TAG_GROUP_ORDER } from "@/common/lib/enum-labels";
 import { formatDate, formatSalaryRange } from "@/common/lib/format";
-import type { ApplicationListItem } from "./application-list.vm";
+import type {
+  ApplicationListItem,
+  StackTagOptionVm,
+} from "./application-list.vm";
 
 const MAX_VISIBLE_TAGS = 3;
 
@@ -36,3 +39,11 @@ export const mapApplicationFromApiToVm = (
 export const mapApplicationListFromApiToVm = (
   applications: Application[],
 ): ApplicationListItem[] => applications.map(mapApplicationFromApiToVm);
+
+// Only stack tags are offered as filters; the order is the one served (count desc).
+export const mapStackTagsFromApiToVm = (
+  tags: TagSummary[],
+): StackTagOptionVm[] =>
+  tags
+    .filter((tag) => tag.group === "stack")
+    .map((tag) => ({ label: tag.label }));

@@ -11,7 +11,7 @@ import { FilterPanel } from "./components/filter-panel";
 import { ListError } from "./components/list-error";
 import { ListSkeleton } from "./components/list-skeleton";
 import { ResultCount } from "./components/result-count";
-import type { ApplicationListItem } from "./application-list.vm";
+import type { ApplicationListItem, StackTagsVm } from "./application-list.vm";
 
 interface Props {
   status: "loading" | "ok" | "error";
@@ -23,6 +23,8 @@ interface Props {
   onQueryChange: (next: ListSearch) => void;
   onClear: () => void;
   clearCount: number;
+  stackTags: StackTagsVm;
+  onRetryStackTags: () => void;
 }
 
 export function ApplicationListComponent({
@@ -35,6 +37,8 @@ export function ApplicationListComponent({
   onQueryChange,
   onClear,
   clearCount,
+  stackTags,
+  onRetryStackTags,
 }: Props) {
   const resultsRef = useRef<HTMLElement>(null);
 
@@ -53,6 +57,8 @@ export function ApplicationListComponent({
         onQueryChange={onQueryChange}
         onClear={onClear}
         clearCount={clearCount}
+        stackTags={stackTags}
+        onRetryStackTags={onRetryStackTags}
       />
       <ResultCount count={count} />
       <section

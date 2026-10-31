@@ -1,9 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { HttpError, type HttpErrorCode } from "@/core/http/http-client";
 import type { ListSearch } from "@/core/router/application-search";
-import { buildApplicationsQuery, getApplications } from "./api/api";
-import { mapApplicationListFromApiToVm } from "./application-list.mapper";
-import type { ApplicationListItem } from "./application-list.vm";
+import { buildApplicationsQuery, getApplications, getTags } from "./api/api";
+import {
+  mapApplicationListFromApiToVm,
+  mapStackTagsFromApiToVm,
+} from "./application-list.mapper";
+import type {
+  ApplicationListItem,
+  StackTagOptionVm,
+} from "./application-list.vm";
 
 type Result =
   | { key: string; outcome: "ok"; applications: ApplicationListItem[] }
@@ -62,6 +68,49 @@ export const useApplicationList = (query: ListSearch): ApplicationListState => {
     applications: result?.outcome === "ok" ? result.applications : [],
     errorCode: current?.outcome === "error" ? current.code : null,
     refreshing: current === null && lastWasOk,
+    retry: () => setAttempt((n) => n + 1),
+  };
+};
+
+type StackTagsResult =
+  | { attempt: number; outcome: "ok"; options: StackTagOptionVm[] }
+  | { attempt: number; outcome: "error" };
+
+export interface StackTagsState {
+  status: "loading" | "ok" | "error";
+  options: StackTagOptionVm[];
+  retry: () => void;
+}
+
+// Same keyed-result pattern as the list: loading is derived (the stored result belongs to an
+// older attempt), the mapper runs on receipt and an aborted request never writes state.
+export const useStackTags = (): StackTagsState => {
+  const [result, setResult] = useState<StackTagsResult | null>(null);
+  const [attempt, setAttempt] = useState(0);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getTags(controller.signal)
+      .then((tags) => {
+        if (controller.signal.aborted) return;
+        setResult({
+          attempt,
+          outcome: "ok",
+          options: mapStackTagsFromApiToVm(tags),
+        });
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setResult({ attempt, outcome: "error" });
+      });
+    return () => controller.abort();
+  }, [attempt]);
+
+  const current = result?.attempt === attempt ? result : null;
+
+  return {
+    status: current === null ? "loading" : current.outcome,
+    options: current?.outcome === "ok" ? current.options : [],
     retry: () => setAttempt((n) => n + 1),
   };
 };

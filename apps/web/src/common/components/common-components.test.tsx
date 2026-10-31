@@ -2,6 +2,7 @@ import { applicationStatusSchema } from "@tfm/contracts";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { RequestStatus } from "./request-status";
 import { StatusBadge } from "./status-badge";
 import { TagChip } from "./tag-chip";
 
@@ -101,5 +102,66 @@ describe("TagChip", () => {
       screen.getByText("<img src=x onerror=alert(1)>"),
     ).toBeInTheDocument();
     expect(document.querySelector("img")).toBeNull();
+  });
+});
+
+describe("RequestStatus", () => {
+  it("renders a spinning, motion-safe loader for loading, hidden from assistive tech", () => {
+    const { container } = render(
+      <RequestStatus kind="loading" message="Guardando…" />,
+    );
+
+    expect(screen.getByText("Guardando…")).toBeInTheDocument();
+    const icon = container.querySelector("svg");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(icon).toHaveClass("animate-spin", "motion-reduce:animate-none");
+    expect(screen.queryByRole("button")).not.toBeInTheDocument();
+  });
+
+  it("renders a check for success", () => {
+    const { container } = render(
+      <RequestStatus kind="success" message="Cambios guardados." />,
+    );
+
+    expect(screen.getByText("Cambios guardados.")).toBeInTheDocument();
+    const icon = container.querySelector("svg");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(icon).not.toHaveClass("text-destructive");
+  });
+
+  it("renders the alert icon, the message and a retry button for error", async () => {
+    const onRetry = vi.fn();
+    const { container } = render(
+      <RequestStatus
+        kind="error"
+        message="No se pudo guardar."
+        onRetry={onRetry}
+      />,
+    );
+
+    expect(screen.getByText("No se pudo guardar.")).toBeInTheDocument();
+    const icon = container.querySelector("svg");
+    expect(icon).toHaveClass("text-destructive");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+
+    await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+  });
+
+  it("uses a custom retry label and adds no live region of its own", () => {
+    render(
+      <RequestStatus
+        kind="error"
+        message="Fallo."
+        onRetry={() => {}}
+        retryLabel="Volver a probar"
+      />,
+    );
+
+    expect(
+      screen.getByRole("button", { name: "Volver a probar" }),
+    ).toBeInTheDocument();
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
   });
 });

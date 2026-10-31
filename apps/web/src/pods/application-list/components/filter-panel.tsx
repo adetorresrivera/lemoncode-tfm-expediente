@@ -9,12 +9,16 @@ import {
 import { SearchField } from "./search-field";
 import { SelectFilters } from "./select-filters";
 import { StatusFilter } from "./status-filter";
+import { TagFilter } from "./tag-filter";
+import type { StackTagsVm } from "../application-list.vm";
 
 interface Props {
   query: ListSearch;
   onQueryChange: (next: ListSearch) => void;
   onClear: () => void;
   clearCount: number;
+  stackTags: StackTagsVm;
+  onRetryStackTags: () => void;
 }
 
 // Dimensions that live behind «Filtros y orden» below lg: one per active filter group, plus one
@@ -33,6 +37,8 @@ export function FilterPanel({
   onQueryChange,
   onClear,
   clearCount,
+  stackTags,
+  onRetryStackTags,
 }: Props) {
   const canClear = hasActiveFilters(query) || !isDefaultSort(query);
   const activeCount = countActiveDimensions(query);
@@ -80,6 +86,18 @@ export function FilterPanel({
               status: status.length > 0 ? status : undefined,
             })
           }
+        />
+        <TagFilter
+          status={stackTags.status}
+          options={stackTags.options}
+          selected={query.tags ?? []}
+          onChange={(tags) =>
+            onQueryChange({
+              ...query,
+              tags: tags.length > 0 ? tags : undefined,
+            })
+          }
+          onRetry={onRetryStackTags}
         />
         <SelectFilters query={query} onQueryChange={onQueryChange} />
       </div>

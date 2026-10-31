@@ -16,3 +16,12 @@ export interface ApplicationListItem {
   salary: string | null;
   updatedAtLabel: string;
 }
+
+export interface StackTagOptionVm {
+  label: string;
+}
+
+export interface StackTagsVm {
+  status: "loading" | "ok" | "error";
+  options: StackTagOptionVm[];
+}
