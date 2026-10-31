@@ -1,10 +1,12 @@
 import type { ApplicationStatus } from "@tfm/contracts";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Pencil } from "lucide-react";
 import { StatusBadge } from "@/common/components/status-badge";
+import { Button } from "@/common/components/ui/button";
 import type { HttpErrorCode } from "@/core/http/http-client";
 import type {
   ApplicationDetailVm,
   DeleteState,
+  RenderEditLink,
   RenderListLink,
   StatusFeedback,
 } from "./application-detail.vm";
@@ -33,6 +35,7 @@ interface Props {
   deleteState: DeleteState;
   onDelete: () => void;
   renderListLink: RenderListLink;
+  renderEditLink: RenderEditLink;
   notice: string;
   focusHeadingRef: (node: HTMLElement | null) => void;
 }
@@ -48,6 +51,7 @@ export function ApplicationDetailComponent({
   deleteState,
   onDelete,
   renderListLink,
+  renderEditLink,
   notice,
   focusHeadingRef,
 }: Props) {
@@ -93,6 +97,16 @@ export function ApplicationDetailComponent({
             </p>
           </div>
           <div className="grid grid-cols-2 gap-2 lg:flex">
+            <Button asChild className="h-11">
+              {renderEditLink({
+                children: (
+                  <>
+                    <Pencil aria-hidden="true" />
+                    Editar
+                  </>
+                ),
+              })}
+            </Button>
             <DeleteDialog
               title={vm.title}
               company={vm.company}

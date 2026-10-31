@@ -1,11 +1,12 @@
 import { useEffect } from "react";
 import { ApplicationDetailComponent } from "./application-detail.component";
 import { useApplicationDetail } from "./application-detail.hooks";
-import type { RenderListLink } from "./application-detail.vm";
+import type { RenderEditLink, RenderListLink } from "./application-detail.vm";
 
 interface Props {
   applicationId: string;
   renderListLink: RenderListLink;
+  renderEditLink: RenderEditLink;
   onDeleted: () => void;
   notice: string;
   focusHeadingRef: (node: HTMLElement | null) => void;
@@ -14,6 +15,7 @@ interface Props {
 export function ApplicationDetailContainer({
   applicationId,
   renderListLink,
+  renderEditLink,
   onDeleted,
   notice,
   focusHeadingRef,
@@ -47,6 +49,7 @@ export function ApplicationDetailContainer({
       deleteState={deleteState}
       onDelete={remove}
       renderListLink={renderListLink}
+      renderEditLink={renderEditLink}
       notice={notice}
       focusHeadingRef={focusHeadingRef}
     />
