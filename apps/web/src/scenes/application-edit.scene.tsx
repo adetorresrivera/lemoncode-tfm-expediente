@@ -49,6 +49,11 @@ export function ApplicationEditScene({ applicationId }: Props) {
             {children}
           </Link>
         )}
+        renderListLink={({ className, children }) => (
+          <Link to="/applications" className={className}>
+            {children}
+          </Link>
+        )}
       />
     </div>
   );

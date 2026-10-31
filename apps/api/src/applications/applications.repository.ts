@@ -57,6 +57,24 @@ export interface ApplicationDoc {
 
 export type NewApplicationDoc = Omit<ApplicationDoc, "_id">;
 
+// The only fields PUT may write (D-07, D-08). Status, history, interviews, ownership, creation
+// instant, offer text and document links are deliberately absent.
+export interface EditableFields {
+  title: string;
+  company: string;
+  location: string | null;
+  workMode: WorkMode | null;
+  seniority: Seniority | null;
+  contractType: ContractType | null;
+  salaryMin: number | null;
+  salaryMax: number | null;
+  currency: string | null;
+  tags: TagDoc[];
+  sourceUrl: string | null;
+  appliedAt: Date | null;
+  notes: string | null;
+}
+
 export interface ApplicationsRepository {
   insert(doc: NewApplicationDoc): Promise<ApplicationDoc>;
   list(query: ApplicationQuery): Promise<ApplicationDoc[]>;
@@ -71,6 +89,12 @@ export interface ApplicationsRepository {
   // True when one application was deleted. Only the applications collection is touched: stored
   // documents are never deleted or unlinked here (APP-03).
   deleteById(id: ObjectId): Promise<boolean>;
+  // Null when the id is unknown (nothing is created). Writes only EditableFields and updatedAt.
+  updateEditable(
+    id: ObjectId,
+    fields: EditableFields,
+    now: Date,
+  ): Promise<ApplicationDoc | null>;
 }
 
 export function createApplicationsRepository(db: Db): ApplicationsRepository {
@@ -124,6 +148,32 @@ export function createApplicationsRepository(db: Db): ApplicationsRepository {
             },
           },
         ],
+        { returnDocument: "after" },
+      );
+    },
+    // Explicit $set of each editable key: the update document is never built from the request.
+    // No insert-on-miss option: an unknown id is never created.
+    async updateEditable(id, fields, now) {
+      return collection.findOneAndUpdate(
+        { _id: id },
+        {
+          $set: {
+            title: fields.title,
+            company: fields.company,
+            location: fields.location,
+            workMode: fields.workMode,
+            seniority: fields.seniority,
+            contractType: fields.contractType,
+            salaryMin: fields.salaryMin,
+            salaryMax: fields.salaryMax,
+            currency: fields.currency,
+            tags: fields.tags,
+            sourceUrl: fields.sourceUrl,
+            appliedAt: fields.appliedAt,
+            notes: fields.notes,
+            updatedAt: now,
+          },
+        },
         { returnDocument: "after" },
       );
     },

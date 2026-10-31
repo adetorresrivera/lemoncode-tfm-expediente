@@ -1,4 +1,8 @@
-import { applicationInputSchema } from "@tfm/contracts";
+import {
+  applicationInputSchema,
+  type Application,
+  type ApplicationInput,
+} from "@tfm/contracts";
 import { z } from "zod";
 import {
   EMPTY_FORM_VALUES,
@@ -41,6 +45,59 @@ export const toLocalNoonIso = (date: string): string | null => {
     local.getDate() === day;
   return sameDay ? local.toISOString() : null;
 };
+
+const pad = (value: number): string => String(value).padStart(2, "0");
+
+// The calendar date of an instant in the user's time zone, the value of an <input type="date">
+// (Pitfall 10). No instant, or one that is not a date, is an empty field.
+export const toLocalDateInput = (iso: string | null): string => {
+  if (iso === null) return "";
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+};
+
+// API model -> form values: null becomes "" and numbers become strings, so every control is
+// controlled from the first render and optional fields stay blank.
+export function mapApplicationFromApiToFormValues(
+  application: Application,
+): ApplicationFormValues {
+  return {
+    title: application.title,
+    company: application.company,
+    location: application.location ?? "",
+    workMode: application.workMode ?? "",
+    seniority: application.seniority ?? "",
+    contractType: application.contractType ?? "",
+    salaryMin:
+      application.salaryMin === null ? "" : String(application.salaryMin),
+    salaryMax:
+      application.salaryMax === null ? "" : String(application.salaryMax),
+    currency: application.currency ?? EMPTY_FORM_VALUES.currency,
+    tags: application.tags.map((tag) => ({
+      label: tag.label,
+      group: tag.group,
+    })),
+    status: application.status,
+    appliedAt: toLocalDateInput(application.appliedAt),
+    sourceUrl: application.sourceUrl ?? "",
+    notes: application.notes ?? "",
+  };
+}
+
+// The form edits dates at day precision, but an automatic appliedAt (first move to enviada) is an
+// exact instant. While the local date in the form still equals the local date of the stored
+// instant, the stored instant goes back unchanged; a changed date stays local noon and a cleared
+// date stays null (D-08). The input object is not mutated.
+export function keepStoredAppliedAt(
+  input: ApplicationInput,
+  storedAppliedAt: string | null,
+): ApplicationInput {
+  if (input.appliedAt === null || storedAppliedAt === null) return input;
+  return toLocalDateInput(input.appliedAt) === toLocalDateInput(storedAppliedAt)
+    ? { ...input, appliedAt: storedAppliedAt }
+    : input;
+}
 
 export const mapFormValuesToApiInput = (
   values: ApplicationFormValues,

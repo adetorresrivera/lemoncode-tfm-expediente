@@ -1,4 +1,4 @@
-import { applicationSchema } from "@tfm/contracts";
+import { applicationInputSchema, applicationSchema } from "@tfm/contracts";
 import {
   fireEvent,
   render,
@@ -15,8 +15,11 @@ import { useApplicationForm } from "./application-edit.hooks";
 import { TrackingSection } from "./components/tracking-section";
 import {
   issueToMessage,
+  keepStoredAppliedAt,
+  mapApplicationFromApiToFormValues,
   mapFormValuesToApiInput,
   mapServerErrorToFields,
+  toLocalDateInput,
   toLocalNoonIso,
   validateApplicationForm,
 } from "./application-edit.mapper";
@@ -252,11 +255,18 @@ const created = applicationSchema.parse({
   ownerId: null,
 });
 
+const renderListLink = (link: { className?: string; children: ReactNode }) => (
+  <a href="/applications-list-stub" className={link.className}>
+    {link.children}
+  </a>
+);
+
 const renderForm = (onSaved: (id: string) => void = () => {}) =>
   render(
     <ApplicationEditContainer
       onSaved={onSaved}
       renderCancelLink={renderCancelLink}
+      renderListLink={renderListLink}
     />,
   );
 
@@ -921,6 +931,310 @@ describe("ApplicationEditContainer tags", () => {
 
     expect(within(groupOf(GROUPS.stack)).getByRole("list").className).toContain(
       "flex-wrap",
+    );
+  });
+});
+
+const AUTO_APPLIED_AT = "2026-10-30T08:15:00.000Z";
+
+const stored = (overrides: Record<string, unknown> = {}) =>
+  applicationSchema.parse({
+    id: "a1",
+    title: "Frontend Developer",
+    company: "Acme",
+    status: "enviada",
+    appliedAt: AUTO_APPLIED_AT,
+    statusHistory: [
+      { status: "guardada", at: "2026-10-12T10:00:00.000Z" },
+      { status: "enviada", at: AUTO_APPLIED_AT },
+    ],
+    interviews: [],
+    createdAt: "2026-10-12T10:00:00.000Z",
+    updatedAt: "2026-10-30T08:15:00.000Z",
+    ownerId: null,
+    ...overrides,
+  });
+
+describe("toLocalDateInput", () => {
+  it("maps an instant to its local calendar date and null to empty", () => {
+    const instant = new Date(2026, 9, 12, 12);
+    expect(toLocalDateInput(instant.toISOString())).toBe("2026-10-12");
+    expect(toLocalDateInput(null)).toBe("");
+    expect(toLocalDateInput("not a date")).toBe("");
+  });
+});
+
+describe("mapApplicationFromApiToFormValues", () => {
+  it("turns null into empty strings, numbers into strings and keeps the currency default", () => {
+    const mapped = mapApplicationFromApiToFormValues(
+      stored({
+        salaryMin: 52000,
+        salaryMax: null,
+        currency: null,
+        tags: [{ label: "React", group: "stack" }],
+      }),
+    );
+    expect(mapped).toStrictEqual({
+      title: "Frontend Developer",
+      company: "Acme",
+      location: "",
+      workMode: "",
+      seniority: "",
+      contractType: "",
+      salaryMin: "52000",
+      salaryMax: "",
+      currency: "EUR",
+      tags: [{ label: "React", group: "stack" }],
+      status: "enviada",
+      appliedAt: toLocalDateInput(AUTO_APPLIED_AT),
+      sourceUrl: "",
+      notes: "",
+    });
+  });
+
+  it("keeps a stored currency and the optional enums", () => {
+    const mapped = mapApplicationFromApiToFormValues(
+      stored({
+        currency: "USD",
+        salaryMin: 1,
+        workMode: "remoto",
+        location: "Madrid",
+      }),
+    );
+    expect(mapped.currency).toBe("USD");
+    expect(mapped.workMode).toBe("remoto");
+    expect(mapped.location).toBe("Madrid");
+  });
+});
+
+describe("keepStoredAppliedAt", () => {
+  const draft = (appliedAt: string | null) =>
+    applicationInputSchema.parse({
+      title: "Dev",
+      company: "Acme",
+      appliedAt,
+    });
+
+  it("returns the stored instant when the local date did not change", () => {
+    const noon = toLocalNoonIso(toLocalDateInput(AUTO_APPLIED_AT));
+    const input = draft(noon);
+    expect(keepStoredAppliedAt(input, AUTO_APPLIED_AT).appliedAt).toBe(
+      AUTO_APPLIED_AT,
+    );
+    expect(input.appliedAt).toBe(noon);
+  });
+
+  it("keeps the noon instant of another date", () => {
+    const other = toLocalNoonIso("2026-11-02");
+    expect(keepStoredAppliedAt(draft(other), AUTO_APPLIED_AT).appliedAt).toBe(
+      other,
+    );
+  });
+
+  it("keeps a cleared date as null", () => {
+    expect(keepStoredAppliedAt(draft(null), AUTO_APPLIED_AT).appliedAt).toBe(
+      null,
+    );
+  });
+
+  it("returns the input unchanged when nothing is stored", () => {
+    const input = draft(toLocalNoonIso("2026-11-02"));
+    expect(keepStoredAppliedAt(input, null)).toBe(input);
+  });
+});
+
+const renderEdit = (
+  onSaved: (id: string) => void = () => {},
+  applicationId = "a1",
+) =>
+  render(
+    <ApplicationEditContainer
+      applicationId={applicationId}
+      onSaved={onSaved}
+      renderCancelLink={renderCancelLink}
+      renderListLink={renderListLink}
+    />,
+  );
+
+const puts = (fetchMock: ReturnType<typeof mockFetch>) =>
+  fetchMock.mock.calls.filter(([, init]) => init?.method === "PUT");
+
+const putBody = (fetchMock: ReturnType<typeof mockFetch>) => {
+  const init = puts(fetchMock)[0]?.[1];
+  return JSON.parse(String(init?.body)) as Record<string, unknown>;
+};
+
+const saveEdit = (user: ReturnType<typeof userEvent.setup>) =>
+  user.click(screen.getByRole("button", { name: "Guardar candidatura" }));
+
+describe("ApplicationEditContainer edit mode", () => {
+  it("shows the loading state until the application arrives, then the prefilled form with the status line", async () => {
+    let release: (response: Response) => void = () => {};
+    mockFetch({
+      "GET /api/applications/a1": () =>
+        new Promise<Response>((resolve) => {
+          release = resolve;
+        }),
+    });
+    renderEdit();
+
+    expect(screen.getByText("Cargando candidatura…")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Puesto *")).toBeNull();
+
+    release(jsonResponse(stored()));
+
+    expect(await screen.findByLabelText("Puesto *")).toHaveValue(
+      "Frontend Developer",
+    );
+    expect(screen.getByLabelText("Empresa *")).toHaveValue("Acme");
+    expect(screen.getByText("Frontend Developer · Acme")).toBeInTheDocument();
+    expect(screen.getByText("Estado actual:")).toBeInTheDocument();
+    expect(screen.getByText("Cámbialo desde el detalle.")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Estado inicial")).toBeNull();
+    expect(
+      screen.getByRole("link", { name: "Descartar cambios" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps optional fields blank when the API has null", async () => {
+    mockFetch({ "GET /api/applications/a1": stored({ appliedAt: null }) });
+    renderEdit();
+
+    expect(await screen.findByLabelText("Ubicación")).toHaveValue("");
+    expect(screen.getByLabelText("Salario mínimo")).toHaveValue(null);
+    expect(screen.getByLabelText("Fecha de envío")).toHaveValue("");
+    expect(screen.getByLabelText("Enlace de la oferta")).toHaveValue("");
+    expect(screen.getByLabelText("Notas")).toHaveValue("");
+  });
+
+  it("saves with PUT to the id and reports it, never POST", async () => {
+    const user = userEvent.setup();
+    const onSaved = vi.fn();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": stored(),
+      "PUT /api/applications/a1": () =>
+        jsonResponse(stored({ title: "Frontend Lead" })),
+    });
+    renderEdit(onSaved);
+
+    const title = await screen.findByLabelText("Puesto *");
+    await user.clear(title);
+    await user.type(title, "Frontend Lead");
+    await saveEdit(user);
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith("a1"));
+    expect(puts(fetchMock)).toHaveLength(1);
+    expect(posts(fetchMock)).toHaveLength(0);
+    expect(putBody(fetchMock)).toMatchObject({ title: "Frontend Lead" });
+  });
+
+  it("sends the stored appliedAt instant back when only the title changed", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": stored(),
+      "PUT /api/applications/a1": () => jsonResponse(stored()),
+    });
+    renderEdit();
+
+    const title = await screen.findByLabelText("Puesto *");
+    await user.type(title, " 2");
+    await saveEdit(user);
+
+    await waitFor(() => expect(puts(fetchMock)).toHaveLength(1));
+    expect(putBody(fetchMock).appliedAt).toBe(AUTO_APPLIED_AT);
+  });
+
+  it("sends local noon for a changed date and null for a cleared one", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": stored(),
+      "PUT /api/applications/a1": () => jsonResponse(stored()),
+    });
+    renderEdit();
+
+    const date = await screen.findByLabelText("Fecha de envío");
+    fireEvent.change(date, { target: { value: "2026-11-02" } });
+    await saveEdit(user);
+    await waitFor(() => expect(puts(fetchMock)).toHaveLength(1));
+    expect(putBody(fetchMock).appliedAt).toBe(toLocalNoonIso("2026-11-02"));
+
+    fireEvent.change(date, { target: { value: "" } });
+    await saveEdit(user);
+    await waitFor(() => expect(puts(fetchMock)).toHaveLength(2));
+    const second = puts(fetchMock)[1]?.[1];
+    expect(
+      (JSON.parse(String(second?.body)) as Record<string, unknown>).appliedAt,
+    ).toBeNull();
+  });
+
+  it("sends blank optional fields back as null", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": stored({ appliedAt: null }),
+      "PUT /api/applications/a1": () => jsonResponse(stored()),
+    });
+    renderEdit();
+
+    await screen.findByLabelText("Puesto *");
+    await saveEdit(user);
+
+    await waitFor(() => expect(puts(fetchMock)).toHaveLength(1));
+    expect(putBody(fetchMock)).toMatchObject({
+      location: null,
+      workMode: null,
+      salaryMin: null,
+      currency: null,
+      sourceUrl: null,
+      notes: null,
+      appliedAt: null,
+    });
+  });
+
+  it("shows the not-found card with the list link supplied by the scene", async () => {
+    mockFetch({
+      "GET /api/applications/zzz": () =>
+        jsonResponse(
+          {
+            error: { code: "NOT_FOUND", message: "Candidatura no encontrada" },
+          },
+          404,
+        ),
+    });
+    renderEdit(() => {}, "zzz");
+
+    expect(
+      await screen.findByText("No encontramos esta candidatura"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("link", { name: "Volver a Mis candidaturas" }),
+    ).toHaveAttribute("href", "/applications-list-stub");
+    expect(screen.queryByLabelText("Puesto *")).toBeNull();
+  });
+
+  it("shows the error card with «Reintentar» for a server failure and never the form", async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    mockFetch({
+      "GET /api/applications/a1": () => {
+        calls += 1;
+        return calls === 1
+          ? jsonResponse(
+              { error: { code: "INTERNAL_ERROR", message: "x" } },
+              500,
+            )
+          : jsonResponse(stored());
+      },
+    });
+    renderEdit();
+
+    expect(
+      await screen.findByText("No se pudo cargar la candidatura"),
+    ).toBeInTheDocument();
+    expect(screen.queryByLabelText("Puesto *")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Reintentar" }));
+    expect(await screen.findByLabelText("Puesto *")).toHaveValue(
+      "Frontend Developer",
     );
   });
 });
