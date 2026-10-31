@@ -2,7 +2,10 @@ import { RequestStatus } from "@/common/components/request-status";
 import { Button } from "@/common/components/ui/button";
 import type { ApplicationFormApi } from "./application-edit.hooks";
 import type { FormMessage, RenderCancelLink } from "./application-edit.vm";
+import { ConditionsSection } from "./components/conditions-section";
 import { JobSection } from "./components/job-section";
+import { TagsSection } from "./components/tags-section";
+import { TrackingSection } from "./components/tracking-section";
 
 interface Props {
   form: ApplicationFormApi;
@@ -31,6 +34,9 @@ export function ApplicationEditComponent({
         Los campos con * son obligatorios.
       </p>
       <JobSection form={form} />
+      <ConditionsSection form={form} />
+      <TagsSection form={form} />
+      <TrackingSection form={form} mode="create" />
       <div role="status" aria-live="polite">
         {formMessage ? (
           <RequestStatus

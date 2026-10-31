@@ -1,10 +1,18 @@
 import { applicationSchema } from "@tfm/contracts";
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { jsonResponse, mockFetch } from "@/test/mock-fetch";
 import { ApplicationEditContainer } from "./application-edit.container";
+import { useApplicationForm } from "./application-edit.hooks";
+import { TrackingSection } from "./components/tracking-section";
 import {
   issueToMessage,
   mapFormValuesToApiInput,
@@ -469,5 +477,450 @@ describe("ApplicationEditContainer", () => {
     const status = container.querySelector("[role='status']");
     expect(status).toHaveAttribute("aria-live", "polite");
     expect(status).toBeEmptyDOMElement();
+  });
+});
+
+const lastPostBody = (fetchMock: ReturnType<typeof mockFetch>) => {
+  const sent = posts(fetchMock);
+  const init = sent[sent.length - 1]?.[1];
+  return JSON.parse(String(init?.body)) as Record<string, unknown>;
+};
+
+const mockCreate = () =>
+  mockFetch({ "POST /api/applications": () => jsonResponse(created, 201) });
+
+describe("ApplicationEditContainer conditions and tracking", () => {
+  it("renders the sections in order with blank fields and the defaults", () => {
+    renderForm();
+
+    const headings = screen
+      .getAllByRole("heading", { level: 2 })
+      .map((heading) => heading.textContent);
+    expect(headings).toStrictEqual([
+      "Puesto y empresa",
+      "Condiciones",
+      "Etiquetas",
+      "Seguimiento",
+    ]);
+    expect(screen.getByLabelText("Puesto *")).toHaveValue("");
+    expect(screen.getByLabelText("Empresa *")).toHaveValue("");
+    expect(screen.getByLabelText("Estado inicial")).toHaveValue("guardada");
+    expect(screen.getByLabelText("Moneda")).toHaveValue("EUR");
+    expect(screen.getByLabelText("Modalidad")).toHaveValue("");
+    expect(screen.getByLabelText("Ubicación")).toHaveValue("");
+    expect(screen.getByLabelText("Notas")).toHaveValue("");
+    expect(screen.getByLabelText("Enlace de la oferta")).toHaveValue("");
+    expect(document.querySelector("[aria-invalid='true']")).toBeNull();
+    expect(screen.queryByText(/Revisa los campos|Escribe el/)).toBeNull();
+  });
+
+  it("describes the controls of the conditions section", () => {
+    renderForm();
+
+    const none = within(screen.getByLabelText("Modalidad")).getByRole(
+      "option",
+      { name: "Sin indicar" },
+    );
+    expect(none).toHaveValue("");
+    const min = screen.getByLabelText("Salario mínimo");
+    const max = screen.getByLabelText("Salario máximo");
+    for (const control of [min, max]) {
+      expect(control).toHaveAttribute("type", "number");
+      expect(control).toHaveAttribute("inputmode", "numeric");
+      expect(control).toHaveAttribute("min", "0");
+    }
+    expect(screen.getByText("Importe anual bruto.")).toBeInTheDocument();
+    expect(min).toHaveAccessibleDescription("Importe anual bruto.");
+    const currencies = within(screen.getByLabelText("Moneda"))
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+    expect(currencies).toStrictEqual(["EUR", "USD", "GBP"]);
+  });
+
+  it("describes the controls of the tracking section", () => {
+    renderForm();
+
+    expect(screen.getByLabelText("Fecha de envío")).toHaveAttribute(
+      "type",
+      "date",
+    );
+    expect(
+      screen.getByText(
+        "Si la dejas vacía, se rellena sola al pasar a Enviada.",
+      ),
+    ).toBeInTheDocument();
+    const url = screen.getByLabelText("Enlace de la oferta");
+    expect(url).toHaveAttribute("type", "url");
+    expect(url).toHaveAttribute("placeholder", "https://");
+    expect(screen.getByLabelText("Notas")).toHaveAttribute("rows", "5");
+    expect(
+      within(screen.getByLabelText("Estado inicial")).getAllByRole("option"),
+    ).toHaveLength(7);
+  });
+
+  it("posts the chosen conditions, salary range and status", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    await user.selectOptions(screen.getByLabelText("Modalidad"), "Remoto");
+    await user.selectOptions(screen.getByLabelText("Seniority"), "Senior");
+    await user.selectOptions(
+      screen.getByLabelText("Tipo de contrato"),
+      "Indefinido",
+    );
+    await user.type(screen.getByLabelText("Salario mínimo"), "52000");
+    await user.type(screen.getByLabelText("Salario máximo"), "65000");
+    await user.selectOptions(
+      screen.getByLabelText("Estado inicial"),
+      "Enviada",
+    );
+    await submit(user);
+
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(1));
+    expect(lastPostBody(fetchMock)).toMatchObject({
+      workMode: "remoto",
+      seniority: "senior",
+      contractType: "indefinido",
+      salaryMin: 52000,
+      salaryMax: 65000,
+      currency: "EUR",
+      status: "enviada",
+    });
+  });
+
+  it("posts the applied date as local noon", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    fireEvent.change(screen.getByLabelText("Fecha de envío"), {
+      target: { value: "2026-10-12" },
+    });
+    await submit(user);
+
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(1));
+    expect(lastPostBody(fetchMock).appliedAt).toBe(
+      new Date(2026, 9, 12, 12).toISOString(),
+    );
+  });
+
+  it("posts an empty date, link, notes and conditions as null", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    await submit(user);
+
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(1));
+    expect(lastPostBody(fetchMock)).toMatchObject({
+      appliedAt: null,
+      sourceUrl: null,
+      notes: null,
+      location: null,
+      workMode: null,
+      currency: null,
+    });
+  });
+
+  it("flags a maximum below the minimum on Salario máximo and focuses it", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    await user.type(screen.getByLabelText("Salario mínimo"), "60000");
+    await user.type(screen.getByLabelText("Salario máximo"), "50000");
+    await submit(user);
+
+    expect(
+      await screen.findByText("El máximo no puede ser menor que el mínimo."),
+    ).toBeInTheDocument();
+    const max = screen.getByLabelText("Salario máximo");
+    expect(max).toHaveAttribute("aria-invalid", "true");
+    await waitFor(() => expect(max).toHaveFocus());
+    expect(posts(fetchMock)).toHaveLength(0);
+  });
+
+  it("flags a non-http link and an over-long note", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await fillRequired(user);
+    await user.type(screen.getByLabelText("Enlace de la oferta"), "ftp://x");
+    fireEvent.change(screen.getByLabelText("Notas"), {
+      target: { value: "a".repeat(5001) },
+    });
+    await submit(user);
+
+    expect(
+      await screen.findByText(
+        "Introduce una dirección válida que empiece por http:// o https://.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Las notas admiten hasta 5.000 caracteres."),
+    ).toBeInTheDocument();
+  });
+
+  it("limits title, company and location with the Spanish too_big messages", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    fireEvent.change(screen.getByLabelText("Puesto *"), {
+      target: { value: "a".repeat(121) },
+    });
+    fireEvent.change(screen.getByLabelText("Empresa *"), {
+      target: { value: "b".repeat(121) },
+    });
+    fireEvent.change(screen.getByLabelText("Ubicación"), {
+      target: { value: "c".repeat(121) },
+    });
+    await submit(user);
+
+    expect(
+      await screen.findByText("El puesto admite hasta 120 caracteres."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("La empresa admite hasta 120 caracteres."),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("La ubicación admite hasta 120 caracteres."),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Puesto *")).toHaveValue("a".repeat(121));
+  });
+
+  it("renders no initial status selector in edit mode", () => {
+    function Harness({ mode }: { mode: "create" | "edit" }) {
+      const { form } = useApplicationForm({
+        initialValues: EMPTY_FORM_VALUES,
+        save: () => Promise.resolve(created),
+        onSaved: () => {},
+      });
+      return <TrackingSection form={form} mode={mode} />;
+    }
+    const { unmount } = render(<Harness mode="edit" />);
+    expect(screen.queryByLabelText("Estado inicial")).toBeNull();
+    expect(screen.getByLabelText("Notas")).toBeInTheDocument();
+    unmount();
+    render(<Harness mode="create" />);
+    expect(screen.getByLabelText("Estado inicial")).toBeInTheDocument();
+  });
+
+  it("explains a negative salary", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await fillRequired(user);
+    await user.type(screen.getByLabelText("Salario mínimo"), "-5");
+    await submit(user);
+
+    expect(
+      await screen.findByText("El salario no puede ser negativo."),
+    ).toBeInTheDocument();
+  });
+});
+
+const GROUPS = {
+  stack: "Stack tecnológico",
+  nice: "Se valora",
+  language: "Idiomas",
+} as const;
+
+const groupOf = (legend: string) => screen.getByRole("group", { name: legend });
+const tagInput = (legend: string) =>
+  screen.getByLabelText(`Añadir etiqueta a ${legend}`);
+const addButton = (legend: string) =>
+  within(groupOf(legend)).getByRole("button", { name: "Añadir" });
+const chip = (label: string) =>
+  screen.queryByRole("button", { name: `Quitar ${label}` });
+const typeTag = async (
+  user: ReturnType<typeof userEvent.setup>,
+  legend: string,
+  text: string,
+) => {
+  await user.type(tagInput(legend), `${text}{Enter}`);
+};
+
+describe("ApplicationEditContainer tags", () => {
+  it("shows three labelled groups, the counter and always-mounted status lines", () => {
+    renderForm();
+
+    for (const legend of Object.values(GROUPS)) {
+      const group = groupOf(legend);
+      const input = tagInput(legend);
+      expect(input).toHaveAttribute("placeholder", "Ej.: React");
+      expect(input).toHaveAttribute("maxlength", "40");
+      const status = group.querySelector("[role='status']");
+      expect(status).toHaveAttribute("aria-live", "polite");
+      expect(status).toBeEmptyDOMElement();
+      expect(within(group).queryAllByRole("listitem")).toHaveLength(0);
+    }
+    expect(screen.getByText("0 de 20")).toHaveAttribute("aria-live", "polite");
+  });
+
+  it("adds a tag with Enter, clears the input, keeps focus, announces it and does not submit", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    await typeTag(user, GROUPS.stack, "React");
+
+    expect(chip("React")).toBeInTheDocument();
+    expect(tagInput(GROUPS.stack)).toHaveValue("");
+    expect(tagInput(GROUPS.stack)).toHaveFocus();
+    expect(
+      within(groupOf(GROUPS.stack)).getByText("React añadida."),
+    ).toBeVisible();
+    expect(screen.getByText("1 de 20")).toBeInTheDocument();
+    expect(posts(fetchMock)).toHaveLength(0);
+  });
+
+  it("adds with the Añadir button and normalizes the spelling", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(tagInput(GROUPS.language), "  Inglés   técnico ");
+    await user.click(addButton(GROUPS.language));
+
+    expect(chip("Inglés técnico")).toBeInTheDocument();
+    expect(
+      within(groupOf(GROUPS.language)).getByText("Inglés técnico añadida."),
+    ).toBeInTheDocument();
+  });
+
+  it("announces a duplicate in the same group and in another group", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await typeTag(user, GROUPS.stack, "React");
+    await user.type(tagInput(GROUPS.stack), " react ");
+    await user.click(addButton(GROUPS.stack));
+    expect(
+      within(groupOf(GROUPS.stack)).getByText("Ya está en la lista"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+
+    await typeTag(user, GROUPS.nice, "React");
+    expect(
+      within(groupOf(GROUPS.nice)).getByText("Ya está en la lista"),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("listitem")).toHaveLength(1);
+    expect(screen.getByText("1 de 20")).toBeInTheDocument();
+  });
+
+  it("adds nothing and says nothing for an empty or whitespace-only input", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.click(tagInput(GROUPS.stack));
+    await user.keyboard("{Enter}");
+    await user.type(tagInput(GROUPS.stack), "   ");
+    await user.click(addButton(GROUPS.stack));
+
+    expect(screen.queryAllByRole("listitem")).toHaveLength(0);
+    expect(
+      groupOf(GROUPS.stack).querySelector("[role='status']"),
+    ).toBeEmptyDOMElement();
+  });
+
+  it("stops at 20 tags with the cap message", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    for (let index = 1; index <= 20; index += 1) {
+      await typeTag(user, GROUPS.stack, `Tag ${index}`);
+    }
+    expect(screen.getByText("20 de 20")).toBeInTheDocument();
+
+    await typeTag(user, GROUPS.stack, "Tag 21");
+
+    expect(
+      within(groupOf(GROUPS.stack)).getByText("Máximo 20 etiquetas"),
+    ).toBeInTheDocument();
+    expect(chip("Tag 21")).toBeNull();
+    expect(screen.getAllByRole("listitem")).toHaveLength(20);
+    expect(screen.getByText("20 de 20")).toBeInTheDocument();
+  });
+
+  it("accepts a 40-character label and does not accept a 41st character", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await user.type(tagInput(GROUPS.stack), "a".repeat(41));
+
+    expect(tagInput(GROUPS.stack)).toHaveValue("a".repeat(40));
+    await user.keyboard("{Enter}");
+    expect(chip("a".repeat(40))).toBeInTheDocument();
+  });
+
+  it("removes a chip, announces it and moves focus to the next remove button", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await typeTag(user, GROUPS.stack, "A");
+    await typeTag(user, GROUPS.stack, "B");
+    await typeTag(user, GROUPS.stack, "C");
+
+    await user.click(chip("B") as HTMLElement);
+    expect(chip("B")).toBeNull();
+    expect(
+      within(groupOf(GROUPS.stack)).getByText("B quitada."),
+    ).toBeInTheDocument();
+    expect(chip("C")).toHaveFocus();
+
+    await user.click(chip("C") as HTMLElement);
+    expect(chip("A")).toHaveFocus();
+
+    await user.click(chip("A") as HTMLElement);
+    expect(tagInput(GROUPS.stack)).toHaveFocus();
+    expect(screen.getByText("0 de 20")).toBeInTheDocument();
+  });
+
+  it("posts the tags of the three groups", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    await typeTag(user, GROUPS.stack, "React");
+    await typeTag(user, GROUPS.nice, "Docker");
+    await typeTag(user, GROUPS.language, "Inglés");
+    await submit(user);
+
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(1));
+    expect(lastPostBody(fetchMock).tags).toStrictEqual([
+      { label: "React", group: "stack" },
+      { label: "Docker", group: "nice_to_have" },
+      { label: "Inglés", group: "language" },
+    ]);
+  });
+
+  it("uses a soft chip for Se valora only", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await typeTag(user, GROUPS.nice, "Docker");
+    await typeTag(user, GROUPS.stack, "React");
+
+    const soft = chip("Docker")?.closest("span");
+    const hard = chip("React")?.closest("span");
+    expect(soft?.className).toContain("border-dashed");
+    expect(hard?.className).not.toContain("border-dashed");
+  });
+
+  it("wraps the chips of a group", async () => {
+    const user = userEvent.setup();
+    renderForm();
+
+    await typeTag(user, GROUPS.stack, "React");
+
+    expect(within(groupOf(GROUPS.stack)).getByRole("list").className).toContain(
+      "flex-wrap",
+    );
   });
 });
