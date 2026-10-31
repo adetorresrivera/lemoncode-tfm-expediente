@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { HttpError, type HttpErrorCode } from "@/core/http/http-client";
-import { getApplications } from "./api/api";
+import type { ListSearch } from "@/core/router/application-search";
+import { buildApplicationsQuery, getApplications } from "./api/api";
 import { mapApplicationListFromApiToVm } from "./application-list.mapper";
 import type { ApplicationListItem } from "./application-list.vm";
 
@@ -16,24 +17,32 @@ export interface ApplicationListState {
   retry: () => void;
 }
 
-// Keyed-result pattern: loading is derived (the stored result belongs to another key), so no
-// setState runs in the effect body. Every retry changes the key, aborts the previous request and
-// only the latest response can be rendered.
-export const useApplicationList = (): ApplicationListState => {
+// Keyed-result pattern: the key is the API query string plus the retry attempt. Loading is
+// derived (the stored result belongs to another key), so no setState runs in the effect body.
+// A query change or a retry changes the key, aborts the previous request and only a response
+// that still belongs to the current key can be rendered.
+export const useApplicationList = (query: ListSearch): ApplicationListState => {
   const [result, setResult] = useState<Result | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const key = `#${attempt}`;
+  const queryString = buildApplicationsQuery(query);
+  const key = `${queryString}#${attempt}`;
+
+  const queryRef = useRef(query);
+  useEffect(() => {
+    queryRef.current = query;
+  });
 
   useEffect(() => {
     const controller = new AbortController();
-    getApplications(controller.signal)
-      .then((data) =>
+    getApplications(queryRef.current, controller.signal)
+      .then((data) => {
+        if (controller.signal.aborted) return;
         setResult({
           key,
           outcome: "ok",
           applications: mapApplicationListFromApiToVm(data),
-        }),
-      )
+        });
+      })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
         setResult({
