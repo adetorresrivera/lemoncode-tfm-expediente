@@ -1,4 +1,11 @@
-import type { Application, ApplicationInput } from "@tfm/contracts";
+import {
+  normalizeTags,
+  tagGroupSchema,
+  tagKey,
+  type Application,
+  type ApplicationInput,
+  type TagSummary,
+} from "@tfm/contracts";
 import { mapApplicationDocToApi } from "./applications.mapper.js";
 import type {
   ApplicationsRepository,
@@ -8,6 +15,7 @@ import type {
 export interface ApplicationsService {
   list(): Promise<Application[]>;
   create(input: ApplicationInput): Promise<Application>;
+  listTags(): Promise<TagSummary[]>;
 }
 
 export function createApplicationsService(
@@ -39,7 +47,11 @@ export function createApplicationsService(
         notes: input.notes,
         cvDocumentId: input.cvDocumentId,
         coverLetterDocumentId: input.coverLetterDocumentId,
-        tags: input.tags.map((tag) => ({ label: tag.label, group: tag.group })),
+        // D-09: the service is the source of truth for normalization; the key is stored.
+        tags: normalizeTags(input.tags).map((tag) => ({
+          ...tag,
+          key: tagKey(tag.label),
+        })),
         status: input.status,
         statusHistory: [{ status: input.status, at }],
         appliedAt:
@@ -54,6 +66,20 @@ export function createApplicationsService(
         ownerId: null,
       };
       return mapApplicationDocToApi(await repository.insert(doc));
+    },
+
+    async listTags() {
+      const rows = await repository.tagSummaries();
+      const groupOrder = (group: TagSummary["group"]): number =>
+        tagGroupSchema.options.indexOf(group);
+      return rows
+        .map(({ label, group, count }) => ({ label, group, count }))
+        .sort(
+          (a, b) =>
+            b.count - a.count ||
+            a.label.localeCompare(b.label, "es") ||
+            groupOrder(a.group) - groupOrder(b.group),
+        );
     },
   };
 }

@@ -11,6 +11,7 @@ import { createApplicationsRepository } from "./applications/applications.reposi
 import { applicationsRoutes } from "./applications/applications.routes.js";
 import { createApplicationsService } from "./applications/applications.service.js";
 import { ApiError } from "./errors.js";
+import { tagsRoutes } from "./tags/tags.routes.js";
 
 export type AppDeps = {
   pingMongo: () => Promise<boolean>;
@@ -71,6 +72,7 @@ export function createApp(deps: AppDeps): Hono {
       deps.now,
     );
     app.route("/api/applications", applicationsRoutes(service));
+    app.route("/api/tags", tagsRoutes(service));
   }
 
   if (deps.webDistDir) {

@@ -37,14 +37,84 @@ const makeApplication = (id: string, title: string, company: string) =>
 
 const application = makeApplication("a1", "Frontend Developer", "Lemoncode");
 
+const makeFull = (overrides: Record<string, unknown>) =>
+  applicationSchema.parse({
+    ...application,
+    ...overrides,
+  });
+
+const tag = (label: string, group: "stack" | "nice_to_have" | "language") => ({
+  label,
+  group,
+});
+
 describe("application-list mapper", () => {
   it("maps an API application to exactly the view-model fields", () => {
     expect(mapApplicationFromApiToVm(application)).toStrictEqual({
       id: "a1",
       title: "Frontend Developer",
       company: "Lemoncode",
+      location: null,
       status: "guardada",
+      visibleTags: [],
+      hiddenTagCount: 0,
+      salary: null,
+      updatedAtLabel: "12 oct. 2026",
     });
+  });
+
+  it("orders tags stack, nice_to_have, language, takes 3 and counts the rest", () => {
+    const vm = mapApplicationFromApiToVm(
+      makeFull({
+        location: "Madrid",
+        salaryMin: 52000,
+        salaryMax: 65000,
+        tags: [
+          tag("Inglés", "language"),
+          tag("React", "stack"),
+          tag("Docker", "nice_to_have"),
+          tag("Node.js", "stack"),
+          tag("Vite", "stack"),
+        ],
+      }),
+    );
+
+    expect(vm.visibleTags).toStrictEqual([
+      { label: "React", soft: false },
+      { label: "Node.js", soft: false },
+      { label: "Vite", soft: false },
+    ]);
+    expect(vm.hiddenTagCount).toBe(2);
+    expect(vm.location).toBe("Madrid");
+    expect(vm.salary).toBe("52.000\u00a0€ – 65.000\u00a0€");
+  });
+
+  it("marks nice_to_have tags soft and shows no counter for exactly 3 tags", () => {
+    const vm = mapApplicationFromApiToVm(
+      makeFull({
+        tags: [
+          tag("Inglés", "language"),
+          tag("Docker", "nice_to_have"),
+          tag("React", "stack"),
+        ],
+      }),
+    );
+
+    expect(vm.visibleTags).toStrictEqual([
+      { label: "React", soft: false },
+      { label: "Docker", soft: true },
+      { label: "Inglés", soft: false },
+    ]);
+    expect(vm.hiddenTagCount).toBe(0);
+  });
+
+  it("counts one hidden tag for exactly 4 tags", () => {
+    const vm = mapApplicationFromApiToVm(
+      makeFull({
+        tags: ["A1", "B2", "C3", "D4"].map((label) => tag(label, "stack")),
+      }),
+    );
+    expect(vm.hiddenTagCount).toBe(1);
   });
 
   it("maps an empty list to an empty list", () => {
@@ -278,6 +348,105 @@ describe("stale-while-refresh", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(1);
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(getCounter()).toHaveTextContent("1 candidatura");
+  });
+});
+
+const renderCards = (...apps: ReturnType<typeof makeFull>[]) =>
+  render(
+    <ApplicationListComponent
+      status="ok"
+      applications={mapApplicationListFromApiToVm(apps)}
+      errorCode={null}
+      refreshing={false}
+      onRetry={() => {}}
+    />,
+  );
+
+describe("application cards", () => {
+  it("renders ul «Candidaturas» with one li > article per application", () => {
+    renderCards(makeFull({ id: "a1" }), makeFull({ id: "a2" }));
+
+    const list = screen.getByRole("list", { name: "Candidaturas" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items).toHaveLength(2);
+    items.forEach((item) =>
+      expect(within(item).getByRole("article")).toBeInTheDocument(),
+    );
+  });
+
+  it("shows a serif h2 with an sr-only company, «company · location», badge, salary and date", () => {
+    renderCards(
+      makeFull({
+        location: "Madrid",
+        salaryMin: 52000,
+        salaryMax: 52000,
+        status: "enviada",
+      }),
+    );
+
+    const heading = screen.getByRole("heading", { level: 2 });
+    expect(heading).toHaveClass("font-serif");
+    expect(heading).toHaveTextContent("Frontend Developer, Lemoncode");
+    expect(screen.getByText("Lemoncode · Madrid")).toBeInTheDocument();
+    expect(screen.getByText("Enviada")).toBeInTheDocument();
+    const salary = screen.getByText(/^52\.000\s€$/);
+    expect(salary).toHaveClass("font-mono", "tabular");
+    expect(screen.getByText("Actualizada 12 oct. 2026")).toBeInTheDocument();
+  });
+
+  it("omits location, salary and the tag list on a bare card", () => {
+    renderCards(makeFull({}));
+
+    expect(screen.getByText("Lemoncode")).toBeInTheDocument();
+    expect(screen.queryByText(/·/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/€/)).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("list", { name: "Etiquetas" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("renders up to three tags without a counter", () => {
+    renderCards(
+      makeFull({
+        tags: [tag("React", "stack"), tag("Docker", "nice_to_have")],
+      }),
+    );
+
+    const tags = screen.getByRole("list", { name: "Etiquetas" });
+    expect(within(tags).getAllByRole("listitem")).toHaveLength(2);
+    expect(screen.queryByText(/etiquetas más/)).not.toBeInTheDocument();
+    expect(within(tags).getByText("Docker").parentElement).toHaveClass(
+      "border-dashed",
+    );
+  });
+
+  it("renders the first three tags and «+2» with an sr-only suffix for five", () => {
+    renderCards(
+      makeFull({
+        tags: ["A1", "B2", "C3", "D4", "E5"].map((l) => tag(l, "stack")),
+      }),
+    );
+
+    const tags = screen.getByRole("list", { name: "Etiquetas" });
+    expect(within(tags).getAllByRole("listitem")).toHaveLength(3);
+    const counter = screen.getByText(/^\+2/);
+    expect(counter).toHaveTextContent("+2 etiquetas más");
+    expect(within(counter).getByText("etiquetas más")).toHaveClass("sr-only");
+  });
+
+  it("renders user text as text, never as markup", () => {
+    renderCards(
+      makeFull({
+        title: "<img src=x onerror=alert(1)> Dev",
+        tags: [tag("<img src=x onerror=alert(1)>", "stack")],
+      }),
+    );
+
+    expect(document.querySelector("img")).toBeNull();
+    expect(
+      screen.getAllByText("<img src=x onerror=alert(1)>", { exact: false })
+        .length,
+    ).toBeGreaterThan(0);
   });
 });
 

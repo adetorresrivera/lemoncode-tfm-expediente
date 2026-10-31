@@ -1,5 +1,6 @@
 import { useRef } from "react";
 import type { HttpErrorCode } from "@/core/http/http-client";
+import { ApplicationCard } from "./components/application-card";
 import { EmptyState } from "./components/empty-state";
 import { ListError } from "./components/list-error";
 import { ListSkeleton } from "./components/list-skeleton";
@@ -53,13 +54,7 @@ export function ApplicationListComponent({
         ) : (
           <ul aria-label="Candidaturas" className="flex flex-col gap-4">
             {applications.map((application) => (
-              <li
-                key={application.id}
-                className="rounded-md border border-border bg-card p-4 lg:p-6"
-              >
-                <p className="font-serif text-lg">{application.title}</p>
-                <p className="text-muted-foreground">{application.company}</p>
-              </li>
+              <ApplicationCard key={application.id} application={application} />
             ))}
           </ul>
         )}
