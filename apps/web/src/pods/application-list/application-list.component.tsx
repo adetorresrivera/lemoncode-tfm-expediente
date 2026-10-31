@@ -1,55 +1,69 @@
-import { Button } from "@/common/components/ui/button";
+import { useRef } from "react";
+import type { HttpErrorCode } from "@/core/http/http-client";
 import { EmptyState } from "./components/empty-state";
+import { ListError } from "./components/list-error";
+import { ListSkeleton } from "./components/list-skeleton";
+import { ResultCount } from "./components/result-count";
 import type { ApplicationListItem } from "./application-list.vm";
 
 interface Props {
   status: "loading" | "ok" | "error";
   applications: ApplicationListItem[];
+  errorCode: HttpErrorCode | null;
   refreshing: boolean;
   onRetry: () => void;
 }
 
-// Minimal states for the tracer; plan 02-02 replaces them with the real loading, error and empty states.
 export function ApplicationListComponent({
   status,
   applications,
+  errorCode,
   refreshing,
   onRetry,
 }: Props) {
-  if (status === "loading" && applications.length === 0) {
-    return <p role="status">Cargando candidaturas…</p>;
-  }
+  const resultsRef = useRef<HTMLElement>(null);
 
-  if (status === "error") {
-    return (
-      <section className="flex flex-col items-start gap-3 rounded-md border border-border bg-card p-6">
-        <p>No se han podido cargar las candidaturas.</p>
-        <Button type="button" onClick={onRetry}>
-          Reintentar
-        </Button>
-      </section>
-    );
-  }
+  const handleRetry = () => {
+    onRetry();
+    resultsRef.current?.focus();
+  };
 
-  if (applications.length === 0) {
-    return <EmptyState />;
-  }
+  const firstLoad = status === "loading" && !refreshing;
+  const count = firstLoad || status === "error" ? null : applications.length;
 
   return (
-    <ul
-      aria-label="Candidaturas"
-      aria-busy={refreshing}
-      className="flex flex-col gap-3"
-    >
-      {applications.map((application) => (
-        <li
-          key={application.id}
-          className="rounded-md border border-border bg-card p-4"
-        >
-          <p className="font-serif text-lg">{application.title}</p>
-          <p className="text-muted-foreground">{application.company}</p>
-        </li>
-      ))}
-    </ul>
+    <div className="flex flex-col gap-4">
+      <ResultCount count={count} />
+      <section
+        ref={resultsRef}
+        aria-label="Resultados"
+        aria-busy={refreshing}
+        tabIndex={-1}
+        className="outline-none"
+      >
+        {firstLoad ? (
+          <ListSkeleton />
+        ) : status === "error" ? (
+          <ListError
+            code={errorCode ?? "INTERNAL_ERROR"}
+            onRetry={handleRetry}
+          />
+        ) : applications.length === 0 ? (
+          <EmptyState />
+        ) : (
+          <ul aria-label="Candidaturas" className="flex flex-col gap-4">
+            {applications.map((application) => (
+              <li
+                key={application.id}
+                className="rounded-md border border-border bg-card p-4 lg:p-6"
+              >
+                <p className="font-serif text-lg">{application.title}</p>
+                <p className="text-muted-foreground">{application.company}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
   );
 }

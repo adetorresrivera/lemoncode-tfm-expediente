@@ -118,8 +118,10 @@ export function AppLayout() {
         <p className="font-serif text-xl">Expediente</p>
       </header>
 
-      <main className="p-6 lg:pl-72">
-        <Outlet />
+      <main className="lg:pl-64">
+        <div className="mx-auto w-full max-w-5xl px-4 py-6 lg:px-8 lg:py-8">
+          <Outlet />
+        </div>
       </main>
     </div>
   );
