@@ -6,21 +6,26 @@ interface Props {
   applicationId?: string;
 }
 
-// The scene decides where the pod's cancel link points and where to go after a save; the pod only
-// receives a link render prop and an `onSaved` callback. Create mode: no application id.
+// The scene decides where the pod's links point and where to go after a save; the pod only
+// receives link render props and an `onSaved` callback. Create mode: no application id.
 export function ApplicationEditScene({ applicationId }: Props) {
   const navigate = useNavigate();
+  const isEdit = applicationId !== undefined;
+  const heading = isEdit ? "Editar candidatura" : "Añadir candidatura";
 
   useEffect(() => {
-    document.title = "Añadir candidatura · Expediente";
-  }, []);
+    document.title = `${heading} · Expediente`;
+  }, [heading]);
 
   const handleSaved = (id: string) => {
     void navigate({
       to: "/applications/$applicationId",
       params: { applicationId: id },
       replace: true,
-      state: { focusHeading: true, notice: "Candidatura creada." },
+      state: {
+        focusHeading: true,
+        notice: isEdit ? "Cambios guardados." : "Candidatura creada.",
+      },
     });
   };
 
@@ -34,18 +39,34 @@ export function ApplicationEditScene({ applicationId }: Props) {
           tabIndex={-1}
           className="font-serif text-[28px] font-semibold leading-[1.2]"
         >
-          Añadir candidatura
+          {heading}
         </h1>
       </header>
       <ApplicationEditContainer
         applicationId={applicationId}
         onSaved={handleSaved}
-        renderCancelLink={({ className, children }) => (
-          <Link
-            to="/applications"
-            state={{ focusHeading: true }}
-            className={className}
-          >
+        renderCancelLink={({ className, children }) =>
+          applicationId !== undefined ? (
+            <Link
+              to="/applications/$applicationId"
+              params={{ applicationId }}
+              state={{ focusHeading: true }}
+              className={className}
+            >
+              {children}
+            </Link>
+          ) : (
+            <Link
+              to="/applications"
+              state={{ focusHeading: true }}
+              className={className}
+            >
+              {children}
+            </Link>
+          )
+        }
+        renderListLink={({ className, children }) => (
+          <Link to="/applications" className={className}>
             {children}
           </Link>
         )}

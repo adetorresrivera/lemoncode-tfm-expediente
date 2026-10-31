@@ -32,6 +32,15 @@ export function ApplicationDetailScene({ applicationId }: Props) {
           {children}
         </Link>
       )}
+      renderEditLink={({ className, children }) => (
+        <Link
+          to="/applications/$applicationId/edit"
+          params={{ applicationId }}
+          className={className}
+        >
+          {children}
+        </Link>
+      )}
     />
   );
 }

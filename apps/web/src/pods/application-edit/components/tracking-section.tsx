@@ -3,6 +3,7 @@ import {
   applicationStatusSchema,
   type ApplicationStatus,
 } from "@tfm/contracts";
+import { StatusBadge } from "@/common/components/status-badge";
 import { Input } from "@/common/components/ui/input";
 import {
   NativeSelect,
@@ -17,14 +18,14 @@ import { FormField } from "./form-field";
 interface Props {
   form: ApplicationFormApi;
   mode: "create" | "edit";
-  // Edit mode only: plan 02-12 renders the current status line from this value.
+  // Edit mode only: the status shown in the «Estado actual» line (changed from the detail).
   currentStatus?: ApplicationStatus;
 }
 
 const APPLIED_AT_HINT =
   "Si la dejas vacía, se rellena sola al pasar a Enviada.";
 
-export function TrackingSection({ form, mode }: Props) {
+export function TrackingSection({ form, mode, currentStatus }: Props) {
   const headingId = useId();
   return (
     <section
@@ -65,6 +66,14 @@ export function TrackingSection({ form, mode }: Props) {
             );
           }}
         </form.Field>
+      ) : currentStatus !== undefined ? (
+        <p className="flex flex-wrap items-center gap-2">
+          <span>Estado actual:</span>
+          <StatusBadge status={currentStatus} />
+          <span className="text-muted-foreground">
+            Cámbialo desde el detalle.
+          </span>
+        </p>
       ) : null}
       <form.Field name="appliedAt">
         {(field) => {

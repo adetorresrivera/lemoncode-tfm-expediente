@@ -13,6 +13,7 @@ import { ApiError } from "../errors.js";
 import { mapApplicationDocToApi } from "./applications.mapper.js";
 import type {
   ApplicationsRepository,
+  EditableFields,
   NewApplicationDoc,
 } from "./applications.repository.js";
 
@@ -21,8 +22,34 @@ export interface ApplicationsService {
   get(id: ObjectId): Promise<Application>;
   create(input: ApplicationInput): Promise<Application>;
   listTags(): Promise<TagSummary[]>;
+  update(id: ObjectId, input: ApplicationInput): Promise<Application>;
   changeStatus(id: ObjectId, status: ApplicationStatus): Promise<Application>;
   remove(id: ObjectId): Promise<void>;
+}
+
+// Copies the editable keys one by one (no rest, no spread): status, statusHistory, interviews,
+// ownerId, createdAt, offerText and the document links in the input can never reach Mongo.
+// Phase 3 (offerText) and Phase 5 (cvDocumentId, coverLetterDocumentId) must add their field here
+// and make the form always send it, otherwise a save would wipe it.
+function toEditableFields(input: ApplicationInput): EditableFields {
+  return {
+    title: input.title,
+    company: input.company,
+    location: input.location,
+    workMode: input.workMode,
+    seniority: input.seniority,
+    contractType: input.contractType,
+    salaryMin: input.salaryMin,
+    salaryMax: input.salaryMax,
+    currency: input.currency,
+    tags: normalizeTags(input.tags).map((tag) => ({
+      ...tag,
+      key: tagKey(tag.label),
+    })),
+    sourceUrl: input.sourceUrl,
+    appliedAt: input.appliedAt !== null ? new Date(input.appliedAt) : null,
+    notes: input.notes,
+  };
 }
 
 export function createApplicationsService(
@@ -83,6 +110,18 @@ export function createApplicationsService(
         ownerId: null,
       };
       return mapApplicationDocToApi(await repository.insert(doc));
+    },
+
+    async update(id, input) {
+      const doc = await repository.updateEditable(
+        id,
+        toEditableFields(input),
+        now(),
+      );
+      if (doc === null) {
+        throw new ApiError(404, "NOT_FOUND", "Candidatura no encontrada");
+      }
+      return mapApplicationDocToApi(doc);
     },
 
     async changeStatus(id, status) {

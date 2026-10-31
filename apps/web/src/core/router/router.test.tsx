@@ -561,3 +561,116 @@ describe("create an application", () => {
     ).toHaveLength(0);
   });
 });
+
+const methodCalls = (fetchMock: ReturnType<typeof mockFetch>, method: string) =>
+  fetchMock.mock.calls.filter(([, init]) => init?.method === method);
+
+describe("edit an application", () => {
+  it("shows «Editar» as a link to the edit route before «Eliminar» in the detail", async () => {
+    mockFetch({ "GET /api/applications/a1": stored });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications/a1"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    const edit = await screen.findByRole("link", { name: "Editar" });
+    expect(edit).toHaveAttribute("href", "/applications/a1/edit");
+    const remove = screen.getByRole("button", { name: "Eliminar" });
+    expect(
+      edit.compareDocumentPosition(remove) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("goes from the detail to the prefilled form, saves with PUT and returns to the detail with the notice and focus on the heading", async () => {
+    const edited = { ...stored, title: "Frontend Lead" };
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": stored,
+      "PUT /api/applications/a1": () => jsonResponse(edited),
+    });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications/a1"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    await userEvent.click(await screen.findByRole("link", { name: "Editar" }));
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Editar candidatura",
+      }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/applications/a1/edit");
+    const title = await screen.findByLabelText("Puesto *");
+    expect(title).toHaveValue("Frontend Developer");
+    expect(document.title).toBe("Editar candidatura · Expediente");
+
+    await userEvent.clear(title);
+    await userEvent.type(title, "Frontend Lead");
+    await userEvent.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Frontend Developer",
+    });
+    expect(router.state.location.pathname).toBe("/applications/a1");
+    await waitFor(() => expect(heading).toHaveFocus());
+    const notice = await screen.findByText("Cambios guardados.");
+    expect(notice).toHaveAttribute("role", "status");
+    expect(methodCalls(fetchMock, "PUT")).toHaveLength(1);
+    expect(methodCalls(fetchMock, "POST")).toHaveLength(0);
+  });
+
+  it("discards from the form back to the detail without a PUT", async () => {
+    const fetchMock = mockFetch({ "GET /api/applications/a1": stored });
+    const router = createAppRouter(
+      createMemoryHistory({
+        initialEntries: ["/applications/a1", "/applications/a1/edit"],
+      }),
+    );
+    render(<RouterProvider router={router} />);
+
+    await userEvent.click(
+      await screen.findByRole("link", { name: "Descartar cambios" }),
+    );
+
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Frontend Developer",
+    });
+    expect(router.state.location.pathname).toBe("/applications/a1");
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(methodCalls(fetchMock, "PUT")).toHaveLength(0);
+  });
+
+  it("returns to the list from the not-found card of a missing application", async () => {
+    mockFetch({
+      "GET /api/applications/zzz": () =>
+        jsonResponse(
+          {
+            error: { code: "NOT_FOUND", message: "Candidatura no encontrada" },
+          },
+          404,
+        ),
+      "GET /api/applications": [],
+    });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications/zzz/edit"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    await userEvent.click(
+      await screen.findByRole("link", { name: "Volver a Mis candidaturas" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Mis candidaturas",
+      }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/applications");
+  });
+});

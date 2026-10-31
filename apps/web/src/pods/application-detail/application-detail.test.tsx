@@ -28,6 +28,12 @@ const renderListLink = (link: { className?: string; children: ReactNode }) => (
   </a>
 );
 
+const renderEditLink = (link: { className?: string; children: ReactNode }) => (
+  <a href="/edit-stub" className={link.className}>
+    {link.children}
+  </a>
+);
+
 const makeApplication = (overrides: Record<string, unknown> = {}) =>
   applicationSchema.parse({
     id: "a1",
@@ -214,6 +220,7 @@ describe("ApplicationDetailContainer header", () => {
         applicationId="a1"
         onDeleted={() => {}}
         renderListLink={renderListLink}
+        renderEditLink={renderEditLink}
         notice=""
         focusHeadingRef={() => {}}
       />,
@@ -238,6 +245,28 @@ describe("ApplicationDetailContainer header", () => {
     expect(document.title).toBe("Frontend Developer · Expediente");
   });
 
+  it("renders «Editar» inside the link from the scene, with the primary button classes, before «Eliminar»", async () => {
+    mockFetch({ "GET /api/applications/a1": makeApplication() });
+    render(
+      <ApplicationDetailContainer
+        applicationId="a1"
+        onDeleted={() => {}}
+        renderListLink={renderListLink}
+        renderEditLink={renderEditLink}
+        notice=""
+        focusHeadingRef={() => {}}
+      />,
+    );
+
+    const edit = await screen.findByRole("link", { name: "Editar" });
+    expect(edit).toHaveAttribute("href", "/edit-stub");
+    expect(edit).toHaveClass("bg-primary", "h-11");
+    const remove = screen.getByRole("button", { name: "Eliminar" });
+    expect(
+      edit.compareDocumentPosition(remove) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
   it("shows the not-found link to the list for a 404", async () => {
     mockFetch({ "GET /api/applications/zzz": notFoundResponse });
     render(
@@ -245,6 +274,7 @@ describe("ApplicationDetailContainer header", () => {
         applicationId="zzz"
         onDeleted={() => {}}
         renderListLink={renderListLink}
+        renderEditLink={renderEditLink}
         notice=""
         focusHeadingRef={() => {}}
       />,
@@ -273,6 +303,7 @@ describe("ApplicationDetailContainer header", () => {
         applicationId="a1"
         onDeleted={() => {}}
         renderListLink={renderListLink}
+        renderEditLink={renderEditLink}
         notice=""
         focusHeadingRef={() => {}}
       />,
@@ -303,6 +334,7 @@ const renderOk = (overrides: Record<string, unknown> = {}) =>
       deleteState="idle"
       onDelete={() => {}}
       renderListLink={renderListLink}
+      renderEditLink={renderEditLink}
       notice=""
       focusHeadingRef={() => {}}
     />,
@@ -542,6 +574,7 @@ const renderState = (
       deleteState="idle"
       onDelete={() => {}}
       renderListLink={renderListLink}
+      renderEditLink={renderEditLink}
       notice=""
       focusHeadingRef={() => {}}
     />,
@@ -598,6 +631,7 @@ describe("detail page states", () => {
         deleteState="idle"
         onDelete={() => {}}
         renderListLink={renderListLink}
+        renderEditLink={renderEditLink}
         notice=""
         focusHeadingRef={() => {}}
       />,
@@ -650,6 +684,7 @@ const renderDetail = (onDeleted: () => void = () => {}) =>
       applicationId="a1"
       onDeleted={onDeleted}
       renderListLink={renderListLink}
+      renderEditLink={renderEditLink}
       notice=""
       focusHeadingRef={() => {}}
     />,
@@ -1021,6 +1056,7 @@ describe("arrival notice", () => {
         applicationId="a1"
         onDeleted={() => {}}
         renderListLink={renderListLink}
+        renderEditLink={renderEditLink}
         notice="Candidatura creada."
         focusHeadingRef={(node) => {
           attached.push(node);

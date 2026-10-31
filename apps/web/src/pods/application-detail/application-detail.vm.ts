@@ -48,3 +48,6 @@ export type RenderListLink = (link: {
   className?: string;
   children: ReactNode;
 }) => ReactElement;
+
+// Same seam for the link to the edit form.
+export type RenderEditLink = RenderListLink;

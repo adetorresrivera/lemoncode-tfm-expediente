@@ -64,3 +64,15 @@ export type RenderCancelLink = (link: {
   className?: string;
   children: ReactNode;
 }) => ReactElement;
+
+// Same seam for the link to the list (the not-found state of the edit load).
+export type RenderListLink = RenderCancelLink;
+
+// What the edit mode shows about the loaded application besides the form values. `appliedAt` is
+// the stored ISO instant: the save sends it back untouched when the date was not edited.
+export interface ApplicationEditSummary {
+  title: string;
+  company: string;
+  status: ApplicationStatus;
+  appliedAt: string | null;
+}

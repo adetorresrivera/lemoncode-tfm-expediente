@@ -32,6 +32,12 @@ export function applicationsRoutes(service: ApplicationsService): Hono {
     return c.json(await service.create(input), 201);
   });
 
+  routes.put("/:id", async (c) => {
+    const id = parseObjectId(c.req.param("id"));
+    const input = applicationInputSchema.parse(await c.req.json());
+    return c.json(await service.update(id, input));
+  });
+
   routes.patch("/:id/status", async (c) => {
     const id = parseObjectId(c.req.param("id"));
     const { status } = statusChangeSchema.parse(await c.req.json());
