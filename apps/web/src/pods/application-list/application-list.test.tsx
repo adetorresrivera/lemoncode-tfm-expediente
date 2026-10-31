@@ -408,7 +408,9 @@ describe("application cards", () => {
     expect(heading).toHaveClass("font-serif");
     expect(heading).toHaveTextContent("Frontend Developer, Lemoncode");
     expect(screen.getByText("Lemoncode · Madrid")).toBeInTheDocument();
-    expect(screen.getByText("Enviada")).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("article")).getByText("Enviada"),
+    ).toBeInTheDocument();
     const salary = screen.getByText(/^52\.000\s€$/);
     expect(salary).toHaveClass("font-mono", "tabular");
     expect(screen.getByText("Actualizada 12 oct. 2026")).toBeInTheDocument();
@@ -590,16 +592,21 @@ describe("search debounce", () => {
 
 function StatefulList({
   initial,
-  onClearFilters,
+  onClearFilters = () => {},
+  onChange,
 }: {
   initial: ListSearch;
-  onClearFilters: () => void;
+  onClearFilters?: () => void;
+  onChange?: (next: ListSearch) => void;
 }) {
   const [query, setQuery] = useState(initial);
   return (
     <ApplicationListContainer
       query={query}
-      onQueryChange={setQuery}
+      onQueryChange={(next) => {
+        onChange?.(next);
+        setQuery(next);
+      }}
       onClearFilters={() => {
         onClearFilters();
         setQuery({ sort: "updatedAt" });
@@ -691,5 +698,179 @@ describe("empty states", () => {
     expect(
       screen.queryByText("Ninguna candidatura coincide con los filtros"),
     ).not.toBeInTheDocument();
+  });
+});
+
+describe("status, work mode, seniority and sort controls", () => {
+  const panel = () =>
+    screen.getByRole("search", { name: "Filtrar candidaturas" });
+
+  it("offers the 7 statuses in enum order as pressed-state buttons", () => {
+    render(<ApplicationListContainer {...listProps} />);
+
+    const group = within(panel()).getByRole("toolbar", { name: "Estado" });
+    const names = within(group)
+      .getAllByRole("button")
+      .map((button) => button.textContent);
+    expect(names).toStrictEqual([
+      "Guardada",
+      "Enviada",
+      "En entrevistas",
+      "Oferta recibida",
+      "Aceptada",
+      "Rechazada",
+      "Descartada",
+    ]);
+    within(group)
+      .getAllByRole("button")
+      .forEach((button) =>
+        expect(button).toHaveAttribute("aria-pressed", "false"),
+      );
+  });
+
+  it("adds and removes statuses through onQueryChange", async () => {
+    const onChange = vi.fn();
+    render(<StatefulList initial={defaultQuery} onChange={onChange} />);
+    const group = within(panel()).getByRole("toolbar", { name: "Estado" });
+
+    await userEvent.click(
+      within(group).getByRole("button", { name: "Enviada" }),
+    );
+    expect(onChange).toHaveBeenLastCalledWith({
+      status: ["enviada"],
+      sort: "updatedAt",
+    });
+
+    await userEvent.click(
+      within(group).getByRole("button", { name: "Rechazada" }),
+    );
+    expect(onChange).toHaveBeenLastCalledWith({
+      status: ["enviada", "rechazada"],
+      sort: "updatedAt",
+    });
+    expect(
+      within(group).getByRole("button", { name: "Enviada" }),
+    ).toHaveAttribute("aria-pressed", "true");
+
+    await userEvent.click(
+      within(group).getByRole("button", { name: "Enviada" }),
+    );
+    expect(onChange).toHaveBeenLastCalledWith({
+      status: ["rechazada"],
+      sort: "updatedAt",
+    });
+
+    await userEvent.click(
+      within(group).getByRole("button", { name: "Rechazada" }),
+    );
+    expect(onChange).toHaveBeenLastCalledWith({
+      status: undefined,
+      sort: "updatedAt",
+    });
+  });
+
+  it("changes work mode, seniority and sort through labelled native selects", async () => {
+    const onChange = vi.fn();
+    render(<StatefulList initial={defaultQuery} onChange={onChange} />);
+
+    const workMode = screen.getByRole("combobox", { name: "Modalidad" });
+    expect(
+      within(workMode)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toStrictEqual(["Todas", "Remoto", "Híbrido", "Presencial"]);
+    await userEvent.selectOptions(workMode, "Remoto");
+    expect(onChange).toHaveBeenLastCalledWith({
+      workMode: "remoto",
+      seniority: undefined,
+      sort: "updatedAt",
+    });
+    await userEvent.selectOptions(workMode, "Todas");
+    expect(onChange).toHaveBeenLastCalledWith({
+      workMode: undefined,
+      sort: "updatedAt",
+    });
+
+    const seniority = screen.getByRole("combobox", { name: "Seniority" });
+    expect(
+      within(seniority)
+        .getAllByRole("option")
+        .map((option) => option.textContent),
+    ).toStrictEqual(["Todos", "Junior", "Mid", "Senior", "Lead"]);
+    await userEvent.selectOptions(seniority, "Senior");
+    expect(onChange).toHaveBeenLastCalledWith({
+      seniority: "senior",
+      workMode: undefined,
+      sort: "updatedAt",
+    });
+
+    const sort = screen.getByRole("combobox", { name: "Ordenar por" });
+    expect(sort).toHaveValue("updatedAt");
+    await userEvent.selectOptions(sort, "Fecha de envío");
+    expect(onChange).toHaveBeenLastCalledWith({
+      seniority: "senior",
+      workMode: undefined,
+      sort: "appliedAt",
+    });
+  });
+
+  it("offers «Limpiar filtros» when only the work mode is set", () => {
+    render(
+      <ApplicationListContainer
+        {...listProps}
+        query={{ workMode: "remoto", sort: "updatedAt" }}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Limpiar filtros" }),
+    ).toBeInTheDocument();
+  });
+});
+
+describe("«Filtros y orden» disclosure", () => {
+  const disclosure = (name: string) => screen.getByRole("button", { name });
+
+  it("starts closed with no count when nothing is active, and toggles on click", async () => {
+    render(<ApplicationListContainer {...listProps} />);
+
+    const button = disclosure("Filtros y orden");
+    expect(button).toHaveAttribute("aria-expanded", "false");
+    expect(button).toHaveAttribute("aria-controls", "filters-extra");
+    const extra = document.getElementById("filters-extra");
+    expect(extra).toHaveClass("hidden", "lg:flex");
+
+    await userEvent.click(button);
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(extra).not.toHaveClass("hidden");
+
+    await userEvent.click(button);
+    expect(button).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("counts active dimensions plus one for a non-default sort and starts open", () => {
+    render(
+      <ApplicationListContainer
+        {...listProps}
+        query={{ status: ["enviada", "rechazada"], sort: "appliedAt" }}
+      />,
+    );
+
+    const button = disclosure("Filtros y orden (2)");
+    expect(button).toHaveAttribute("aria-expanded", "true");
+    expect(document.getElementById("filters-extra")).not.toHaveClass("hidden");
+  });
+
+  it("counts a status group once however many statuses are picked", () => {
+    render(
+      <ApplicationListContainer
+        {...listProps}
+        query={{
+          status: ["enviada", "rechazada"],
+          workMode: "remoto",
+          sort: "updatedAt",
+        }}
+      />,
+    );
+    expect(disclosure("Filtros y orden (2)")).toBeInTheDocument();
   });
 });

@@ -1,4 +1,5 @@
-import { RotateCcw } from "lucide-react";
+import { useState } from "react";
+import { RotateCcw, SlidersHorizontal } from "lucide-react";
 import { Button } from "@/common/components/ui/button";
 import {
   hasActiveFilters,
@@ -6,6 +7,8 @@ import {
   type ListSearch,
 } from "@/core/router/application-search";
 import { SearchField } from "./search-field";
+import { SelectFilters } from "./select-filters";
+import { StatusFilter } from "./status-filter";
 
 interface Props {
   query: ListSearch;
@@ -14,6 +17,17 @@ interface Props {
   clearCount: number;
 }
 
+// Dimensions that live behind «Filtros y orden» below lg: one per active filter group, plus one
+// for a sort other than the default. The text search is not counted (it is always visible).
+const countActiveDimensions = (query: ListSearch): number =>
+  [
+    (query.status?.length ?? 0) > 0,
+    (query.tags?.length ?? 0) > 0,
+    query.workMode !== undefined,
+    query.seniority !== undefined,
+    !isDefaultSort(query),
+  ].filter(Boolean).length;
+
 export function FilterPanel({
   query,
   onQueryChange,
@@ -21,6 +35,9 @@ export function FilterPanel({
   clearCount,
 }: Props) {
   const canClear = hasActiveFilters(query) || !isDefaultSort(query);
+  const activeCount = countActiveDimensions(query);
+  // Starts open when something is already applied, so a reloaded URL never hides its filters.
+  const [open, setOpen] = useState(activeCount > 0);
 
   return (
     <div
@@ -36,6 +53,36 @@ export function FilterPanel({
         focusOnMount={clearCount > 0}
         onSearch={(q) => onQueryChange({ ...query, q })}
       />
+      <Button
+        type="button"
+        variant="ghost"
+        className="h-11 self-start lg:hidden"
+        aria-expanded={open}
+        aria-controls="filters-extra"
+        onClick={() => setOpen((value) => !value)}
+      >
+        <SlidersHorizontal aria-hidden="true" />
+        {activeCount > 0
+          ? `Filtros y orden (${activeCount})`
+          : "Filtros y orden"}
+      </Button>
+      <div
+        id="filters-extra"
+        className={
+          open ? "flex flex-col gap-4" : "hidden flex-col gap-4 lg:flex"
+        }
+      >
+        <StatusFilter
+          value={query.status ?? []}
+          onChange={(status) =>
+            onQueryChange({
+              ...query,
+              status: status.length > 0 ? status : undefined,
+            })
+          }
+        />
+        <SelectFilters query={query} onQueryChange={onQueryChange} />
+      </div>
       {canClear ? (
         <div className="flex justify-end">
           <Button
