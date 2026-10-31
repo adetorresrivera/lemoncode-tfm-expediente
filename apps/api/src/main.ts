@@ -32,6 +32,7 @@ const app = createApp({
   pingS3: () => pingS3(s3, config.S3_BUCKET),
   pingLlm: () => llm.ping(),
   webDistDir,
+  db,
 });
 
 const server = serve({ fetch: app.fetch, port: config.PORT });

@@ -1,14 +1,6 @@
 import { MongoClient, type Db } from "mongodb";
 
-export async function connectMongo(
-  url: string,
-): Promise<{ client: MongoClient; db: Db }> {
-  const client = new MongoClient(url, {
-    serverSelectionTimeoutMS: 3000,
-    connectTimeoutMS: 3000,
-  });
-  await client.connect();
-  const db = client.db(); // database name comes from the URL path (/tfm)
+export async function ensureIndexes(db: Db): Promise<void> {
   await db.collection("applications").createIndexes([
     { key: { status: 1 }, name: "status_1" },
     { key: { updatedAt: -1 }, name: "updatedAt_-1" },
@@ -20,6 +12,18 @@ export async function connectMongo(
       default_language: "none",
     },
   ]);
+}
+
+export async function connectMongo(
+  url: string,
+): Promise<{ client: MongoClient; db: Db }> {
+  const client = new MongoClient(url, {
+    serverSelectionTimeoutMS: 3000,
+    connectTimeoutMS: 3000,
+  });
+  await client.connect();
+  const db = client.db(); // database name comes from the URL path (/tfm)
+  await ensureIndexes(db);
   return { client, db };
 }
 

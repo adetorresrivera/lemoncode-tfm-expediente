@@ -12,5 +12,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // D-11: every API test file shares the single tfm_test database, so files must not run concurrently.
+    fileParallelism: false,
   },
 });

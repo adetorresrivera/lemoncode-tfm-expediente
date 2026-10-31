@@ -1,8 +1,10 @@
 import "@testing-library/jest-dom/vitest";
 import { cleanup } from "@testing-library/react";
 import { afterEach, beforeEach, vi } from "vitest";
+import { installDefaultFetch } from "./mock-fetch";
 
 beforeEach(() => {
+  installDefaultFetch();
   vi.stubGlobal("matchMedia", (query: string) => ({
     matches: false,
     media: query,
