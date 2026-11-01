@@ -1,7 +1,8 @@
 ---
 phase: "04"
 slug: rondas-de-entrevista
-status: draft
+status: approved
+reviewed_at: "2026-11-01"
 shadcn_initialized: true
 preset: none
 created: "2026-11-01"
@@ -337,7 +338,7 @@ Only: dialog and overlay fade (`data-[state]` animate in/out, as `alert-dialog.t
 
 Empty/error/success **copy** lives in the Copywriting Contract above; this table covers state coverage and references it.
 
-Probe run 2026-11-01 over 3 surfaces (rounds list, add/edit dialog, delete dialog): 20 applicable considerations, all resolved (18 explicit, 2 backstop), 0 unresolved.
+Probe run 2026-11-01 (post-verification, `ui-consideration-probe.cjs`) over 3 surfaces: E1 rounds list (empty, loading, error, populated, partial, overflow, zero-one-many, long-text), E2 add/edit dialog (empty, loading, error, partial, long-text), E3 delete dialog (loading, error, long-text). 16 engine considerations, kinds confirmed complete by the user, all resolved explicitly from this spec; plus the researcher-added concurrency, a11y, timezone and responsive rows. 0 unresolved.
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
@@ -351,6 +352,10 @@ Probe run 2026-11-01 over 3 surfaces (rounds list, add/edit dialog, delete dialo
 | loading | Create/edit in flight | ✅ covered | «Guardando…», button `aria-disabled`, dialog cannot be closed, no optimistic change (D-13). |
 | loading | Delete in flight | ✅ covered | «Eliminando…», both buttons `aria-disabled`, dialog cannot be closed (D-14). |
 | loading | Any mutation in flight (status or round) | ✅ covered | One shared busy guard: status select and every round button `aria-disabled` (D-16). |
+| empty | Add dialog opened (unfilled form) | ✅ covered | Tipo `""` («Elige un tipo»), Ronda = max + 1, empty date, `online`, `pendiente`, empty notes with «0 / 5.000»; every opening resets to these defaults. |
+| partial | Edit dialog for a round with null date or notes | ✅ covered | Null `scheduledAt` shows an empty `datetime-local`; null notes show an empty textarea; saving keeps them `null`. |
+| error | Rounds list itself | ✅ covered | Rounds arrive inside the application detail VM; the list has no request of its own, so a load failure is the detail page's existing error state. Mutation errors appear only in the dialogs. |
+| long-text | Delete confirmation description | ✅ covered | «Vas a eliminar la ronda {N} ({Tipo}). …» wraps inside the `max-w-md` AlertDialog; no truncation. |
 | error | API failure on save | ✅ covered | In-dialog `RequestStatus` error «No se pudo guardar la ronda. Inténtalo de nuevo.», dialog stays open, values kept. |
 | error | API failure on delete | ✅ covered | In-dialog error «No se pudo eliminar la ronda. Inténtalo de nuevo.», dialog stays open, retry possible. |
 | error | Validation: type missing, round invalid | ✅ covered | Field-level errors from the contracts schema, focus to the first invalid field; empty round is valid. |
@@ -377,12 +382,12 @@ No new npm dependency: `dialog` is built on the already installed `radix-ui` 1.8
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: pending
-- [ ] Dimension 2 Visuals: pending
-- [ ] Dimension 3 Color: pending
-- [ ] Dimension 4 Typography: pending
-- [ ] Dimension 5 Spacing: pending
-- [ ] Dimension 6 Registry Safety: pending
-- [ ] Dimension 7 Inventory Provenance: pending
+- [x] Dimension 1 Copywriting: PASS
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
+- [x] Dimension 7 Inventory Provenance: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-11-01 (gsd-ui-checker, after revision 1)
