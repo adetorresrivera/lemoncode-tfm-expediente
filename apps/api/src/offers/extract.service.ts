@@ -4,6 +4,7 @@ import {
   offerExtractionSchema,
   tagGroupSchema,
   type OfferExtraction,
+  type TagGroup,
 } from "@tfm/contracts";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
@@ -40,10 +41,77 @@ export const rawOfferExtractionSchema = offerExtractionSchema.extend({
   salaryMin: z.number().nullable(),
   salaryMax: z.number().nullable(),
   currency: z.string().nullable(),
-  tags: z.array(z.object({ label: z.string(), group: tagGroupSchema })),
+  tags: z.array(
+    z.object({
+      label: z.string(),
+      group: z.enum([...tagGroupSchema.options, "idioma"]),
+    }),
+  ),
 });
 
 export type RawOfferExtraction = z.infer<typeof rawOfferExtractionSchema>;
+
+// Spoken languages a «language» tag may name (UAT G-03-2, D-26): lower-case, no accents,
+// compared against whole words of the label.
+export const SPOKEN_LANGUAGE_WORDS: ReadonlySet<string> = new Set([
+  "ingles",
+  "english",
+  "espanol",
+  "spanish",
+  "castellano",
+  "frances",
+  "french",
+  "aleman",
+  "german",
+  "italiano",
+  "italian",
+  "portugues",
+  "portuguese",
+  "catalan",
+  "catala",
+  "euskera",
+  "gallego",
+  "valenciano",
+  "neerlandes",
+  "holandes",
+  "dutch",
+  "chino",
+  "mandarin",
+  "chinese",
+  "japones",
+  "japanese",
+  "arabe",
+  "arabic",
+  "ruso",
+  "russian",
+  "polaco",
+  "polish",
+  "sueco",
+  "swedish",
+  "bilingue",
+]);
+
+// Whole-word match on the label without accents and in lower case, never a substring.
+export function isSpokenLanguageLabel(label: string): boolean {
+  const words = label
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}]+/u);
+  return words.some((word) => SPOKEN_LANGUAGE_WORDS.has(word));
+}
+
+// «language» and its model-facing alias «idioma» are kept only for spoken languages;
+// anything else (C, Python, Java…) belongs in «stack». One direction only (D-26).
+function resolveTagGroup(
+  label: string,
+  group: RawOfferExtraction["tags"][number]["group"],
+): TagGroup {
+  if (group === "language" || group === "idioma") {
+    return isSpokenLanguageLabel(label) ? "language" : "stack";
+  }
+  return group;
+}
 
 const CURRENCY_CODE = /^[A-Z]{3}$/;
 
@@ -90,10 +158,10 @@ export function normalizeExtraction(raw: RawOfferExtraction): OfferExtraction {
     // A value that is not an ISO 4217-shaped code (for example "€") is dropped, not guessed.
     currency: toCurrencyCode(currency),
     tags: normalizeTags(
-      raw.tags.map((tag) => ({
-        label: cutLabel(normalizeTagLabel(tag.label)),
-        group: tag.group,
-      })),
+      raw.tags.map((tag) => {
+        const label = cutLabel(normalizeTagLabel(tag.label));
+        return { label, group: resolveTagGroup(label, tag.group) };
+      }),
     ),
   };
   const parsed = offerExtractionSchema.safeParse(result);

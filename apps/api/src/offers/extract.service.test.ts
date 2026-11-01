@@ -5,6 +5,7 @@ import type { LlmClient } from "../llm/llm.client.js";
 import {
   createExtractService,
   EXTRACTION_SYSTEM_PROMPT,
+  isSpokenLanguageLabel,
   normalizeExtraction,
   rawOfferExtractionSchema,
   type RawOfferExtraction,
@@ -200,6 +201,155 @@ describe("normalizeExtraction", () => {
       expect(err).toBeInstanceOf(ApiError);
       expect(err).toMatchObject({ status: 502, code: "LLM_ERROR" });
     }
+  });
+});
+
+type RawTag = RawOfferExtraction["tags"][number];
+
+function rawDraft(tags: RawTag[]): RawOfferExtraction {
+  return { ...BASE, tags };
+}
+
+describe("isSpokenLanguageLabel", () => {
+  it.each([
+    "Inglés B2",
+    "English C1",
+    "Español nativo",
+    "Bilingüe",
+    "INGLÉS C1",
+    "inglés",
+    "Català",
+    "Ingle\u0301s B2",
+    "Inglés/Español",
+  ])("recognises %s as a spoken language", (label) => {
+    expect(isSpokenLanguageLabel(label)).toBe(true);
+  });
+
+  it.each(["C", "Python", "Java", "Go", "JavaScript", "", "  ", "Englishman"])(
+    "does not recognise %j (whole words only)",
+    (label) => {
+      expect(isSpokenLanguageLabel(label)).toBe(false);
+    },
+  );
+});
+
+describe("normalizeExtraction tag group guard (G-03-2, D-26)", () => {
+  it.each(["C", "Python", "Java", "Go", "JavaScript"])(
+    "moves %s from language to stack",
+    (label) => {
+      for (const group of ["language", "idioma"] as const) {
+        const result = normalizeExtraction(rawDraft([{ label, group }]));
+        expect(result.tags).toEqual([{ label, group: "stack" }]);
+      }
+    },
+  );
+
+  it.each([
+    "Inglés B2",
+    "English C1",
+    "Español nativo",
+    "Bilingüe",
+    "INGLÉS C1",
+    "Català",
+  ])("keeps %s in language (alias idioma included)", (label) => {
+    for (const group of ["language", "idioma"] as const) {
+      const result = normalizeExtraction(rawDraft([{ label, group }]));
+      expect(result.tags).toEqual([{ label, group: "language" }]);
+    }
+  });
+
+  it("composes a decomposed label to NFC and keeps it in language", () => {
+    const result = normalizeExtraction(
+      rawDraft([{ label: "Ingle\u0301s B2", group: "idioma" }]),
+    );
+    expect(result.tags).toEqual([{ label: "Inglés B2", group: "language" }]);
+  });
+
+  it("never emits the group idioma and keeps the model order", () => {
+    const result = normalizeExtraction(
+      rawDraft([
+        { label: "C", group: "idioma" },
+        { label: "Python", group: "idioma" },
+        { label: "Java", group: "language" },
+        { label: "Inglés B2", group: "idioma" },
+      ]),
+    );
+    expect(result.tags).toEqual([
+      { label: "C", group: "stack" },
+      { label: "Python", group: "stack" },
+      { label: "Java", group: "stack" },
+      { label: "Inglés B2", group: "language" },
+    ]);
+  });
+
+  it("deduplicates after the move, keeping the first spelling in stack", () => {
+    expect(
+      normalizeExtraction(
+        rawDraft([
+          { label: "python", group: "language" },
+          { label: "Python", group: "stack" },
+        ]),
+      ).tags,
+    ).toEqual([{ label: "python", group: "stack" }]);
+    expect(
+      normalizeExtraction(
+        rawDraft([
+          { label: "Python", group: "stack" },
+          { label: "python", group: "idioma" },
+        ]),
+      ).tags,
+    ).toEqual([{ label: "Python", group: "stack" }]);
+  });
+
+  it("leaves stack and nice_to_have tags where the model put them", () => {
+    const result = normalizeExtraction(
+      rawDraft([
+        { label: "Docker", group: "nice_to_have" },
+        { label: "Go", group: "nice_to_have" },
+        { label: "Inglés", group: "stack" },
+      ]),
+    );
+    expect(result.tags).toEqual([
+      { label: "Docker", group: "nice_to_have" },
+      { label: "Go", group: "nice_to_have" },
+      { label: "Inglés", group: "stack" },
+    ]);
+  });
+
+  it("drops a blank language label and keeps an empty list empty", () => {
+    expect(
+      normalizeExtraction(rawDraft([{ label: "   ", group: "language" }])).tags,
+    ).toEqual([]);
+    expect(normalizeExtraction(rawDraft([])).tags).toEqual([]);
+  });
+
+  it("is pure: does not mutate its input and two calls agree", () => {
+    const input = rawDraft([
+      { label: "C", group: "idioma" },
+      { label: "Inglés B2", group: "language" },
+    ]);
+    const snapshot = structuredClone(input);
+    const first = normalizeExtraction(input);
+    const second = normalizeExtraction(input);
+    expect(input).toEqual(snapshot);
+    expect(second).toEqual(first);
+  });
+
+  it("accepts idioma and language in the lenient raw parse", () => {
+    for (const group of ["idioma", "language", "stack", "nice_to_have"]) {
+      expect(
+        rawOfferExtractionSchema.safeParse({
+          ...BASE,
+          tags: [{ label: "X", group }],
+        }).success,
+      ).toBe(true);
+    }
+    expect(
+      rawOfferExtractionSchema.safeParse({
+        ...BASE,
+        tags: [{ label: "X", group: "other" }],
+      }).success,
+    ).toBe(false);
   });
 });
 

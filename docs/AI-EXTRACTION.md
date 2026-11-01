@@ -86,6 +86,7 @@ Iteración futura: añadir al prompt las etiquetas existentes de `GET /api/tags`
 - `trim` de strings; strings vacíos → `null`.
 - Si `salaryMin > salaryMax`, intercambiar.
 - Etiquetas: deduplicar por minúsculas, quitar vacías, recortar a 40 caracteres y conservar las 20 primeras (en el orden del modelo).
+- Grupo de etiquetas: `language` (o su alias `idioma`) se conserva solo si la etiqueta nombra un idioma hablado de una lista cerrada de idiomas (`SPOKEN_LANGUAGE_WORDS` en `offers/extract.service.ts`): inglés/english, español/spanish/castellano, francés/french, alemán/german, italiano/italian, portugués/portuguese, catalán/català, euskera, gallego, valenciano, neerlandés/holandés/dutch, chino/mandarín/chinese, japonés/japanese, árabe/arabic, ruso/russian, polaco/polish, sueco/swedish, bilingüe. Se compara palabra completa, en minúsculas y sin tildes; si no coincide, la etiqueta pasa a `stack` (p. ej. C, Python, Java). La deduplicación se hace después del cambio; `stack` y `nice_to_have` no se tocan.
 - `currency` que no sea un código de tres letras (p. ej. `"€"`) → `null`; en mayúsculas si lo es. Un salario negativo → `null`.
 
 ## Tests (Vitest)

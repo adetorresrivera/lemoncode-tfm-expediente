@@ -1,4 +1,4 @@
-import { offerExtractionSchema } from "@tfm/contracts";
+import { offerExtractionSchema, tagGroupSchema } from "@tfm/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createApp, type AppDeps } from "../app.js";
@@ -133,6 +133,54 @@ describe.each([
         ? z.toJSONSchema(offerExtractionSchema)
         : contract;
     expect(sent).toEqual(expected);
+  });
+
+  it("moves programming languages the model put in the language group to stack", async () => {
+    const model = {
+      ...RAW_OFF_SPEC,
+      salaryMin: null,
+      salaryMax: null,
+      currency: null,
+      tags: [
+        { label: "C", group: "idioma" },
+        { label: "Python", group: "idioma" },
+        { label: "Java", group: "language" },
+        { label: "Inglés B2", group: "idioma" },
+      ],
+    };
+    const expected = [
+      { label: "C", group: "stack" },
+      { label: "Python", group: "stack" },
+      { label: "Java", group: "stack" },
+      { label: "Inglés B2", group: "language" },
+    ];
+
+    stubModel(config, model);
+    const result = await createExtractService(createLlmClient(config)).extract(
+      TEXT,
+    );
+    expect(result.tags).toEqual(expected);
+
+    stubModel(config, model);
+    const deps: AppDeps = {
+      pingMongo: async () => true,
+      pingS3: async () => true,
+      pingLlm: async () => true,
+      llm: createLlmClient(config),
+    };
+    const res = await createApp(deps).request("/api/offers/extract", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: TEXT }),
+    });
+    expect(res.status).toBe(200);
+    const body = offerExtractionSchema.parse(await res.json());
+    expect(body.tags).toEqual(expected);
+    const groups: readonly string[] = tagGroupSchema.options;
+    expect(body.tags.every((tag) => groups.includes(tag.group))).toBe(true);
+    expect(body.tags.some((tag) => (tag.group as string) === "idioma")).toBe(
+      false,
+    );
   });
 
   it("answers 502 LLM_ERROR after one retry when the output is genuinely unusable", async () => {
