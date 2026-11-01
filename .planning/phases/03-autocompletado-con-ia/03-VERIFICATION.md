@@ -1,6 +1,6 @@
 ---
 phase: 03-autocompletado-con-ia
-verified: 2026-11-01T18:30:00Z
+verified: 2026-11-01T21:00:00Z
 status: passed
 score: 8/8 must-haves verified
 covered_files:
@@ -35,42 +35,42 @@ covered_files:
   - "apps/api/src/llm/structured-call.ts"
   - "apps/api/src/offers/extract.pipeline.test.ts"
   - "apps/api/src/offers/extract.routes.ts"
+  - "apps/api/src/offers/extract.service.test.ts"
   - "apps/api/src/offers/extract.service.ts"
+  - "apps/web/src/common/components/request-status.tsx"
+  - "apps/web/src/common/components/tag-chip.tsx"
   - "apps/web/src/pods/application-edit/application-edit.container.tsx"
   - "apps/web/src/pods/application-edit/application-edit.hooks.ts"
   - "apps/web/src/pods/application-edit/application-edit.mapper.ts"
   - "apps/web/src/pods/application-edit/application-edit.vm.ts"
+  - "apps/web/src/pods/application-edit/components/field-props.ts"
+  - "apps/web/src/pods/application-edit/components/form-field.tsx"
   - "apps/web/src/pods/application-edit/components/offer-panel.tsx"
   - "apps/web/src/pods/application-edit/components/tag-group-input.tsx"
   - "apps/web/src/pods/application-edit/components/tags-section.tsx"
-covered_digest: "v4:sha256:f02f7aef9b235ece6f597c3eb0bab779c603b6e38c404060b59935f973395f9d"
+  - "docs/AI-EXTRACTION.md"
+  - "docs/DESIGN.md"
+covered_digest: "v4:sha256:d225bd2b768c54dc1ae12e0c5f76a36a18f847030177b23069c9b4805031d6ed"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
-  previous_status: gaps_found
-  previous_score: 5/6 must-haves verified
-  gaps_closed:
-    - "G-03-2 (major): programming languages in tag group «language» (plan 03-10)"
-    - "G-03-2b (minor): same «Ej.: React» placeholder on all three tag groups (plan 03-11)"
-    - "G-03-3 (minor): «Pegar oferta» panel does not fold after a successful analysis (plan 03-12)"
+  previous_status: passed
+  previous_score: 8/8
+  gaps_closed: []
   gaps_remaining: []
   regressions: []
-human_verification:
-  - test: "Re-run UAT tests 2 and 3 in the browser (real model, then mock). Test 2: analyse the NVIDIA Senior SW & System Architect offer with Ollama gemma4:e2b. Test 3: analyse with LLM_PROVIDER=mock on the create screen and on an edit screen."
-    expected: "C, Python, Linux, Docker, Kubernetes and the rest of the stack land in «Stack tecnológico»; only spoken languages with level are in «Idiomas». The three tag inputs show Ej.: React, Ej.: Docker and Ej.: Inglés B2. After a successful analysis that filled something the «Pegar oferta» panel folds, the summary stays announced below it, focus is not lost (it goes to the trigger only if it was lost), and clicking the trigger reopens it with the pasted text."
-    why_human: "The three gaps were observed by the user with a real model and a real browser. The code and jsdom/pipeline tests prove each fix, but the real gemma4:e2b answer, Radix collapse animation, focus and the 'is this what I asked for' judgement on the new fold behaviour (G-03-3 is a user-requested behaviour change that reversed D-12) need the user's confirmation."
 ---
 
 # Phase 3: Autocompletado con IA Verification Report
 
 **Phase Goal:** As a job seeker, I want to paste an offer and get a reviewable draft of the application form, so that I fill an application in seconds without losing anything I already typed.
 **Verified:** 2026-11-01
-**Status:** human_needed
-**Re-verification:** Yes. Regenerates the `gaps_found` report after gap-closure plans 03-10, 03-11 and 03-12.
+**Status:** passed
+**Re-verification:** Yes. The previous report (passed after UAT 03-UAT.md, 1/1) went stale when quick task 261101-qh3 (commits 378300b, f90db3e, d9a5584) changed covered files. This report is regenerated against HEAD b5df419 and covers that quick task.
 
 ## Reasoning for the status
 
-All five ROADMAP success criteria and the three UAT gaps (G-03-2, G-03-2b, G-03-3) are closed in the code, wired, and covered by tests that pass at HEAD. Nothing is FAILED, so the status is not `gaps_found`. It is `human_needed` only because the UAT that found the gaps used a real model and a real browser, and the closure of G-03-2 (real-model output) and G-03-3 (new user-requested behaviour) should be confirmed by the same person in the same way. One warning (WR-01) is carried from the code review and does not block.
+All five ROADMAP success criteria and the three gap-closure truths hold at HEAD. The quick task changed three things, each re-checked in the code: spoken languages now reach the model through a separate `idiomas` field (the spoken-language guard is kept as backstop), seven lucide icons moved to `strokeWidth={1.5}`, and the missing-field border is `border-brand-gold-ink`. None of them touches the web fold, focus or placeholder behaviour that UAT 03-UAT.md exercised, so those UAT results still stand. The only UAT item the new code could have invalidated is the real-model language grouping; it was re-checked with the real Ollama model (see Behavioral Spot-Checks), so no new human verification is requested. Open items are info-level review findings only.
 
 ## Goal Achievement
 
@@ -78,57 +78,59 @@ All five ROADMAP success criteria and the three UAT gaps (G-03-2, G-03-2b, G-03-
 
 | #   | Truth | Status | Evidence |
 | --- | ----- | ------ | -------- |
-| 1   | `POST /api/offers/extract` accepts 50-20,000 chars and returns a normalized `OfferExtraction` (trim, empty to null, inverted salary swapped, tags deduped and truncated), never logging the offer text | VERIFIED | `normalizeExtraction` in `apps/api/src/offers/extract.service.ts` (clean, swap, `cutLabel`, `normalizeTags`, final strict `offerExtractionSchema.safeParse`). Only log line is `console.info("offers.extract", { length, durationMs })`. Pipeline and routes tests pass (api 55). |
-| 2   | `LLM_PROVIDER` switches ollama/openai/mock with no code change, `/api/health` reports it through `ping()`, mock works offline | VERIFIED | Providers present (`ollama.provider.ts`, `openai.provider.ts`, mock provider); `createLlmClient` selection and `pingLlm` wired in `app.ts` (unchanged since the previous verification, regression tests green). |
-| 3   | Timeout answers 504 `LLM_TIMEOUT`; unparseable or schema-invalid output is retried once then 502 `LLM_ERROR`; form shows non-blocking «Analizando la oferta…» or an error and stays editable | VERIFIED | `structured-call.ts` (one budget, one retry); pipeline test "answers 502 LLM_ERROR after one retry" asserts 2 fetch calls; `AnalysisStatus` in `offer-panel.tsx` renders loading/error; web test "keeps the panel open and does not move focus when the analysis fails". |
-| 4   | Panel open on create, collapsed on edit; «Autocompletar con IA» fills only empty fields, merges tags without duplicates, persists nothing until save | VERIFIED | Container passes `initialOpen: true` (create, line 62) and `false` (edit, line 129); merge via `mergeExtractionIntoForm` with `dontRunListeners`; no network write in the success path; ai tests "opens the offer panel on create ...", "starts collapsed in edit mode ...". |
-| 5   | «IA» mark disappears on edit, empty relevant fields highlighted «Complétalo tú», pasted text stored as `offerText` on save | VERIFIED | `onMerged`/marks lifecycle, `offerText` written to the form only on a successful analysis (hooks.ts), covered by the 03-05, 03-06 and 03-07 test suites (all green). |
+| 1   | `POST /api/offers/extract` accepts 50-20,000 chars and returns a normalized `OfferExtraction` (trim, empty to null, inverted salary swapped, tags deduped and truncated), never logging the offer text | VERIFIED | `normalizeExtraction` in `apps/api/src/offers/extract.service.ts`: `clean`, salary swap, `cutLabel` (40 units, surrogate-safe), `normalizeTags` (dedupe, blank drop, 20 cap), final strict `offerExtractionSchema.safeParse` (502 on failure). Only log line is `console.info("offers.extract", { length, durationMs })`. Pipeline and routes tests pass. `idiomas` never leaves the API (route test asserts no `idiomas` key in the JSON). |
+| 2   | `LLM_PROVIDER` switches ollama/openai/mock with no code change, `/api/health` reports it through `ping()`, mock works offline | VERIFIED | `ollama.provider.ts:19` and `openai.provider.ts:21` honour `options?.responseSchema ?? schema`; `llm.client.ts:15` declares the option. Mock `try-extract` run at HEAD returns the draft offline (Inglés B2 in `language`). The quick task left `apps/api/src/llm` identical to the previous verification (per its SUMMARY and the diff stat: no llm files in `git diff 7e075cc..HEAD`). |
+| 3   | Timeout answers 504 `LLM_TIMEOUT`; unparseable or schema-invalid output retried once then 502 `LLM_ERROR`; form shows non-blocking «Analizando la oferta…» or an error and stays editable | VERIFIED | `structured-call.ts` unchanged; pipeline test "answers 502 LLM_ERROR after one retry" green; `AnalysisStatus` in `offer-panel.tsx`/`request-status.tsx` renders loading/error (icon stroke change only). |
+| 4   | Panel open on create, collapsed on edit; «Autocompletar con IA» fills only empty fields, merges tags without duplicates, persists nothing until save | VERIFIED | `initialOpen: true` on create and `false` on edit in the container; merge via `mergeExtractionIntoForm`; no write in the success path; ai tests green (web 407). Quick task changed only a `strokeWidth` prop in `offer-panel.tsx`. |
+| 5   | «IA» mark disappears on edit, empty relevant fields highlighted «Complétalo tú», pasted text stored as `offerText` on save | VERIFIED | Mark lifecycle and `offerText` logic untouched; highlight class now `border-brand-gold-ink bg-ai-missing-bg` in `field-props.ts:45`, asserted by `form-field.test.tsx` and `application-edit.ai.test.tsx`; token `--color-brand-gold-ink` exists in the theme CSS (light `#7a5410`, dark `#d4b56a`). |
 
-### Gap-closure truths
+### Gap-closure truths (G-03-2, G-03-2b, G-03-3) and quick-task truths
 
 | #   | Truth | Status | Evidence |
 | --- | ----- | ------ | -------- |
-| G-03-2 | Programming languages and technologies (C, Python, Java) reach the response in «stack»; only spoken languages with level stay in «language» | VERIFIED | `resolveTagGroup` + `isSpokenLanguageLabel` (NFD, accent strip, whole-word match against `SPOKEN_LANGUAGE_WORDS`) are applied inside `normalizeExtraction` before `normalizeTags`, so dedupe runs after the move. Model-facing alias: `modelOfferExtractionSchema` (`idioma`) is passed as `responseSchema` and consumed by `ollama.provider.ts:19` (`format`) and `openai.provider.ts:21`; the raw parse maps `idioma` back. Pipeline test "moves programming languages the model put in the language group to stack" (service and HTTP route) and "shows the model the provider-facing schema, without the word language" pass. The guard is deterministic, so it holds regardless of which group the real model picks. |
-| G-03-2b | Each tag group input shows its own example placeholder | VERIFIED | `tag-group-input.tsx:13` required `placeholder: string`, forwarded at line 103; `tags-section.tsx:42/50/59` set «Ej.: React», «Ej.: Docker», «Ej.: Inglés B2». Test asserts each. 02-UI-SPEC.md line 271 and D-27 amended. |
-| G-03-3 | After a successful analysis the panel folds on its own | VERIFIED | `useOfferExtraction` owns `open` (`initialOpen`), calls `setOpen(false)` only when `merge.aiFields.length > 0 \|\| merge.aiTags.length > 0` in the success branch (hooks.ts:383-385); error, cancel, aborted and nothing-new paths never touch it. `OfferPanel` is a controlled `Collapsible`; focus effect on open true to false moves focus to the trigger only if the active element is null/body/disconnected/inside the content; status region is outside `CollapsibleContent`. Tests: create fold, edit fold, focus lost, draft kept on reopen, status kept after fold, failure keeps open and focus. D-12, 03-UI-SPEC, DESIGN.md and AI-05 text amended. |
+| G-03-2 | Programming languages (C, Python, Java) reach «stack»; only spoken languages with level stay in «language» | VERIFIED | Two layers now. Primary: required model-facing `idiomas` array (`modelOfferExtractionSchema`), entries become trusted `language` tags placed before model tags (`extract.service.ts` `languageTags`, then `normalizeTags([...languageTags, ...modelTags])`). Backstop: `resolveTagGroup` + `isSpokenLanguageLabel` still demote non-spoken labels from `tags` («language» or «idioma») to «stack». Tests: new describe "normalizeExtraction idiomas field (WR-01)" (trusted outside the word list, ordering, backstop, dedupe, absent/null, no `idiomas` key, raw parse) and pipeline test "files the spoken languages the model lists in idiomas under language". All green. |
+| G-03-2b | Each tag group input shows its own example placeholder | VERIFIED | `tag-group-input.tsx` takes a required `placeholder`; `tags-section.tsx` sets «Ej.: React», «Ej.: Docker», «Ej.: Inglés B2». Unchanged by the quick task; tests green. |
+| G-03-3 | After a successful analysis that filled something the panel folds on its own | VERIFIED | `useOfferExtraction` owns `open`; fold only in the success branch; `OfferPanel` controlled `Collapsible` with focus rule. Unchanged by the quick task except the Sparkles `strokeWidth`; tests green. |
+| QH3-a | Spoken languages with a level outside the closed word list (Coreano B1, Hindi) end in «language» | VERIFIED | `idiomas` entries skip `SPOKEN_LANGUAGE_WORDS`. Service test and pipeline test cover it; prompt rule `- idiomas: ...` is the last line of `EXTRACTION_SYSTEM_PROMPT` and matches `docs/AI-EXTRACTION.md` (route test compares prompt and doc verbatim; passes). |
+| QH3-b | The phase-03 lucide icons render at `strokeWidth={1.5}` | VERIFIED | `strokeWidth={1.5}` present on every lucide icon of the phase surface: `tag-chip.tsx` (Sparkles, Check, X), `request-status.tsx` (Check, CircleAlert, LoaderCircle), `form-field.tsx` (CircleAlert), `offer-panel.tsx` (ChevronDown, Sparkles); `tag-group-input.tsx` uses no icon. Icons in Phase 2 pods (ArrowLeft, Pencil, RotateCcw, ...) are not part of this phase and stay at default (IN-01, info). |
 
-**Score:** 8/8 truths verified (0 present, behavior-unverified).
+**Score:** 8/8 truths verified (0 present, behavior-unverified). Counting the five ROADMAP criteria plus G-03-2, G-03-2b, G-03-3; QH3-a/b are supplementary and also verified.
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 | -------- | -------- | ------ | ------- |
-| `apps/api/src/offers/extract.service.ts` | prompt, raw and model-facing schemas, group guard, normalize, service | VERIFIED | Substantive, wired from `extract.routes.ts`/`app.ts`. |
-| `apps/api/src/llm/{llm.client,ollama.provider,openai.provider}.ts` | `responseSchema` option honoured by both real providers | VERIFIED | `options?.responseSchema ?? schema` in both. |
-| `apps/web/.../components/offer-panel.tsx` | controlled collapsible, status, focus rule | VERIFIED | Wired from container via `OfferPanelModel`. |
-| `apps/web/.../application-edit.hooks.ts` | `open` state, fold in success branch | VERIFIED | Container destructures `open`/`setOpen` for create and edit. |
-| `apps/web/.../components/tag-group-input.tsx`, `tags-section.tsx` | per-group placeholder | VERIFIED | |
-| `docs/AI-EXTRACTION.md`, `03-CONTEXT.md` (D-26, D-27, D-12), `02-UI-SPEC.md`, `03-UI-SPEC.md`, `docs/DESIGN.md` | spec amended with the code | VERIFIED | Prompt line «idioma» and the closed list appear in the doc and in code; the routes test compares prompt and doc. |
+| `apps/api/src/offers/extract.service.ts` | prompt, raw and model-facing schemas, `idiomas`, group guard, normalize, service | VERIFIED | 236 lines, substantive, used by `extract.routes.ts`/`app.ts`. |
+| `apps/api/src/llm/{llm.client,ollama.provider,openai.provider}.ts` | `responseSchema` honoured | VERIFIED | Lines cited above. |
+| `apps/web/.../components/offer-panel.tsx`, `form-field.tsx`, `field-props.ts` | panel, missing-field highlight | VERIFIED | Wired from the container; gold-ink class applied through `field-props.ts`. |
+| `apps/web/src/common/components/{request-status,tag-chip}.tsx` | stroke 1.5 icons | VERIFIED | Used by the panel and the tag inputs. |
+| `docs/AI-EXTRACTION.md`, `docs/DESIGN.md` | spec amended with the code | VERIFIED | `idiomas` rule and merge order documented; DESIGN.md line 21 says `border-brand-gold-ink`. |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 | ---- | -- | --- | ------ | ------- |
-| `createExtractService` | providers | `responseSchema: modelOfferExtractionSchema` | WIRED | extract.service.ts:209 to ollama `format` / openai `json_schema`. |
-| model answer | contract | raw parse (accepts `idioma`) to `resolveTagGroup` to strict `offerExtractionSchema` | WIRED | No `idioma` can leave the API (asserted in the route test). |
-| `useOfferExtraction` | `OfferPanel` | `open`/`onOpenChange` in `OfferPanelModel` | WIRED | container lines 74-75 and 142-143. |
-| `TagsSection` | `TagGroupInput` | `placeholder` prop | WIRED | |
+| `createExtractService` | providers | `responseSchema: modelOfferExtractionSchema` (includes `idiomas`) | WIRED | `extract.service.ts` call to `llm.extractStructured` to ollama `format` / openai `json_schema`. |
+| model answer | contract | raw parse (accepts `idioma` and `idiomas`) to `languageTags`/`resolveTagGroup` to strict `offerExtractionSchema` | WIRED | Output has no `idiomas` key (service and route tests). |
+| `useOfferExtraction` | `OfferPanel` | `open`/`onOpenChange` | WIRED | Unchanged. |
+| `field-props.ts` | form controls | `className: border-brand-gold-ink bg-ai-missing-bg` when missing | WIRED | Token defined in CSS. |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 | -------- | ------------- | ------ | ------------------ | ------ |
-| Form fields / tags | `merge.values`, `merge.aiTags` | `extractOffer` (`POST /api/offers/extract`) to LlmClient (mock/ollama/openai) | Yes | FLOWING |
-| Panel `open` | `useState(initialOpen)` + success branch | hook | Yes | FLOWING |
+| Form fields / tags | `merge.values`, `merge.aiTags` | `POST /api/offers/extract` to LlmClient (mock/ollama/openai) | Yes | FLOWING |
+| Tags in «language» | `languageTags` | `raw.idiomas` from the model, merged before `tags` | Yes | FLOWING |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 | -------- | ------- | ------ | ------ |
 | Typecheck all workspaces | `npm run typecheck` | clean | PASS |
-| Full test suite (run once) | `npm run test` | api 55 (4 files), contracts 260 (15 files), web 407 (13 files); 0 failed | PASS |
+| Full test suite (run once) | `npm run test` | api 55 (4 files), contracts 271 (15 files), web 407 (13 files); 0 failed | PASS |
 | Lint | `npm run lint` | `eslint . --max-warnings=0` clean | PASS |
-| G-03-2 behaviour | pipeline test "moves programming languages ..." (included in the run above) | C, Python, Java to stack; Inglés B2 stays language; through service and HTTP | PASS |
+| Mock plan B offline | `LLM_PROVIDER=mock npm run try-extract -w @tfm/api` | draft returned, «Inglés B2» in `language`, React/TypeScript/Vite in `stack` | PASS |
+| Real model after the `idiomas` change | `LLM_PROVIDER=ollama npm run try-extract -w @tfm/api` (gemma4:e2b, reachable at ollama:11434) | remote-senior 11/12 (73.3 s, cold load), english-nice-to-have 10/13 (14.6 s); «Inglés B2» and «Inglés» in `language`; Java and the rest of the stack in `stack`; same misses (GraphQL, Kubernetes, location) as before the change, so no regression | PASS |
 
 ### Probe Execution
 
@@ -136,44 +138,46 @@ Step 7c: SKIPPED (no probe scripts declared by the phase).
 
 ### Requirements Coverage
 
-Every ID in the phase is claimed by at least one PLAN `requirements:` field; there are no orphans.
+Every ID in the phase is claimed by at least one PLAN `requirements:` field (03-01 to 03-12); REQUIREMENTS.md maps AI-01..AI-09 to Phase 3 and no other ID; no orphans.
 
 | Requirement | Source Plans | Status | Evidence |
 | ----------- | ------------ | ------ | -------- |
-| AI-01 | 03-01, 03-03, 03-08, 03-09, 03-10 | SATISFIED | Route + length validation + normalized response. |
-| AI-02 | 03-01, 03-02, 03-09, 03-10 | SATISFIED | Provider switch, `ping()` into health, mock offline. |
+| AI-01 | 03-01, 03-03, 03-08, 03-09, 03-10 | SATISFIED | Route, length validation, normalized response. |
+| AI-02 | 03-01, 03-02, 03-09, 03-10 | SATISFIED | Provider switch, `ping()` in health, mock offline (run above). |
 | AI-03 | 03-02, 03-03 | SATISFIED | 504 / 502 with one retry (pipeline tests). |
-| AI-04 | 03-03, 03-09, 03-10 | SATISFIED | Normalization incl. group guard; length/duration-only log. |
-| AI-05 | 03-01, 03-08, 03-12 | SATISFIED | Panel open on create, collapsed on edit, folds after a successful analysis; REQUIREMENTS.md text already says so. |
-| AI-06 | 03-01, 03-04, 03-06, 03-11, 03-12 | SATISFIED | Fill-only-empty/IA-marked merge, tag merge, nothing persisted before save. |
-| AI-07 | 03-05, 03-06 | SATISFIED | AiMark lifecycle. |
-| AI-08 | 03-04, 03-05, 03-12 | SATISFIED | «Complétalo tú» and «Te falta completar» (kept after the fold). |
+| AI-04 | 03-03, 03-09, 03-10 | SATISFIED | Normalization including `idiomas` and group backstop; length/duration-only log. |
+| AI-05 | 03-01, 03-08, 03-12 | SATISFIED | Panel open on create, collapsed on edit, folds after a successful analysis; non-blocking status/error. |
+| AI-06 | 03-01, 03-04, 03-06, 03-11, 03-12 | SATISFIED | Fill-only-empty / IA-marked merge, tag merge, nothing persisted before save. |
+| AI-07 | 03-05, 03-06 | SATISFIED | AiMark lifecycle (Sparkles at stroke 1.5). |
+| AI-08 | 03-04, 03-05, 03-12 | SATISFIED | «Complétalo tú» highlight now gold-ink. |
 | AI-09 | 03-07 | SATISFIED | `offerText` stored on save. |
 
-Bookkeeping: the AI-01..AI-09 checkboxes and traceability rows in `.planning/REQUIREMENTS.md` still read `[ ]` / `Pending`. This is a state update for the phase-complete step, not a code gap.
+The quick task also listed AI-02, AI-04, AI-05, AI-06, AI-08; all remain satisfied.
+
+Bookkeeping: the AI-01..AI-09 checkboxes and traceability rows in `.planning/REQUIREMENTS.md` still read `[ ]` / `Pending`. This is a phase-complete state update, not a code gap.
 
 ### Anti-Patterns Found
 
-No TBD/FIXME/XXX markers in the files this phase modified. No stubs or hollow props found in the gap-closure artifacts.
+No TBD/FIXME/XXX markers in the files this phase modified. No stubs, hollow props or empty handlers in the changed artifacts.
 
 | File | Line | Pattern | Severity | Impact |
 | ---- | ---- | ------- | -------- | ------ |
-| `apps/api/src/offers/extract.service.ts` | 71-129 | WR-01: spoken languages outside `SPOKEN_LANGUAGE_WORDS` (Korean, Hindi, Turkish, Greek, Danish, Finnish, English "bilingual", ...) are demoted to «stack» | Warning | Misgrouped chip the user must move by hand; list is the user-approved closed list of D-26, review disposition still open. Does not defeat the goal (draft stays reviewable). |
-| review IN-01..IN-05 | - | Info items (unused exports, redundant focus condition, substring assertion, docs drift, repeated URL trim) | Info | Open, non-blocking. |
+| `apps/api/src/offers/extract.service.ts` | ~174-195 | IN-02: `idiomas` entries are trusted, so a technology the model pads into `idiomas` becomes a `language` tag and wins the duplicate over its correct `stack` tag | Info | Deliberate design (documented). Observed with the real model: no padding in the runs above. Optional hardening in 03-REVIEW.md. |
+| `apps/api/src/offers/extract.service.ts` | ~62 | IN-03: `MODEL_TAG_GROUPS` still offers `idioma` inside `tags` though the prompt no longer describes it | Info | Backstop covers it; model-facing contract slightly inconsistent. |
+| Phase 2 pods (`application-detail`, `filter-panel`, ...) | - | IN-01: lucide icons outside this phase still at default stroke | Info | Out of phase scope; DESIGN.md rule applies repo-wide, to be handled in the polish phase. |
+| review IN-04, IN-05 | - | Docs drift, repeated URL trim | Info | Open, non-blocking. |
+
+WR-01 (spoken languages outside the closed list demoted to «stack») from the previous report is fixed by the `idiomas` field; WR-02 is fixed per 03-REVIEW-FIX.md.
 
 ### Human Verification Required
 
-### 1. Confirm the three UAT gaps in the browser
-
-**Test:** With Ollama gemma4:e2b, analyse the real NVIDIA Senior SW & System Architect offer on the create screen. Then, with `LLM_PROVIDER=mock`, analyse on create and on edit. Look at the tag inputs and the panel.
-**Expected:** C and Python (and Linux, Docker, Kubernetes, ...) appear in «Stack tecnológico», only spoken languages with level in «Idiomas»; the inputs show Ej.: React / Ej.: Docker / Ej.: Inglés B2; the «Pegar oferta» panel folds after the analysis, the summary line stays visible and announced, focus is not stranded, and the trigger reopens the panel with the pasted text.
-**Why human:** Real-model output, real-browser collapse and focus, and the user's confirmation of the behaviour change that reversed D-12.
+None. UAT 03-UAT.md (1/1 pass: stack/idiomas grouping with the real model, per-group placeholders, fold/focus/reopen on create and edit) still holds: the web behaviours it covers are unchanged apart from icon stroke width and a border colour token, and the real-model grouping was re-run at HEAD above and by the quick-task executor (see 261101-qh3-SUMMARY.md).
 
 ### Gaps Summary
 
-No gaps. The three UAT gaps are closed at code, wiring and test level; the full suite, typecheck and lint pass at HEAD. Open items are one warning (WR-01, list coverage of the closed spoken-language list) and the human confirmation above.
+No gaps. Typecheck, full test suite and lint pass at HEAD. Open items are four info-level review findings (IN-01, IN-02, IN-03, IN-04/IN-05).
 
 ---
 
-_Verified: 2026-11-01T18:30:00Z_
+_Verified: 2026-11-01T21:00:00Z_
 _Verifier: Claude (gsd-verifier)_
