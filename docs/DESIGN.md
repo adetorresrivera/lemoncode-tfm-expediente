@@ -18,7 +18,7 @@ Tuteo, frases cortas, verbos de acción («Añadir candidatura», «Autocompleta
 - **Grupos de etiquetas**: título en estilo eyebrow (`text-[11px] uppercase tracking-[0.08em] text-muted-foreground`): Stack tecnológico, Se valora, Modelo de trabajo, Seniority, Contrato, Idiomas. Modalidad, seniority y contrato son campos tipados que se pintan como etiquetas.
 - **En listas**: máximo 3 etiquetas + contador `+N`.
 - **Marca IA**: `inline-flex h-5 items-center rounded-sm bg-brand-navy px-1.5 text-[11px] font-bold tracking-wide text-brand-parchment` junto al label. Desaparece cuando el usuario edita el campo.
-- **Campo que la IA no encontró**: borde `border-brand-gold` + `bg-ai-missing-bg` y ayuda «Complétalo tú».
+- **Campo que la IA no encontró**: borde `border-brand-gold-ink` + `bg-ai-missing-bg` y ayuda «Complétalo tú».
 - **Botón de IA**: `primary` con icono `Sparkles` («Autocompletar con IA»).
 - Iconos lucide `strokeWidth={1.5}`, 16 px en controles y 20 px en navegación.
 

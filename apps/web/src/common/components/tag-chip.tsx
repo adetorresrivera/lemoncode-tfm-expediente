@@ -39,7 +39,11 @@ export function TagChip({
         )}
       >
         {selected ? (
-          <Check aria-hidden="true" className="size-4 shrink-0" />
+          <Check
+            aria-hidden="true"
+            strokeWidth={1.5}
+            className="size-4 shrink-0"
+          />
         ) : null}
         <span className="truncate" title={label}>
           {label}
@@ -76,7 +80,7 @@ export function TagChip({
           onClick={onRemove}
           className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <X aria-hidden="true" className="size-4" />
+          <X aria-hidden="true" strokeWidth={1.5} className="size-4" />
         </button>
       ) : null}
     </span>

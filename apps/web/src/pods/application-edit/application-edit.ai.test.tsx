@@ -611,7 +611,7 @@ describe("ApplicationEditContainer AI autocomplete", () => {
 const BADGE = "Rellenado por la IA";
 const MISSING = "Complétalo tú";
 
-const GOLD = ["border-brand-gold", "bg-ai-missing-bg"];
+const GOLD = ["border-brand-gold-ink", "bg-ai-missing-bg"];
 
 const describedBy = (control: HTMLElement): string[] =>
   (control.getAttribute("aria-describedby") ?? "").split(" ").filter(Boolean);

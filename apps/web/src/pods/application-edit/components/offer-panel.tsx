@@ -226,7 +226,7 @@ export function OfferPanel({
                 onAnalyze();
               }}
             >
-              <Sparkles aria-hidden="true" />
+              <Sparkles aria-hidden="true" strokeWidth={1.5} />
               Autocompletar con IA
             </Button>
             {analysing && (
