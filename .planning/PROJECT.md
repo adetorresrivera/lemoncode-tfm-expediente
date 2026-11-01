@@ -16,10 +16,10 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 
 - ✓ **FND**: monorepo npm workspaces, `packages/contracts`, API `/api/health` real, web con router + shell + tema + fuentes, Dockerfile y compose, calidad (lint, typecheck, test, pre-commit) — Fase 1 (FND-01..FND-10, verificado y UAT 4/4)
 - ✓ **APP**: CRUD de candidaturas (crear, editar con lista blanca, borrar sin tocar documentos), listado con tarjetas y filtros/orden sincronizados con la URL, `GET /api/tags`, detalle, cambio de estado atómico con historial y `appliedAt` — Fase 2 (APP-01..APP-14, verificado 5/5, UAT 4/4, seguridad 30/30). Parciales por diseño: APP-09 (documentos → Fase 5, rondas → Fase 4) y APP-13 (`updatedAt` por rondas → Fase 4)
+- ✓ **AI**: `POST /api/offers/extract` con `LlmClient` intercambiable (ollama / openai-compatible / mock), panel «Pegar oferta» que se pliega tras analizar, fusión que solo rellena campos vacíos, marcas «IA», «Complétalo tú» y etiquetas agrupadas (idiomas por campo `idiomas` aparte) — Fase 3 (AI-01..AI-09, verificado 8/8, UAT, seguridad 24/24, UI 20/24 con las 3 correcciones aplicadas en la tarea rápida 261101-qh3)
 
 ### Active
 
-- [ ] **AI**: extracción de oferta con `LlmClient` intercambiable (ollama / openai-compatible / mock), panel «Pegar oferta», fusión que no pisa datos del usuario, marcas «IA» y campos faltantes
 - [ ] **INT**: rondas de entrevista (crear, editar, borrar) con la regla de paso automático a `en_entrevistas`
 - [ ] **DOC**: subir PDF/DOCX ≤5 MB a S3, vincular CV y carta, descargar, bloquear borrado si está en uso
 - [ ] **DEMO**: seed de datos, README, responsive desde 360 px y accesibilidad AA, modo mock
@@ -62,11 +62,13 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 | Hono + driver oficial `mongodb` (sin ODM) | Ligero, tipado, suficiente para dos colecciones | ✓ Fase 1: health real contra Mongo |
 | Silo (`pgsty/minio`) como S3 local | Fork mantenido de MinIO, compatible con AWS SDK | ✓ Fase 1: health real contra S3 con AWS SDK |
 | Estados fijos con transiciones libres e historial | Refleja procesos reales sin imponer un flujo rígido | ✓ Fase 2: PATCH de estado atómico (un `findOneAndUpdate`), idempotente para el mismo estado |
-| Borrador IA nunca se persiste solo; solo rellena campos vacíos | El usuario conserva el control y revisa antes de guardar | — Pending |
+| Borrador IA nunca se persiste solo; solo rellena campos vacíos | El usuario conserva el control y revisa antes de guardar | ✓ Fase 3: la extracción no persiste nada; marcas «IA» por campo hasta que el usuario edita |
 | `LlmClient` intercambiable por `LLM_PROVIDER` | Ollama local por defecto, cloud barato o mock como plan B de la demo | ✓ Fase 1: tres proveedores con tests; `gemma4:e2b` descargado en el smoke |
 | Datos con hooks propios (`fetch` + `AbortController`), sin React Query | Alineado con el curso y con el alcance del MVP | ✓ Fase 2: hooks de lista, detalle y formulario con abort y respuestas obsoletas ignoradas |
 | Etiquetas normalizadas en `@tfm/contracts` con `key` almacenada | Una sola normalización para servicio, filtros y agregación de `GET /api/tags` | ✓ Fase 2: datos de dev anteriores a 02-03 no tienen `key` (re-guardar o borrar); el seed de Fase 6 debe pasar por el servicio |
 | Edición con lista blanca explícita en `PUT` | Estado, historial, rondas, texto de oferta y documentos solo cambian por su propio camino | ✓ Fase 2; Fase 3 añade `offerText` y Fase 5 los ids de documento a `toEditableFields` |
+| Prompt de sistema literal, idéntico en código y `docs/AI-EXTRACTION.md`, con huella sha256 aprobada | Cualquier cambio de prompt o modelo pasa por el usuario; un test lo compara byte a byte | ✓ Fase 3: huella vigente `deeed808…` (tarea rápida 261101-qh3); `LLM_MODEL` sigue en gemma4:e2b |
+| Idiomas hablados en un campo `idiomas` propio del modelo, con la lista cerrada `SPOKEN_LANGUAGE_WORDS` como red de seguridad | gemma4:e2b clasificaba C o Python como idioma (UAT G-03-2) y la lista cerrada degradaba «Coreano B1» (WR-01) | ✓ Fase 3: contrato público sin cambios; riesgo residual IN-02 abierto (entradas de `idiomas` sin filtrar) |
 | `@tanstack/react-form` 1.33.5 fijado exacto | Mandado por el stack; única dependencia nueva de la Fase 2, aprobada en checkpoint humano | ✓ Fase 2 |
 | Roadmap de 7 fases fijado por el autor | MVP completo y demostrable antes que funcionalidades a medias | — Pending |
 
@@ -88,4 +90,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-31 after Phase 2*
+*Last updated: 2026-11-01 after Phase 3*

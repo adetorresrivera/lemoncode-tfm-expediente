@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 03
-current_phase_name: Autocompletado con IA
-status: executing
-stopped_at: Phase 3 UI-SPEC approved
-last_updated: "2026-11-01T19:49:36.610Z"
+current_phase: 4
+current_phase_name: Rondas de entrevista
+status: planning
+stopped_at: Phase 03 complete, ready to plan Phase 4
+last_updated: "2026-11-01T20:12:57.135Z"
 last_activity: 2026-11-01
-last_activity_desc: Phase 03 execution resumed (wave continue)
-state_head: 411a55c2f4a466c9b1681ec9d6783afbb6fcbd18
+last_activity_desc: Phase 03 complete, transitioned to Phase 4
+state_head: bb8980e24939f199e6881874ca3b7d0d25adef93
 progress:
   total_phases: 7
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 30
-  completed_plans: 27
-  percent: 29
+  completed_plans: 30
+  percent: 43
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-31)
+See: .planning/PROJECT.md (updated 2026-11-01)
 
 **Core value:** Pegar una oferta y obtener un expediente casi completo y revisable en segundos, con el flujo entero (pegar → guardar → ronda → CV → estado → filtrar) demostrable en menos de 2 minutos con `docker compose up`.
-**Current focus:** Phase 03 — Autocompletado con IA
+**Current focus:** Phase 04 — Rondas de entrevista
 
 ## Current Position
 
-Phase: 03 (Autocompletado con IA) — EXECUTING
-Plan: 1 of 9
-Status: Executing Phase 03
-Last activity: 2026-11-01 - Completed quick task 261101-qh3: Phase 03 UI-review fixes (icon stroke 1.5, idiomas field, gold-ink missing border)
+Phase: 4 — Rondas de entrevista
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-01 — Phase 03 complete, transitioned to Phase 4
 
-Progress: [███░░░░░░░] 29%
+Progress: [████░░░░░░] 43%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 18
+- Total plans completed: 30
 - Average duration: - min
 - Total execution time: 0.0 hours
 
@@ -47,6 +47,7 @@ Progress: [███░░░░░░░] 29%
 |-------|-------|-------|----------|
 | 01 | 6 | - | - |
 | 02 | 12 | - | - |
+| 03 | 12 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -68,6 +69,8 @@ Recent decisions affecting current work:
 - [Phase 2]: Executed on branch `phase/02-candidaturas` (per CLAUDE.md), 12 plans in 10 waves; verified 5/5, UAT 4/4, security 30/30 closed (2 accepted low risks). Only new dependency: `@tanstack/react-form` 1.33.5 (human-approved).
 - [Phase 2]: Hand-overs — Phase 3 adds `offerText` and Phase 5 adds `cvDocumentId`/`coverLetterDocumentId` to `toEditableFields`; Phase 4 routes every interview mutation through the applications service (updatedAt, enviada→en_entrevistas); Phase 6 seed goes through the service or computes tag `key` with `tagKey`.
 - [Phase 2]: TDD plans commit RED+GREEN together because the pre-commit hook runs the full suite; recorded per SUMMARY under "TDD Gate Compliance".
+- [Phase 3]: 12 plans (9 + 3 gap-closure) on `phase/03-autocompletado-con-ia`; verified 8/8 (regenerated after quick 261101-qh3), UAT pass, security 24/24 closed (2 accepted low), UI review 20/24 with its 3 top fixes applied in 261101-qh3. No new dependency.
+- [Phase 3]: Prompt changes need user approval and a new sha256 fingerprint (D-25); current approved fingerprint `deeed808…`. Spoken languages come through the model-only `idiomas` field; `@tfm/contracts` unchanged.
 
 ### Pending Todos
 
@@ -83,6 +86,8 @@ None yet.
 - [Phase 2]: `02-VALIDATION.md` still draft — `/gsd-validate-phase 02` (Nyquist) not run; `/gsd-ui-review 02` not run.
 - [Phase 2]: Dev DB applications created before plan 02-03 have no `tags.key` and do not match the stack filter; delete or re-save them.
 - [Env]: GSD install hard-codes `/workspaces/TFM/.claude`; the devcontainer folder is now `lemoncode-tfm-expediente`, bridged by a container-local symlink `/workspaces/TFM`. Reinstall GSD to fix permanently. `.DS_Store` and `.claude/worktrees/` are in `.git/info/exclude` (macOS host writes `.DS_Store` into the bind mount, which blocked worktree merges).
+- [Phase 3]: Open info findings in `03-REVIEW-DISPOSITION.md`: IN-01 ~12 lucide icons from earlier phases still at default stroke; IN-02 `idiomas` entries are trusted, so a technology the model puts there wins over its `stack` tag; IN-03 model-facing schema still offers the `idioma` tag group; IN-04 docs drift; IN-05 triple `LLM_BASE_URL` trailing-slash normalization.
+- [Phase 3]: `03-VALIDATION.md` still draft — `/gsd-validate-phase 03` (Nyquist) not run. `03-03-SUMMARY.md` lists `src/scripts/try-extract.ts` and `__fixtures__/fixtures.ts` without the `apps/api/` prefix.
 - [Phase 1]: `npm run format:check` flags the untracked GSD artifact `.gsd/dispatch-isolation-sentinel.json`; add `.gsd` to `.prettierignore` when convenient.
 
 ### Quick Tasks Completed
@@ -104,6 +109,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-31T16:42:51.248Z
-Stopped at: Phase 3 UI-SPEC approved
-Resume file: .planning/phases/03-autocompletado-con-ia/03-UI-SPEC.md
+Last session: 2026-11-01T20:13:32Z
+Stopped at: Phase 03 complete, ready to plan Phase 4
+Resume file: None
