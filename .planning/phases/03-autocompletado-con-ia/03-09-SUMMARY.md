@@ -3,7 +3,7 @@ phase: 03-autocompletado-con-ia
 plan: 09
 subsystem: verification
 tags: [compose-smoke, ollama, manual-model-test, d-24, d-25, phase-gate]
-status: partial
+status: complete
 
 requires:
   - phase: 03-autocompletado-con-ia
@@ -12,16 +12,18 @@ provides:
   - "compose smoke asserts POST /api/offers/extract answers 400 VALIDATION_ERROR inside the production image"
   - "D-24 evidence: gemma4:e2b on CPU against the three fixtures (two runs)"
   - "Prompt fingerprint equal to the approved sha256"
-affects: [D-25 decision (pending the user at the Task 3 checkpoint)]
+  - "D-25 decision recorded (2026-11-01): add the two Pitfall 7 rule lines to the prompt, keep gemma4:e2b"
+  - "UI review finding: re-analysis does not replace AI-filled fields (follow-up fix and spec clarification)"
+affects: [EXTRACTION_SYSTEM_PROMPT and docs/AI-EXTRACTION.md prompt block (follow-up), mergeExtractionIntoForm (follow-up), 03-UI-SPEC re-analysis line (follow-up)]
 
 requirements-completed: [AI-01, AI-02, AI-04]
 
 actuals:
   tokens: 14000
-  tasks: 2
-  commits: 1
+  tasks: 3
+  commits: 3
 plan_head_before: 016da0ab06ecedeef33561785b7a7930e57040d0
-plan_head_after: ad1e68450f570d740cc545aa169ad79910f431ba
+plan_head_after: 008f3e6fca1818a616dbd59ceb3f1d7f2671215d
 
 tech-stack:
   added: []
@@ -56,16 +58,19 @@ coverage:
   - id: D3
     description: "Real-model quality and speed of gemma4:e2b on the three fixtures"
     requirement: AI-01
-    verification: []
+    verification:
+      - kind: manual
+        ref: "LLM_PROVIDER=ollama npm run try-extract -w @tfm/api (two runs) plus the user's UI pass"
+        status: pass
     human_judgment: true
-    rationale: "Non-deterministic CPU model; the D-25 judgment (keep the literal prompt and gemma4:e2b or change them) is the user's, pending at Task 3"
+    rationale: "Non-deterministic CPU model. User judgment recorded 2026-11-01 at Task 3: result is 'prompt' (add the two Pitfall 7 rule lines, keep gemma4:e2b). The measurement is evidence for that decision, not a pass of tag quality; the prompt change is a follow-up"
 ---
 
 # Phase 3 Plan 09: Phase gate, manual model test and D-25 evidence Summary
 
-**The compose smoke now proves the extraction route is served by the production image, the whole suite is green, and gemma4:e2b was measured on CPU against the three fixtures: it timed out on remote-senior in both runs, answered the other two in 17 to 49 s but returned tag labels equal to group names (the Pitfall 7 pattern). The D-25 decision is pending the user.**
+**The compose smoke now proves the extraction route is served by the production image, the whole suite is green, and gemma4:e2b was measured on CPU against the three fixtures: it timed out on remote-senior in both runs, answered the other two in 17 to 49 s but returned tag labels equal to group names (the Pitfall 7 pattern). The user decided D-25 on 2026-11-01: add the two Pitfall 7 rule lines to the prompt and keep gemma4:e2b. The UI pass also found that a second analysis does not replace fields filled by the first; the user chose the intended behaviour (follow-up fix).**
 
-Status: Tasks 1 and 2 done and committed; Task 3 (blocking-human checkpoint: UI pass and D-25 decision) is awaiting the user. This SUMMARY is marked `status: partial` until the decision is recorded under «D-25 decision».
+Status: complete. Tasks 1 and 2 done and committed; Task 3 (blocking-human checkpoint: UI pass and D-25 decision) resolved by the user on 2026-11-01 and recorded below. No source file changed in this plan; both resulting changes are follow-ups.
 
 ## Accomplishments
 
@@ -154,7 +159,26 @@ Returned extractions (run 2; remote-senior has none because it timed out twice):
 
 ## D-25 decision
 
-Pending. The user decides at Task 3 (blocking-human checkpoint) among: keep the literal prompt and `gemma4:e2b` («approved»), approve adding the two Pitfall 7 rule lines («prompt»), or switch `LLM_MODEL` («model: NAME»). Any approved change is applied afterwards as a `/gsd-quick` follow-up, never inside this plan.
+Decision (user, 2026-11-01): **«prompt»**. The user approves adding the two Pitfall 7 rule lines (RESEARCH Pitfall 7) to the literal system prompt:
+
+- `- label es el nombre de la tecnología o idioma (p. ej. "React", "Inglés B2"), nunca el nombre del grupo.`
+- `- company: la empresa que publica la oferta.`
+
+`gemma4:e2b` stays as `LLM_MODEL`. Not applied in this plan (plan prohibition: no prompt, docs block, model or merge-code change here). Follow-up for the orchestrator via `/gsd-quick`:
+
+1. Edit `EXTRACTION_SYSTEM_PROMPT` in `apps/api/src/offers/extract.service.ts` and the «Prompt de sistema» block of `docs/AI-EXTRACTION.md` together, so the verbatim-prompt test in `extract.routes.test.ts` keeps passing.
+2. Update the approved fingerprint (previous value `7b74659be41dcee556f8e566e2d5dc6b9fd58641bdf11d0e18003a2c7ea098c3`) to the sha256 of the new block, in the test and in the plan/summary references.
+3. Rerun `LLM_PROVIDER=ollama npm run try-extract -w @tfm/api` and compare tag labels and times against the table above, ideally on a quieter machine (the CPU timeouts are a separate concern, see Known deviations).
+
+## UI review (Task 3)
+
+The user ran one UI pass against the dev stack (web 5173, API 3000, `LLM_PROVIDER=ollama`).
+
+- **Finding:** «when scanning 2 different offers, fields are not being replaced».
+- **Cause (orchestrator analysis):** `mergeExtractionIntoForm` fills only empty fields. Values written by the first analysis (still marked «IA», never edited by the user) therefore count as user values, and a second analysis cannot replace them. `docs/AI-EXTRACTION.md` flow step 4 is silent on AI-filled fields.
+- **Intended behaviour (user decision, 2026-11-01):** on re-analysis, fields still marked «IA» and not edited by the user are replaced by the new offer's values, or cleared if the new offer lacks them. AI-proposed tags not edited by the user are replaced too. User-typed or user-edited fields and the user's own tags are never touched.
+- **Status:** not a bug in this plan's scope; recorded as a follow-up fix to `mergeExtractionIntoForm` and its callers (via `/gsd-quick`, orchestrator).
+- **Spec clarification needed (follow-up):** state the rule above in `docs/AI-EXTRACTION.md` flow step 4 and in the line of `.planning/phases/03-autocompletado-con-ia/03-UI-SPEC.md` that describes re-analysing.
 
 ## Phase-wide spec additions (for the record)
 
@@ -169,8 +193,8 @@ Pending. The user decides at Task 3 (blocking-human checkpoint) among: keep the 
 ## Task Commits
 
 1. Task 1: `ad1e684` test(03-09): add offers route to the compose smoke
-2. Task 2: evidence only (this SUMMARY, committed in the plan metadata commit); no source file edited
-3. Task 3: checkpoint, awaiting the user
+2. Task 2: `e0ab9da` docs(03-09): record D-24 manual model test and prompt fingerprint (evidence only, no source file edited)
+3. Task 3: checkpoint resolved by the user on 2026-11-01 (D-25 «prompt», UI finding recorded); committed as `docs(03-09): record D-25 decision and UI review findings`
 
 ## Deviations from Plan
 
@@ -193,4 +217,4 @@ None. T-03-16: only anonymized fixtures run and recorded. T-03-17: no prompt, do
 - `scripts/compose-smoke.sh` contains `/api/offers/extract`; commit `ad1e684` is an ancestor of HEAD.
 - `npm run typecheck && npm run lint && npm run test && npm run build` exit 0; `bash scripts/compose-smoke.sh --down` ended with `SMOKE OK`.
 - Dev API health answers `"llm":"ok"`; `LLM_PROVIDER=mock npm run try-extract -w @tfm/api` exits 0 with the header and three rows.
-- Task 3 is intentionally open (human checkpoint).
+- Task 3 resolved: D-25 decision and UI review findings recorded; no source file, STATE.md or ROADMAP.md modified in this continuation.
