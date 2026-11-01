@@ -170,6 +170,15 @@ Decision (user, 2026-11-01): **«prompt»**. The user approves adding the two Pi
 2. Update the approved fingerprint (previous value `7b74659be41dcee556f8e566e2d5dc6b9fd58641bdf11d0e18003a2c7ea098c3`) to the sha256 of the new block, in the test and in the plan/summary references.
 3. Rerun `LLM_PROVIDER=ollama npm run try-extract -w @tfm/api` and compare tag labels and times against the table above, ideally on a quieter machine (the CPU timeouts are a separate concern, see Known deviations).
 
+### Applied (quick 261101-gfe)
+
+- Applied on 2026-11-01 by quick task 261101-gfe, commit `63be8d8` (`feat(quick-261101-gfe): add Pitfall 7 rules to extraction prompt (D-25)`).
+- Placement: the company rule sits right after the title rule. The label rule is an item of the tags sub-list, after the language item and before «Grafía canónica», indented like its siblings; its bullet text is verbatim as approved.
+- New approved fingerprint of the «Prompt de sistema» block (without its trailing newline): `8daeb5a2e47707e34c2149aa4810ea090ee8de6c859a63039614baa75661cf8a`, as printed by the fingerprint command after the change. Previous value: `7b74659be41dcee556f8e566e2d5dc6b9fd58641bdf11d0e18003a2c7ea098c3`. From 2026-11-01 the new value is the approved one; the «Prompt fingerprint (D-25)» section above records the prompt used by the D-24 runs and stays as written.
+- The verbatim-prompt test in `apps/api/src/offers/extract.routes.test.ts` passes, so `EXTRACTION_SYSTEM_PROMPT` hashes to the same value.
+- Follow-up step 2 needed no test change: no test pins a hash (the route test compares the text byte for byte), and the only other files that hold the old hash are historical records (03-09-PLAN.md and this SUMMARY), left unchanged.
+- `LLM_MODEL` stays `gemma4:e2b`; `.env.example` and `compose.yml` are unchanged.
+
 ## UI review (Task 3)
 
 The user ran one UI pass against the dev stack (web 5173, API 3000, `LLM_PROVIDER=ollama`).
