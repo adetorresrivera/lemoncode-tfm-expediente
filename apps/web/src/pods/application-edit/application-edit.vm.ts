@@ -111,9 +111,11 @@ export interface ExtractionMerge {
   missingFields: RelevantField[];
 }
 
-// The session view of a merge's two lists, what the form marks next to the fields.
+// The session view of a merge's lists, what the form marks: «IA» next to fields, «Complétalo tú»
+// on relevant fields still empty and the AI mark on the tag chips (keys from tagKey).
 export interface AiMarks {
   aiFields: ReadonlySet<AiFillableField>;
+  aiTags: ReadonlySet<string>;
   missingFields: ReadonlySet<RelevantField>;
 }
 
@@ -122,7 +124,12 @@ export type OfferErrorReason = "timeout" | "model" | "network";
 export type OfferAnalysisStatus =
   | { kind: "idle" }
   | { kind: "analysing" }
-  | { kind: "success"; filled: number; missing: RelevantField[] }
+  | {
+      kind: "success";
+      filled: number;
+      tagsAdded: number;
+      missing: RelevantField[];
+    }
   | { kind: "error"; reason: OfferErrorReason };
 
 // What the «Pegar oferta» panel needs: the container owns the draft and the analysis state.

@@ -1,4 +1,4 @@
-import { MAX_TAGS, normalizeTags, type TagGroup } from "@tfm/contracts";
+import { MAX_TAGS, normalizeTags, tagKey, type TagGroup } from "@tfm/contracts";
 import { useEffect, useId, useRef, useState } from "react";
 import { TagChip } from "@/common/components/tag-chip";
 import { Button } from "@/common/components/ui/button";
@@ -12,13 +12,22 @@ interface Props {
   soft?: boolean;
   // The full tag list of the form (every group); `onChange` receives the full normalized list.
   tags: ApplicationFormTag[];
+  // Keys (tagKey) of the chips the AI proposed: those chips show the AI mark.
+  aiTags?: ReadonlySet<string>;
   onChange: (next: ApplicationFormTag[]) => void;
 }
 
 // Where focus goes after a removal: the remove button of a chip (by label) or the group input.
 type PendingFocus = { kind: "chip"; label: string } | { kind: "input" };
 
-export function TagGroupInput({ group, legend, soft, tags, onChange }: Props) {
+export function TagGroupInput({
+  group,
+  legend,
+  soft,
+  tags,
+  aiTags,
+  onChange,
+}: Props) {
   const inputId = useId();
   const [draft, setDraft] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -120,6 +129,7 @@ export function TagGroupInput({ group, legend, soft, tags, onChange }: Props) {
             <TagChip
               label={tag.label}
               soft={soft}
+              aiSuggested={aiTags?.has(tagKey(tag.label)) === true}
               onRemove={() => remove(index)}
             />
           </li>
