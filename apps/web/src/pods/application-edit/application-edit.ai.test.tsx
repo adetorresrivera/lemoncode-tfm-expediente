@@ -1008,3 +1008,209 @@ describe("ApplicationEditContainer AI tags", () => {
     expect(screen.queryByText(AI_NOTE)).toBeNull();
   });
 });
+
+const STORED_OFFER =
+  "Oferta guardada: buscamos una persona frontend para un equipo de producto.";
+
+const storedApplication = (offerText: string | null) =>
+  applicationSchema.parse({
+    id: "a1",
+    title: "Frontend Developer",
+    company: "Acme",
+    status: "enviada",
+    statusHistory: [{ status: "guardada", at: "2026-10-12T10:00:00.000Z" }],
+    interviews: [],
+    createdAt: "2026-10-12T10:00:00.000Z",
+    updatedAt: "2026-10-30T08:15:00.000Z",
+    ownerId: null,
+    offerText,
+  });
+
+const renderEdit = () =>
+  render(
+    <ApplicationEditContainer
+      applicationId="a1"
+      onSaved={() => {}}
+      renderCancelLink={link("/applications")}
+      renderListLink={link("/applications-list-stub")}
+    />,
+  );
+
+const sentBody = (
+  fetchMock: ReturnType<typeof mockFetch>,
+  method: string,
+  path: string,
+): { offerText?: unknown } => {
+  const parsed: unknown = JSON.parse(
+    String(callsTo(fetchMock, method, path)[0]?.[1]?.body),
+  );
+  return parsed as { offerText?: unknown };
+};
+
+describe("ApplicationEditContainer stored offer text", () => {
+  it("posts the trimmed analyzed text as offerText on create", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "POST /api/offers/extract": () => jsonResponse(EXTRACTION),
+      "POST /api/applications": () => jsonResponse(created, 201),
+    });
+    renderCreate();
+
+    pasteOffer(`  ${OFFER_TEXT}  `);
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado/);
+    await user.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    await waitFor(() =>
+      expect(callsTo(fetchMock, "POST", "/api/applications")).toHaveLength(1),
+    );
+    expect(sentBody(fetchMock, "POST", "/api/applications").offerText).toBe(
+      OFFER_TEXT,
+    );
+  });
+
+  it("keeps the analyzed text when the textarea changes afterwards without analysing", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "POST /api/offers/extract": () => jsonResponse(EXTRACTION),
+      "POST /api/applications": () => jsonResponse(created, 201),
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado/);
+    pasteOffer("Otro texto distinto que se teclea pero no se analiza nunca.");
+    await user.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    await waitFor(() =>
+      expect(callsTo(fetchMock, "POST", "/api/applications")).toHaveLength(1),
+    );
+    expect(sentBody(fetchMock, "POST", "/api/applications").offerText).toBe(
+      OFFER_TEXT,
+    );
+  });
+
+  it("posts offerText null when nothing was analysed", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "POST /api/applications": () => jsonResponse(created, 201),
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.type(screen.getByLabelText("Puesto *"), "Mi puesto");
+    await user.type(screen.getByLabelText("Empresa *"), "Acme");
+    await user.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    await waitFor(() =>
+      expect(callsTo(fetchMock, "POST", "/api/applications")).toHaveLength(1),
+    );
+    expect(
+      sentBody(fetchMock, "POST", "/api/applications").offerText,
+    ).toBeNull();
+  });
+
+  it("prefills the edit panel with the stored text and sends it back unchanged", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": () =>
+        jsonResponse(storedApplication(STORED_OFFER)),
+      "PUT /api/applications/a1": () =>
+        jsonResponse(storedApplication(STORED_OFFER)),
+    });
+    renderEdit();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Pegar oferta" }),
+    );
+    expect(screen.getByLabelText("Texto de la oferta")).toHaveValue(
+      STORED_OFFER,
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    await waitFor(() =>
+      expect(callsTo(fetchMock, "PUT", "/api/applications/a1")).toHaveLength(1),
+    );
+    expect(sentBody(fetchMock, "PUT", "/api/applications/a1").offerText).toBe(
+      STORED_OFFER,
+    );
+  });
+
+  it("keeps the stored text when the textarea is edited without analysing", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": () =>
+        jsonResponse(storedApplication(STORED_OFFER)),
+      "PUT /api/applications/a1": () =>
+        jsonResponse(storedApplication(STORED_OFFER)),
+    });
+    renderEdit();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Pegar oferta" }),
+    );
+    pasteOffer("Texto tecleado sin analizar que no debe llegar a guardarse.");
+    await user.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    await waitFor(() =>
+      expect(callsTo(fetchMock, "PUT", "/api/applications/a1")).toHaveLength(1),
+    );
+    expect(sentBody(fetchMock, "PUT", "/api/applications/a1").offerText).toBe(
+      STORED_OFFER,
+    );
+  });
+
+  it("sends the trimmed textarea text after analysing the stored offer again", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": () =>
+        jsonResponse(storedApplication(STORED_OFFER)),
+      "POST /api/offers/extract": () => jsonResponse(NO_DATA),
+      "PUT /api/applications/a1": () =>
+        jsonResponse(storedApplication(OFFER_TEXT)),
+    });
+    renderEdit();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Pegar oferta" }),
+    );
+    pasteOffer(`  ${OFFER_TEXT}  `);
+    await user.click(analyzeButton());
+    await screen.findByText(/No hemos encontrado datos nuevos/);
+    await user.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    await waitFor(() =>
+      expect(callsTo(fetchMock, "PUT", "/api/applications/a1")).toHaveLength(1),
+    );
+    expect(sentBody(fetchMock, "PUT", "/api/applications/a1").offerText).toBe(
+      OFFER_TEXT,
+    );
+  });
+
+  it("starts with an empty textarea when the stored offerText is null", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "GET /api/applications/a1": () => jsonResponse(storedApplication(null)),
+    });
+    renderEdit();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Pegar oferta" }),
+    );
+    expect(screen.getByLabelText("Texto de la oferta")).toHaveValue("");
+  });
+});

@@ -58,7 +58,7 @@ export interface ApplicationDoc {
 export type NewApplicationDoc = Omit<ApplicationDoc, "_id">;
 
 // The only fields PUT may write (D-07, D-08). Status, history, interviews, ownership, creation
-// instant, offer text and document links are deliberately absent.
+// instant and document links are deliberately absent.
 export interface EditableFields {
   title: string;
   company: string;
@@ -73,6 +73,7 @@ export interface EditableFields {
   sourceUrl: string | null;
   appliedAt: Date | null;
   notes: string | null;
+  offerText: string | null;
 }
 
 export interface ApplicationsRepository {
@@ -171,6 +172,7 @@ export function createApplicationsRepository(db: Db): ApplicationsRepository {
             sourceUrl: fields.sourceUrl,
             appliedAt: fields.appliedAt,
             notes: fields.notes,
+            offerText: fields.offerText,
             updatedAt: now,
           },
         },

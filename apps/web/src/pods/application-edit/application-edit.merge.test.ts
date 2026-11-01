@@ -6,6 +6,9 @@ import {
   type ApplicationFormValues,
 } from "./application-edit.vm";
 
+const ANALYZED_TEXT =
+  "Oferta analizada: Frontend en Acme, remoto, 45.000 a 55.000 EUR.";
+
 const NOTHING: OfferExtraction = {
   title: null,
   company: null,
@@ -40,6 +43,7 @@ describe("mergeExtractionIntoForm: the six-field rule", () => {
         seniority: "senior",
         contractType: "indefinido",
       }),
+      ANALYZED_TEXT,
     );
     expect(merge.values).toMatchObject({
       title: "Frontend",
@@ -67,6 +71,7 @@ describe("mergeExtractionIntoForm: the six-field rule", () => {
         company: "Acme",
         workMode: "remoto",
       }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.title).toBe("Mi puesto");
     expect(merge.values.workMode).toBe("presencial");
@@ -78,15 +83,42 @@ describe("mergeExtractionIntoForm: the six-field rule", () => {
     const merge = mergeExtractionIntoForm(
       form({ company: "   " }),
       extraction({ company: "Acme" }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.company).toBe("Acme");
     expect(merge.aiFields).toEqual(["company"]);
   });
 
   it("ignores null extraction values and lists nothing", () => {
-    const merge = mergeExtractionIntoForm(EMPTY_FORM_VALUES, NOTHING);
-    expect(merge.values).toEqual(EMPTY_FORM_VALUES);
+    const merge = mergeExtractionIntoForm(
+      EMPTY_FORM_VALUES,
+      NOTHING,
+      ANALYZED_TEXT,
+    );
+    expect(merge.values).toEqual({
+      ...EMPTY_FORM_VALUES,
+      offerText: ANALYZED_TEXT,
+    });
     expect(merge.aiFields).toEqual([]);
+  });
+
+  it("sets offerText to the analyzed text even when another text was stored", () => {
+    const merge = mergeExtractionIntoForm(
+      form({ offerText: "Texto anterior" }),
+      NOTHING,
+      ANALYZED_TEXT,
+    );
+    expect(merge.values.offerText).toBe(ANALYZED_TEXT);
+  });
+
+  it("never lists offerText among the AI-filled fields", () => {
+    const merge = mergeExtractionIntoForm(
+      EMPTY_FORM_VALUES,
+      extraction({ title: "Frontend", company: "Acme" }),
+      ANALYZED_TEXT,
+    );
+    expect(merge.aiFields).not.toContain("offerText");
+    expect(merge.values.offerText).toBe(ANALYZED_TEXT);
   });
 
   it("does not mutate the input", () => {
@@ -95,6 +127,7 @@ describe("mergeExtractionIntoForm: the six-field rule", () => {
     mergeExtractionIntoForm(
       current,
       extraction({ company: "Acme", salaryMin: 1000, currency: "USD" }),
+      ANALYZED_TEXT,
     );
     expect(current).toEqual(snapshot);
   });
@@ -105,6 +138,7 @@ describe("mergeExtractionIntoForm: salary pair", () => {
     const merge = mergeExtractionIntoForm(
       EMPTY_FORM_VALUES,
       extraction({ salaryMin: 45000, salaryMax: 55000 }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.salaryMin).toBe("45000");
     expect(merge.values.salaryMax).toBe("55000");
@@ -115,6 +149,7 @@ describe("mergeExtractionIntoForm: salary pair", () => {
     const merge = mergeExtractionIntoForm(
       form({ salaryMin: "60000" }),
       extraction({ salaryMin: 45000, salaryMax: 55000 }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.salaryMin).toBe("60000");
     expect(merge.values.salaryMax).toBe("");
@@ -125,6 +160,7 @@ describe("mergeExtractionIntoForm: salary pair", () => {
     const merge = mergeExtractionIntoForm(
       form({ salaryMin: "40000" }),
       extraction({ salaryMin: 45000, salaryMax: 55000 }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.salaryMin).toBe("40000");
     expect(merge.values.salaryMax).toBe("55000");
@@ -135,6 +171,7 @@ describe("mergeExtractionIntoForm: salary pair", () => {
     const merge = mergeExtractionIntoForm(
       form({ salaryMax: "30000" }),
       extraction({ salaryMin: 45000, salaryMax: 55000 }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.salaryMin).toBe("");
     expect(merge.values.salaryMax).toBe("30000");
@@ -145,6 +182,7 @@ describe("mergeExtractionIntoForm: salary pair", () => {
     const merge = mergeExtractionIntoForm(
       EMPTY_FORM_VALUES,
       extraction({ salaryMin: 45000.5 }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.salaryMin).toBe("45000.5");
   });
@@ -153,6 +191,7 @@ describe("mergeExtractionIntoForm: salary pair", () => {
     const merge = mergeExtractionIntoForm(
       EMPTY_FORM_VALUES,
       extraction({ salaryMax: 55000 }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.salaryMin).toBe("");
     expect(merge.values.salaryMax).toBe("55000");
@@ -165,6 +204,7 @@ describe("mergeExtractionIntoForm: currency", () => {
     const merge = mergeExtractionIntoForm(
       EMPTY_FORM_VALUES,
       extraction({ salaryMin: 45000, currency: "USD" }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.currency).toBe("USD");
     expect(merge.aiFields).toEqual(["salaryMin", "currency"]);
@@ -174,6 +214,7 @@ describe("mergeExtractionIntoForm: currency", () => {
     const merge = mergeExtractionIntoForm(
       EMPTY_FORM_VALUES,
       extraction({ salaryMin: 45000, currency: "EUR" }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.currency).toBe("EUR");
     expect(merge.aiFields).toContain("currency");
@@ -183,6 +224,7 @@ describe("mergeExtractionIntoForm: currency", () => {
     const merge = mergeExtractionIntoForm(
       EMPTY_FORM_VALUES,
       extraction({ currency: "USD" }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.currency).toBe("EUR");
     expect(merge.aiFields).toEqual([]);
@@ -192,6 +234,7 @@ describe("mergeExtractionIntoForm: currency", () => {
     const merge = mergeExtractionIntoForm(
       form({ salaryMin: "50000" }),
       extraction({ currency: "USD" }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.currency).toBe("EUR");
     expect(merge.aiFields).toEqual([]);
@@ -201,6 +244,7 @@ describe("mergeExtractionIntoForm: currency", () => {
     const merge = mergeExtractionIntoForm(
       form({ salaryMin: "40000" }),
       extraction({ salaryMax: 55000, currency: "USD" }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.salaryMax).toBe("55000");
     expect(merge.values.currency).toBe("EUR");
@@ -211,6 +255,7 @@ describe("mergeExtractionIntoForm: currency", () => {
     const merge = mergeExtractionIntoForm(
       EMPTY_FORM_VALUES,
       extraction({ salaryMin: 45000 }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.currency).toBe("EUR");
     expect(merge.aiFields).toEqual(["salaryMin"]);
@@ -219,7 +264,11 @@ describe("mergeExtractionIntoForm: currency", () => {
 
 describe("mergeExtractionIntoForm: missing fields", () => {
   it("lists the empty relevant fields in form order", () => {
-    const merge = mergeExtractionIntoForm(EMPTY_FORM_VALUES, NOTHING);
+    const merge = mergeExtractionIntoForm(
+      EMPTY_FORM_VALUES,
+      NOTHING,
+      ANALYZED_TEXT,
+    );
     expect(merge.missingFields).toEqual([
       "title",
       "company",
@@ -232,6 +281,7 @@ describe("mergeExtractionIntoForm: missing fields", () => {
     const merge = mergeExtractionIntoForm(
       EMPTY_FORM_VALUES,
       extraction({ title: "Frontend", workMode: "remoto" }),
+      ANALYZED_TEXT,
     );
     expect(merge.missingFields).toEqual(["company", "seniority"]);
   });
@@ -245,6 +295,7 @@ describe("mergeExtractionIntoForm: missing fields", () => {
         seniority: "mid",
       }),
       NOTHING,
+      ANALYZED_TEXT,
     );
     expect(merge.missingFields).toEqual(["company"]);
   });
@@ -258,16 +309,22 @@ describe("mergeExtractionIntoForm: missing fields", () => {
         seniority: "mid",
       }),
       NOTHING,
+      ANALYZED_TEXT,
     );
     expect(merge.missingFields).toEqual([]);
   });
 
   it("recalculates from the values at that moment", () => {
-    const first = mergeExtractionIntoForm(EMPTY_FORM_VALUES, NOTHING);
+    const first = mergeExtractionIntoForm(
+      EMPTY_FORM_VALUES,
+      NOTHING,
+      ANALYZED_TEXT,
+    );
     expect(first.missingFields).toContain("seniority");
     const second = mergeExtractionIntoForm(
       { ...first.values, seniority: "senior" },
       NOTHING,
+      ANALYZED_TEXT,
     );
     expect(second.missingFields).not.toContain("seniority");
   });
@@ -287,6 +344,7 @@ describe("mergeExtractionIntoForm: tags", () => {
           { label: "Inglés B2", group: "language" },
         ],
       }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.tags).toStrictEqual([
       { label: "React", group: "stack" },
@@ -300,6 +358,7 @@ describe("mergeExtractionIntoForm: tags", () => {
     const merge = mergeExtractionIntoForm(
       withTags([{ label: "Docker", group: "nice_to_have" }]),
       extraction({ tags: [{ label: "  docker ", group: "stack" }] }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.tags).toStrictEqual([
       { label: "Docker", group: "nice_to_have" },
@@ -311,6 +370,7 @@ describe("mergeExtractionIntoForm: tags", () => {
     const merge = mergeExtractionIntoForm(
       withTags([{ label: "Café  Racer", group: "stack" }]),
       extraction({ tags: [{ label: "café racer", group: "stack" }] }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.tags).toHaveLength(1);
     expect(merge.aiTags).toStrictEqual([]);
@@ -330,6 +390,7 @@ describe("mergeExtractionIntoForm: tags", () => {
           { label: "Tres", group: "stack" },
         ],
       }),
+      ANALYZED_TEXT,
     );
     expect(merge.values.tags).toHaveLength(20);
     expect(merge.values.tags.slice(0, 19)).toStrictEqual(existing);
@@ -338,7 +399,7 @@ describe("mergeExtractionIntoForm: tags", () => {
 
   it("leaves the tags as they were when the extraction has none", () => {
     const current = withTags([{ label: "React", group: "stack" }]);
-    const merge = mergeExtractionIntoForm(current, NOTHING);
+    const merge = mergeExtractionIntoForm(current, NOTHING, ANALYZED_TEXT);
     expect(merge.values.tags).toStrictEqual(current.tags);
     expect(merge.aiTags).toStrictEqual([]);
   });
@@ -349,6 +410,7 @@ describe("mergeExtractionIntoForm: tags", () => {
     mergeExtractionIntoForm(
       current,
       extraction({ tags: [{ label: "Vue", group: "stack" }] }),
+      ANALYZED_TEXT,
     );
     expect(current).toStrictEqual(snapshot);
   });

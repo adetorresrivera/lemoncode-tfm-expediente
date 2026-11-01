@@ -209,13 +209,9 @@ describe("PUT /api/applications/:id", () => {
     expect(updated.interviews).toEqual([]);
   });
 
-  it("keeps offerText and the document links, whether the body omits them, sends null or sends other values", async () => {
+  it("keeps the document links, whether the body omits them, sends null or sends other values", async () => {
     const app = buildApp();
-    const created = await create(app, {
-      title: "Dev",
-      company: "Acme",
-      offerText: "texto",
-    });
+    const created = await create(app, { title: "Dev", company: "Acme" });
     await testDb.db
       .collection("applications")
       .updateOne(
@@ -227,31 +223,96 @@ describe("PUT /api/applications/:id", () => {
       title: "Dev 2",
       company: "Acme",
     });
-    expect(omitted.offerText).toBe("texto");
     expect(omitted.cvDocumentId).toBe("cv-1");
     expect(omitted.coverLetterDocumentId).toBe("carta-1");
 
     const nulls = await update(app, created.id, {
       title: "Dev 3",
       company: "Acme",
-      offerText: null,
       cvDocumentId: null,
       coverLetterDocumentId: null,
     });
-    expect(nulls.offerText).toBe("texto");
     expect(nulls.cvDocumentId).toBe("cv-1");
     expect(nulls.coverLetterDocumentId).toBe("carta-1");
 
     const others = await update(app, created.id, {
       title: "Dev 4",
       company: "Acme",
-      offerText: "otro",
       cvDocumentId: "cv-2",
       coverLetterDocumentId: "carta-2",
     });
-    expect(others.offerText).toBe("texto");
     expect(others.cvDocumentId).toBe("cv-1");
     expect(others.coverLetterDocumentId).toBe("carta-1");
+  });
+
+  it("writes offerText exactly as sent and clears it with null or when omitted", async () => {
+    const app = buildApp();
+    const created = await create(app, {
+      title: "Dev",
+      company: "Acme",
+      offerText: "texto",
+    });
+
+    const replaced = await update(app, created.id, {
+      title: "Dev",
+      company: "Acme",
+      offerText: "otro",
+    });
+    expect(replaced.offerText).toBe("otro");
+    const stored = await testDb.db
+      .collection("applications")
+      .findOne({ _id: new ObjectId(created.id) });
+    expect(stored?.offerText).toBe("otro");
+
+    const cleared = await update(app, created.id, {
+      title: "Dev",
+      company: "Acme",
+      offerText: null,
+    });
+    expect(cleared.offerText).toBeNull();
+
+    await update(app, created.id, {
+      title: "Dev",
+      company: "Acme",
+      offerText: "de nuevo",
+    });
+    const omitted = await update(app, created.id, {
+      title: "Dev",
+      company: "Acme",
+    });
+    expect(omitted.offerText).toBeNull();
+  });
+
+  it("stores an offerText of 20,000 characters and rejects 20,001 without changing anything", async () => {
+    const app = buildApp();
+    const created = await create(app, {
+      title: "Dev",
+      company: "Acme",
+      offerText: "texto",
+    });
+
+    const limit = "a".repeat(20000);
+    const accepted = await update(app, created.id, {
+      title: "Dev",
+      company: "Acme",
+      offerText: limit,
+    });
+    expect(accepted.offerText).toBe(limit);
+
+    const res = await put(app, created.id, {
+      title: "Cambiado",
+      company: "Acme",
+      offerText: "a".repeat(20001),
+    });
+    expect(res.status).toBe(400);
+    const body = errorResponseSchema.parse(await res.json());
+    expect(body.error.code).toBe("VALIDATION_ERROR");
+
+    const stored = await testDb.db
+      .collection("applications")
+      .findOne({ _id: new ObjectId(created.id) });
+    expect(stored?.offerText).toBe(limit);
+    expect(stored?.title).toBe("Dev");
   });
 
   it("clears appliedAt with null and stores a given instant", async () => {

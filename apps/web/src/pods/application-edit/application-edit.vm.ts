@@ -31,6 +31,9 @@ export interface ApplicationFormValues {
   appliedAt: string;
   sourceUrl: string;
   notes: string;
+  // The analyzed offer, "" when there is none. Only a successful analysis sets it (D-10); the
+  // textarea draft lives in the extraction hook and never reaches this value by typing.
+  offerText: string;
 }
 
 export type FormFieldName = keyof ApplicationFormValues;
@@ -50,6 +53,7 @@ export const EMPTY_FORM_VALUES: ApplicationFormValues = {
   appliedAt: "",
   sourceUrl: "",
   notes: "",
+  offerText: "",
 };
 
 // Form-level message shown in the always-mounted polite status slot above the actions.

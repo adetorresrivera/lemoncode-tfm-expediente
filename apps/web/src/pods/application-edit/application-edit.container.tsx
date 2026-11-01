@@ -103,7 +103,7 @@ function ApplicationEditForm({
   });
   const { draft, setDraft, status, analyze, clearStatus } = useOfferExtraction({
     form,
-    initialDraft: "",
+    initialDraft: values.offerText,
     onMerged: marks.addFromMerge,
   });
 

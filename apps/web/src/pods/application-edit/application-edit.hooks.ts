@@ -316,11 +316,21 @@ export function useOfferExtraction({
     controllerRef.current = controller;
     setStatus({ kind: "analysing" });
 
-    extractOffer(draft.trim(), controller.signal)
+    const analyzedText = draft.trim();
+    extractOffer(analyzedText, controller.signal)
       .then((extraction) => {
         if (controller.signal.aborted) return;
-        const merge = mergeExtractionIntoForm(form.state.values, extraction);
+        const merge = mergeExtractionIntoForm(
+          form.state.values,
+          extraction,
+          analyzedText,
+        );
         for (const field of merge.aiFields) applyField(field, merge.values);
+        // The analyzed offer is stored with the application (D-10). It has no mounted field, and
+        // typing in the textarea never reaches it: only a successful analysis writes it.
+        form.setFieldValue("offerText", merge.values.offerText, {
+          dontRunListeners: true,
+        });
         // Only when the AI added chips: the tag list stays untouched otherwise.
         if (merge.aiTags.length > 0) {
           form.setFieldValue("tags", merge.values.tags, {
