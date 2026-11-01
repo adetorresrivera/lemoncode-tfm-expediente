@@ -1,5 +1,5 @@
 import { offerExtractionSchema, type OfferExtraction } from "@tfm/contracts";
-import type { LlmClient } from "../llm/llm.client.js";
+import type { LlmCallOptions, LlmClient } from "../llm/llm.client.js";
 
 // Literal copy of the fenced block under «Prompt de sistema» in docs/AI-EXTRACTION.md (D-25).
 // extract.routes.test.ts compares it with the document: edit both together, with approval.
@@ -20,8 +20,13 @@ export const EXTRACTION_SYSTEM_PROMPT = [
   "  - Grafía canónica (React, TypeScript, C#, .NET 8, AWS). Sin duplicados. Máximo 20.",
 ].join("\n");
 
+// RED stub (plan 03-03): replaced by the real normalization in the GREEN commit.
+export function normalizeExtraction(raw: OfferExtraction): OfferExtraction {
+  throw new Error(`not implemented: ${typeof raw}`);
+}
+
 export interface ExtractService {
-  extract(text: string): Promise<OfferExtraction>;
+  extract(text: string, options?: LlmCallOptions): Promise<OfferExtraction>;
 }
 
 // Never logs: the offer text must not reach the logs (plan 03-03 adds length and duration only).
