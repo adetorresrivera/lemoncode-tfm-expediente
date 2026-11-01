@@ -130,8 +130,10 @@ describe.each([
     };
     if (config.LLM_PROVIDER !== "ollama") delete contract.$schema;
     const expected = structuredClone(contract) as {
+      required: string[];
       properties: {
         tags: { items: { properties: { group: { enum: string[] } } } };
+        idiomas?: unknown;
       };
     };
     expect(expected.properties.tags.items.properties.group.enum).toEqual([
@@ -144,6 +146,12 @@ describe.each([
       "nice_to_have",
       "idioma",
     ];
+    expected.properties.idiomas = {
+      type: "array",
+      maxItems: 20,
+      items: { type: "string", minLength: 1, maxLength: 40 },
+    };
+    expected.required = [...expected.required, "idiomas"];
     expect(sent).toEqual(expected);
     expect(JSON.stringify(sent)).not.toContain("language");
     expect(body.messages[0]?.content).not.toContain("language");
@@ -192,6 +200,57 @@ describe.each([
     expect(body.tags).toEqual(expected);
     const groups: readonly string[] = tagGroupSchema.options;
     expect(body.tags.every((tag) => groups.includes(tag.group))).toBe(true);
+    expect(body.tags.some((tag) => (tag.group as string) === "idioma")).toBe(
+      false,
+    );
+  });
+
+  it("files the spoken languages the model lists in idiomas under language, outside the closed word list", async () => {
+    const model = {
+      ...RAW_OFF_SPEC,
+      salaryMin: null,
+      salaryMax: null,
+      currency: null,
+      tags: [
+        { label: "C", group: "idioma" },
+        { label: "Python", group: "idioma" },
+        { label: "React", group: "stack" },
+      ],
+      idiomas: ["Coreano B1", "Hindi"],
+    };
+    const expected = [
+      { label: "Coreano B1", group: "language" },
+      { label: "Hindi", group: "language" },
+      { label: "C", group: "stack" },
+      { label: "Python", group: "stack" },
+      { label: "React", group: "stack" },
+    ];
+
+    stubModel(config, model);
+    const result = await createExtractService(createLlmClient(config)).extract(
+      TEXT,
+    );
+    expect(result.tags).toEqual(expected);
+
+    stubModel(config, model);
+    const deps: AppDeps = {
+      pingMongo: async () => true,
+      pingS3: async () => true,
+      pingLlm: async () => true,
+      llm: createLlmClient(config),
+    };
+    const res = await createApp(deps).request("/api/offers/extract", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: TEXT }),
+    });
+    expect(res.status).toBe(200);
+    const json: unknown = await res.json();
+    expect(typeof json === "object" && json !== null && "idiomas" in json).toBe(
+      false,
+    );
+    const body = offerExtractionSchema.parse(json);
+    expect(body.tags).toEqual(expected);
     expect(body.tags.some((tag) => (tag.group as string) === "idioma")).toBe(
       false,
     );
