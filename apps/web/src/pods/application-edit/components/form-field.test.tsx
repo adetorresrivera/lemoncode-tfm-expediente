@@ -24,7 +24,7 @@ describe("controlProps marks", () => {
   it("adds the missing id and the gold classes when the field is missing", () => {
     const props = controlProps({ id: "f", missing: true });
     expect(props["aria-describedby"]).toBe("f-missing");
-    expect(props.className).toBe("border-brand-gold bg-ai-missing-bg");
+    expect(props.className).toBe("border-brand-gold-ink bg-ai-missing-bg");
   });
 
   it("drops the missing id and the classes when there is an error, keeping the order hint, ai, error", () => {
@@ -77,7 +77,7 @@ describe("FormField marks", () => {
     expect(line).toHaveAttribute("id", "field-title-missing");
     expect(line).toHaveClass("text-sm", "font-semibold", "text-brand-gold-ink");
     expect(screen.getByLabelText("Puesto")).toHaveClass(
-      "border-brand-gold",
+      "border-brand-gold-ink",
       "bg-ai-missing-bg",
     );
   });
@@ -103,7 +103,7 @@ describe("FormField marks", () => {
     expect(screen.queryByText("Complétalo tú")).toBeNull();
     expect(screen.getByText("Escribe el puesto.")).toBeInTheDocument();
     const control = screen.getByLabelText("Puesto");
-    expect(control).not.toHaveClass("border-brand-gold");
+    expect(control).not.toHaveClass("border-brand-gold-ink");
     expect(control).toHaveAttribute("aria-describedby", "field-title-error");
   });
 });

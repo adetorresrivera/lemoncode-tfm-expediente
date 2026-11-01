@@ -41,6 +41,8 @@ export const controlProps = ({
     "aria-describedby": describedBy === "" ? undefined : describedBy,
     "aria-invalid": error !== undefined ? (true as const) : undefined,
     "aria-required": required === true ? (true as const) : undefined,
-    className: showMissing ? "border-brand-gold bg-ai-missing-bg" : undefined,
+    className: showMissing
+      ? "border-brand-gold-ink bg-ai-missing-bg"
+      : undefined,
   };
 };

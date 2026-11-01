@@ -354,6 +354,117 @@ describe("normalizeExtraction tag group guard (G-03-2, D-26)", () => {
   });
 });
 
+describe("normalizeExtraction idiomas field (WR-01)", () => {
+  function withIdiomas(
+    idiomas: RawOfferExtraction["idiomas"],
+    tags: RawTag[] = [],
+  ): RawOfferExtraction {
+    return { ...BASE, tags, idiomas };
+  }
+
+  it("turns idiomas entries into language tags, trusted and not filtered by the word list", () => {
+    const result = normalizeExtraction(withIdiomas(["Coreano B1", "Hindi"]));
+    expect(result.tags).toEqual([
+      { label: "Coreano B1", group: "language" },
+      { label: "Hindi", group: "language" },
+    ]);
+  });
+
+  it("places idiomas tags before the model tags", () => {
+    const result = normalizeExtraction(
+      withIdiomas(
+        ["Coreano B1", "Hindi"],
+        [
+          { label: "C", group: "idioma" },
+          { label: "Python", group: "idioma" },
+          { label: "React", group: "stack" },
+        ],
+      ),
+    );
+    expect(result.tags).toEqual([
+      { label: "Coreano B1", group: "language" },
+      { label: "Hindi", group: "language" },
+      { label: "C", group: "stack" },
+      { label: "Python", group: "stack" },
+      { label: "React", group: "stack" },
+    ]);
+  });
+
+  it("keeps the guard as backstop for tags when there is no idiomas", () => {
+    expect(
+      normalizeExtraction(
+        rawDraft([
+          { label: "C", group: "idioma" },
+          { label: "Python", group: "language" },
+        ]),
+      ).tags,
+    ).toEqual([
+      { label: "C", group: "stack" },
+      { label: "Python", group: "stack" },
+    ]);
+    expect(
+      normalizeExtraction(rawDraft([{ label: "Inglés B2", group: "idioma" }]))
+        .tags,
+    ).toEqual([{ label: "Inglés B2", group: "language" }]);
+  });
+
+  it("deduplicates across both sources, the idiomas spelling and group winning", () => {
+    expect(
+      normalizeExtraction(
+        withIdiomas(["Inglés B2"], [{ label: "inglés b2", group: "stack" }]),
+      ).tags,
+    ).toEqual([{ label: "Inglés B2", group: "language" }]);
+    expect(
+      normalizeExtraction(withIdiomas(["Coreano B1", "  coreano   b1 "])).tags,
+    ).toEqual([{ label: "Coreano B1", group: "language" }]);
+  });
+
+  it("cuts a 45-character entry to 40 and drops a blank one", () => {
+    const long = "A".repeat(45);
+    const result = normalizeExtraction(withIdiomas([long, "   ", ""]));
+    expect(result.tags).toEqual([{ label: "A".repeat(40), group: "language" }]);
+  });
+
+  it("never lets the 20-tag limit drop a language", () => {
+    const tags: RawTag[] = Array.from({ length: 20 }, (_, i) => ({
+      label: `Tag ${i}`,
+      group: "stack",
+    }));
+    const result = normalizeExtraction(withIdiomas(["Coreano B1"], tags));
+    expect(result.tags).toHaveLength(20);
+    expect(result.tags[0]).toEqual({ label: "Coreano B1", group: "language" });
+    expect(result.tags.some((tag) => tag.label === "Tag 19")).toBe(false);
+  });
+
+  it("treats idiomas absent and null as before", () => {
+    const tags: RawTag[] = [{ label: "React", group: "stack" }];
+    const before = normalizeExtraction(rawDraft(tags));
+    expect(normalizeExtraction(withIdiomas(null, tags))).toEqual(before);
+    expect(normalizeExtraction(withIdiomas(undefined, tags))).toEqual(before);
+  });
+
+  it("returns no idiomas key, does not mutate its input and two calls agree", () => {
+    const input = withIdiomas(["Hindi"], [{ label: "C", group: "idioma" }]);
+    const snapshot = structuredClone(input);
+    const first = normalizeExtraction(input);
+    const second = normalizeExtraction(input);
+    expect("idiomas" in first).toBe(false);
+    expect(input).toEqual(snapshot);
+    expect(second).toEqual(first);
+  });
+
+  it("accepts idiomas absent, null and a string array in the raw parse", () => {
+    for (const idiomas of [undefined, null, [], ["Hindi", "Inglés B2"]]) {
+      expect(
+        rawOfferExtractionSchema.safeParse({ ...BASE, idiomas }).success,
+      ).toBe(true);
+    }
+    expect(
+      rawOfferExtractionSchema.safeParse({ ...BASE, idiomas: [1] }).success,
+    ).toBe(false);
+  });
+});
+
 describe("createExtractService", () => {
   const TEXT = "texto de la oferta ".repeat(5);
   let info: ReturnType<typeof vi.spyOn>;

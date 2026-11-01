@@ -21,13 +21,19 @@ export function RequestStatus({
       {kind === "loading" ? (
         <LoaderCircle
           aria-hidden="true"
+          strokeWidth={1.5}
           className="mt-0.5 size-4 shrink-0 animate-spin motion-reduce:animate-none"
         />
       ) : kind === "success" ? (
-        <Check aria-hidden="true" className="mt-0.5 size-4 shrink-0" />
+        <Check
+          aria-hidden="true"
+          strokeWidth={1.5}
+          className="mt-0.5 size-4 shrink-0"
+        />
       ) : (
         <CircleAlert
           aria-hidden="true"
+          strokeWidth={1.5}
           className="mt-0.5 size-4 shrink-0 text-destructive"
         />
       )}

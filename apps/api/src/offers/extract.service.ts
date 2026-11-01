@@ -6,6 +6,7 @@ import {
   tagGroupSchema,
   tagSchema,
   type OfferExtraction,
+  type Tag,
   type TagGroup,
 } from "@tfm/contracts";
 import { z } from "zod";
@@ -14,7 +15,9 @@ import type { LlmCallOptions, LlmClient } from "../llm/llm.client.js";
 
 // Literal copy of the fenced block under «Prompt de sistema» in docs/AI-EXTRACTION.md (D-25).
 // extract.routes.test.ts compares it with the document: edit both together, with approval.
-// The language item reads «idioma» since the user's approval of 2026-11-01 (UAT G-03-2).
+// The language item reads «idioma» since the user's approval of 2026-11-01 (UAT G-03-2); a second
+// approval of 2026-11-01 (UI review WR-01, quick 261101-qh3) moves spoken languages to the
+// separate `idiomas` rule at the end.
 export const EXTRACTION_SYSTEM_PROMPT = [
   "Eres un extractor de datos de ofertas de empleo en español o inglés.",
   "Devuelve solo los campos del esquema. Reglas:",
@@ -29,9 +32,9 @@ export const EXTRACTION_SYSTEM_PROMPT = [
   "- tags:",
   "  - stack: tecnologías, lenguajes, frameworks, cloud y herramientas requeridas.",
   '  - nice_to_have: lo que la oferta marca como "se valora", "plus", "deseable".',
-  '  - idioma: idiomas con nivel si aparece ("Inglés B2").',
-  '  - label es el nombre de la tecnología o idioma (p. ej. "React", "Inglés B2"), nunca el nombre del grupo.',
+  '  - label es el nombre de la tecnología (p. ej. "React"), nunca el nombre del grupo.',
   "  - Grafía canónica (React, TypeScript, C#, .NET 8, AWS). Sin duplicados. Máximo 20.",
+  '- idiomas: los idiomas hablados que pide la oferta, con nivel si aparece ("Inglés B2", "Coreano B1"). Van aquí, nunca en tags.',
 ].join("\n");
 
 const MAX_LABEL_UNITS = 40;
@@ -40,7 +43,9 @@ const MAX_LABEL_UNITS = 40;
 // modelOfferExtractionSchema (D-01); this one only decides what is usable once it answers, so
 // an over-long label, a 21st tag, an empty label or a free-form currency is normalized
 // instead of failing the whole analysis. It also accepts the alias «idioma» besides every
-// contract group. It is not an API model: nothing leaves the API with it.
+// contract group, and `idiomas` (spoken languages), absent or null because the mock, the fake
+// clients and older contract-shaped answers have none. It is not an API model: nothing leaves
+// the API with it.
 export const rawOfferExtractionSchema = offerExtractionSchema.extend({
   salaryMin: z.number().nullable(),
   salaryMax: z.number().nullable(),
@@ -51,6 +56,7 @@ export const rawOfferExtractionSchema = offerExtractionSchema.extend({
       group: z.enum([...tagGroupSchema.options, "idioma"]),
     }),
   ),
+  idiomas: z.array(z.string()).nullish(),
 });
 
 export const MODEL_TAG_GROUPS = ["stack", "nice_to_have", "idioma"] as const;
@@ -58,10 +64,13 @@ export const MODEL_TAG_GROUPS = ["stack", "nice_to_have", "idioma"] as const;
 // Provider-facing only: shown to the model through LlmCallOptions.responseSchema. It never
 // parses an answer and never leaves the API. The model reads the English «language» as
 // programming language (UAT G-03-2), so it sees «idioma», which the raw parse maps back.
+// `idiomas` is the model-facing home for spoken languages (WR-01), in Spanish for the same
+// reason; required because OpenAI strict mode needs every property in `required`.
 export const modelOfferExtractionSchema = offerExtractionSchema.extend({
   tags: z
     .array(tagSchema.extend({ group: z.enum(MODEL_TAG_GROUPS) }))
     .max(MAX_TAGS),
+  idiomas: z.array(tagSchema.shape.label).max(MAX_TAGS),
 });
 
 export type RawOfferExtraction = z.infer<typeof rawOfferExtractionSchema>;
@@ -116,8 +125,9 @@ export function isSpokenLanguageLabel(label: string): boolean {
   return words.some((word) => SPOKEN_LANGUAGE_WORDS.has(word));
 }
 
-// «language» and its model-facing alias «idioma» are kept only for spoken languages;
-// anything else (C, Python, Java…) belongs in «stack». One direction only (D-26).
+// Backstop for the tags inside `tags`: «language» and its model-facing alias «idioma» are kept
+// only for spoken languages; anything else (C, Python, Java…) belongs in «stack». One
+// direction only (D-26). Entries of `idiomas` do not go through here (trusted).
 function resolveTagGroup(
   label: string,
   group: RawOfferExtraction["tags"][number]["group"],
@@ -161,6 +171,15 @@ export function normalizeExtraction(raw: RawOfferExtraction): OfferExtraction {
     [salaryMin, salaryMax] = [salaryMax, salaryMin];
   }
   const currency = clean(raw.currency);
+  // `idiomas` is trusted: each entry is a spoken language, so it skips the word list.
+  const languageTags: Tag[] = (raw.idiomas ?? []).map((label) => ({
+    label: cutLabel(normalizeTagLabel(label)),
+    group: "language",
+  }));
+  const modelTags: Tag[] = raw.tags.map((tag) => {
+    const label = cutLabel(normalizeTagLabel(tag.label));
+    return { label, group: resolveTagGroup(label, tag.group) };
+  });
   const result: OfferExtraction = {
     title: clean(raw.title),
     company: clean(raw.company),
@@ -172,12 +191,8 @@ export function normalizeExtraction(raw: RawOfferExtraction): OfferExtraction {
     salaryMax,
     // A value that is not an ISO 4217-shaped code (for example "€") is dropped, not guessed.
     currency: toCurrencyCode(currency),
-    tags: normalizeTags(
-      raw.tags.map((tag) => {
-        const label = cutLabel(normalizeTagLabel(tag.label));
-        return { label, group: resolveTagGroup(label, tag.group) };
-      }),
-    ),
+    // Languages first: they win a duplicate and the 20-tag cap never drops them.
+    tags: normalizeTags([...languageTags, ...modelTags]),
   };
   const parsed = offerExtractionSchema.safeParse(result);
   if (!parsed.success) {
