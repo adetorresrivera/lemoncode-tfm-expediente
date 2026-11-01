@@ -1311,3 +1311,220 @@ describe("ApplicationEditContainer offer limits", () => {
     expect(screen.queryByText("Analizando la oferta…")).toBeNull();
   });
 });
+
+const cancelButton = () =>
+  screen.getByRole("button", { name: "Cancelar análisis" });
+const queryCancel = () =>
+  screen.queryByRole("button", { name: "Cancelar análisis" });
+
+describe("ApplicationEditContainer cancel and analysing state", () => {
+  it("sends one request when the trigger is pressed twice while analysing", async () => {
+    const user = userEvent.setup();
+    const pending = deferred();
+    const fetchMock = mockFetch({
+      "POST /api/offers/extract": () => pending.promise,
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText("Analizando la oferta…");
+    await user.click(analyzeButton());
+
+    expect(callsTo(fetchMock, "POST", "/api/offers/extract")).toHaveLength(1);
+  });
+
+  it("locks the textarea and the panel trigger while analysing but not the form", async () => {
+    const user = userEvent.setup();
+    mockFetch({ "POST /api/offers/extract": () => deferred().promise });
+    renderCreate();
+
+    expect(queryCancel()).toBeNull();
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText("Analizando la oferta…");
+
+    const textarea = screen.getByLabelText("Texto de la oferta");
+    expect(textarea).toHaveAttribute("readonly");
+    expect(textarea).toHaveClass("bg-muted");
+    expect(screen.getByRole("button", { name: "Pegar oferta" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Pegar oferta" }),
+    ).toHaveAttribute("aria-expanded", "true");
+    expect(cancelButton()).toBeVisible();
+    expect(screen.getByLabelText("Puesto *")).toBeEnabled();
+    await user.type(screen.getByLabelText("Puesto *"), "Mi puesto");
+    expect(screen.getByLabelText("Puesto *")).toHaveValue("Mi puesto");
+    expect(document.querySelector("[aria-busy]")).toBeNull();
+  });
+
+  it("cancels: aborts the request, says so, moves focus to the trigger and ignores a late answer", async () => {
+    const user = userEvent.setup();
+    const pending = deferred();
+    const fetchMock = mockFetch({
+      "POST /api/offers/extract": () => pending.promise,
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText("Analizando la oferta…");
+    const signal = callsTo(fetchMock, "POST", "/api/offers/extract")[0]?.[1]
+      ?.signal;
+    expect(signal?.aborted).toBe(false);
+
+    await user.click(cancelButton());
+
+    expect(signal?.aborted).toBe(true);
+    const message = screen.getByText("Análisis cancelado.");
+    expect(message.querySelector("svg")).toBeNull();
+    expect(screen.queryByText("Analizando la oferta…")).toBeNull();
+    expect(queryCancel()).toBeNull();
+    expect(analyzeButton()).toHaveFocus();
+    expect(screen.getByLabelText("Texto de la oferta")).not.toHaveAttribute(
+      "readonly",
+    );
+
+    pending.release(jsonResponse(EXTRACTION));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(screen.getByText("Análisis cancelado.")).toBeInTheDocument();
+    expect(screen.getByLabelText("Puesto *")).toHaveValue("");
+    expect(screen.queryByText(/Hemos rellenado/)).toBeNull();
+  });
+
+  it("sends a fresh request after a cancel and fills only the still-empty fields", async () => {
+    const user = userEvent.setup();
+    const first = deferred();
+    let calls = 0;
+    const fetchMock = mockFetch({
+      "POST /api/offers/extract": () => {
+        calls += 1;
+        return calls === 1
+          ? first.promise
+          : Promise.resolve(jsonResponse(EXTRACTION));
+      },
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText("Analizando la oferta…");
+    await user.click(cancelButton());
+    await user.type(screen.getByLabelText("Empresa *"), "Acme");
+    await user.click(analyzeButton());
+
+    expect(
+      await screen.findByText("Hemos rellenado 8 campos. Revísalos."),
+    ).toBeInTheDocument();
+    expect(callsTo(fetchMock, "POST", "/api/offers/extract")).toHaveLength(2);
+    expect(screen.getByLabelText("Empresa *")).toHaveValue("Acme");
+    expect(screen.getByLabelText("Puesto *")).toHaveValue(
+      "Desarrollador/a Frontend Senior",
+    );
+    expect(screen.queryByText("Análisis cancelado.")).toBeNull();
+  });
+
+  it("does not move focus when the analysis succeeds or fails", async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    mockFetch({
+      "POST /api/offers/extract": () => {
+        calls += 1;
+        return calls === 1
+          ? jsonResponse(errorBody("LLM_ERROR"), 502)
+          : jsonResponse(EXTRACTION);
+      },
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/No hemos podido leer la oferta/);
+    expect(analyzeButton()).toHaveFocus();
+
+    screen.getByLabelText("Empresa *").focus();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado/);
+    await user.click(screen.getByLabelText("Ubicación"));
+    expect(screen.getByLabelText("Ubicación")).toHaveFocus();
+  });
+
+  it("inserts a newline with Enter in the textarea and submits nothing", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "POST /api/applications": () => jsonResponse(created, 201),
+    });
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Puesto *"), "Mi puesto");
+    await user.type(screen.getByLabelText("Empresa *"), "Acme");
+    await user.type(
+      screen.getByLabelText("Texto de la oferta"),
+      "primera linea{Enter}segunda",
+    );
+
+    expect(screen.getByLabelText("Texto de la oferta")).toHaveValue(
+      "primera linea\nsegunda",
+    );
+    expect(callsTo(fetchMock, "POST", "/api/applications")).toHaveLength(0);
+  });
+
+  it("tabs from the panel trigger to the textarea, the AI button, the cancel button and the first field", async () => {
+    const user = userEvent.setup();
+    mockFetch({ "POST /api/offers/extract": () => deferred().promise });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText("Analizando la oferta…");
+    // The trigger is disabled while analysing, so the sequence starts at the textarea.
+    screen.getByLabelText("Texto de la oferta").focus();
+    await user.tab();
+    expect(analyzeButton()).toHaveFocus();
+    await user.tab();
+    expect(cancelButton()).toHaveFocus();
+    await user.tab();
+    expect(screen.getByLabelText("Puesto *")).toHaveFocus();
+  });
+
+  it("tabs from the AI button straight to the first field when idle", async () => {
+    const user = userEvent.setup();
+    renderCreate();
+
+    pasteOffer();
+    screen.getByRole("button", { name: "Pegar oferta" }).focus();
+    await user.tab();
+    expect(screen.getByLabelText("Texto de la oferta")).toHaveFocus();
+    await user.tab();
+    expect(analyzeButton()).toHaveFocus();
+    await user.tab();
+    expect(screen.getByLabelText("Puesto *")).toHaveFocus();
+  });
+
+  it("aborts silently when the form is left while analysing", async () => {
+    const user = userEvent.setup();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const pending = deferred();
+    const fetchMock = mockFetch({
+      "POST /api/offers/extract": () => pending.promise,
+    });
+    const { unmount } = renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText("Analizando la oferta…");
+    const signal = callsTo(fetchMock, "POST", "/api/offers/extract")[0]?.[1]
+      ?.signal;
+
+    unmount();
+    expect(signal?.aborted).toBe(true);
+    pending.release(jsonResponse(EXTRACTION));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
+  });
+});
