@@ -316,10 +316,15 @@ export function useOfferExtraction({
     controllerRef.current = controller;
     setStatus({ kind: "analysing" });
 
-    extractOffer(draft.trim(), controller.signal)
+    const analyzedText = draft.trim();
+    extractOffer(analyzedText, controller.signal)
       .then((extraction) => {
         if (controller.signal.aborted) return;
-        const merge = mergeExtractionIntoForm(form.state.values, extraction);
+        const merge = mergeExtractionIntoForm(
+          form.state.values,
+          extraction,
+          analyzedText,
+        );
         for (const field of merge.aiFields) applyField(field, merge.values);
         // Only when the AI added chips: the tag list stays untouched otherwise.
         if (merge.aiTags.length > 0) {

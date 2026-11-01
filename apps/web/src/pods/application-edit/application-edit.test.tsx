@@ -82,6 +82,18 @@ describe("mapFormValuesToApiInput", () => {
     });
   });
 
+  it("sends offerText as text, and blank text as null", () => {
+    expect(
+      mapFormValuesToApiInput(values({ offerText: "Texto" })).offerText,
+    ).toBe("Texto");
+    expect(
+      mapFormValuesToApiInput(values({ offerText: "" })).offerText,
+    ).toBeNull();
+    expect(
+      mapFormValuesToApiInput(values({ offerText: "  \n " })).offerText,
+    ).toBeNull();
+  });
+
   it("keeps the chosen currency when at least one salary is filled", () => {
     const input = mapFormValuesToApiInput(values({ salaryMin: "52000" }));
     expect(input.salaryMin).toBe(52000);
@@ -990,7 +1002,15 @@ describe("mapApplicationFromApiToFormValues", () => {
       appliedAt: toLocalDateInput(AUTO_APPLIED_AT),
       sourceUrl: "",
       notes: "",
+      offerText: "",
     });
+  });
+
+  it("carries a stored offerText into the form values", () => {
+    const mapped = mapApplicationFromApiToFormValues(
+      stored({ offerText: "Oferta guardada" }),
+    );
+    expect(mapped.offerText).toBe("Oferta guardada");
   });
 
   it("keeps a stored currency and the optional enums", () => {

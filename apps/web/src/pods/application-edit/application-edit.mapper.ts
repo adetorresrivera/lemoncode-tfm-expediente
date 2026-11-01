@@ -88,6 +88,7 @@ export function mapApplicationFromApiToFormValues(
     appliedAt: toLocalDateInput(application.appliedAt),
     sourceUrl: application.sourceUrl ?? "",
     notes: application.notes ?? "",
+    offerText: application.offerText ?? "",
   };
 }
 
@@ -130,8 +131,8 @@ export const mapFormValuesToApiInput = (
         : (toLocalNoonIso(values.appliedAt) ?? values.appliedAt),
     sourceUrl: textOrNull(values.sourceUrl.trim()),
     notes: textOrNull(values.notes),
-    // No inputs for these in Phase 2: Phase 3 adds the paste panel, Phase 5 the documents.
-    offerText: null,
+    // The analyzed offer travels with every save; the document links have no inputs until Phase 5.
+    offerText: textOrNull(values.offerText),
     cvDocumentId: null,
     coverLetterDocumentId: null,
   };
@@ -150,8 +151,10 @@ const isBlank = (text: string): boolean => text.trim() === "";
 export function mergeExtractionIntoForm(
   current: ApplicationFormValues,
   extraction: OfferExtraction,
+  text: string,
 ): ExtractionMerge {
-  const values: ApplicationFormValues = { ...current };
+  // The analyzed offer is stored as sent, whatever was stored before; it is not an AI-filled field.
+  const values: ApplicationFormValues = { ...current, offerText: text };
   const aiFields: AiFillableField[] = [];
 
   const fill = <F extends MergedTextField>(
