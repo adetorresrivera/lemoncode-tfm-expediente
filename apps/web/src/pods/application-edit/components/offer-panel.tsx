@@ -13,6 +13,7 @@ import type {
   OfferAnalysisStatus,
   OfferErrorReason,
   OfferPanelModel,
+  RelevantField,
 } from "../application-edit.vm";
 
 const ERROR_MESSAGES: Record<OfferErrorReason, string> = {
@@ -23,13 +24,29 @@ const ERROR_MESSAGES: Record<OfferErrorReason, string> = {
   network: "No hay conexión con el servidor. Inténtalo otra vez.",
 };
 
-const successMessage = (filled: number): string => {
-  if (filled === 0) {
-    return "No hemos encontrado datos nuevos en la oferta. Completa el formulario a mano.";
-  }
-  return filled === 1
-    ? "Hemos rellenado 1 campo. Revísalo."
-    : `Hemos rellenado ${filled} campos. Revísalos.`;
+const RELEVANT_LABELS: Record<RelevantField, string> = {
+  title: "Puesto",
+  company: "Empresa",
+  workMode: "Modalidad",
+  seniority: "Seniority",
+};
+
+// «Puesto», «Empresa y Seniority», «Puesto, Empresa y Seniority» (form order, final «y»).
+const joinLabels = (labels: string[]): string =>
+  labels.length <= 1
+    ? labels.join("")
+    : `${labels.slice(0, -1).join(", ")} y ${labels[labels.length - 1]}`;
+
+const successMessage = (filled: number, missing: RelevantField[]): string => {
+  const summary =
+    filled === 0
+      ? "No hemos encontrado datos nuevos en la oferta. Completa el formulario a mano."
+      : filled === 1
+        ? "Hemos rellenado 1 campo. Revísalo."
+        : `Hemos rellenado ${filled} campos. Revísalos.`;
+  if (missing.length === 0) return summary;
+  const labels = joinLabels(missing.map((field) => RELEVANT_LABELS[field]));
+  return `${summary} Te falta completar: ${labels}.`;
 };
 
 // The status line lives outside the collapsible content, always mounted, so an announcement is
@@ -42,7 +59,10 @@ function AnalysisStatus({ status }: { status: OfferAnalysisStatus }) {
       return <RequestStatus kind="loading" message="Analizando la oferta…" />;
     case "success":
       return (
-        <RequestStatus kind="success" message={successMessage(status.filled)} />
+        <RequestStatus
+          kind="success"
+          message={successMessage(status.filled, status.missing)}
+        />
       );
     case "error":
       return (

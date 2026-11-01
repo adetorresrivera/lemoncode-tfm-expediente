@@ -126,7 +126,7 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     release(jsonResponse(EXTRACTION));
 
     expect(
-      await screen.findByText("Hemos rellenado 5 campos. Revísalos."),
+      await screen.findByText("Hemos rellenado 8 campos. Revísalos."),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("Puesto *")).toHaveValue("Mi puesto");
     expect(screen.getByLabelText("Empresa *")).toHaveValue("Lumen Analytics");
@@ -152,7 +152,7 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     await user.click(
       screen.getByRole("button", { name: "Autocompletar con IA" }),
     );
-    await screen.findByText("Hemos rellenado 5 campos. Revísalos.");
+    await screen.findByText("Hemos rellenado 8 campos. Revísalos.");
     expect(callsTo(fetchMock, "POST", "/api/applications")).toHaveLength(0);
 
     await user.click(
@@ -184,7 +184,7 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     await user.type(screen.getByLabelText("Empresa *"), "Acme");
     pending.release(jsonResponse(EXTRACTION));
 
-    await screen.findByText("Hemos rellenado 5 campos. Revísalos.");
+    await screen.findByText("Hemos rellenado 8 campos. Revísalos.");
     expect(screen.getByLabelText("Empresa *")).toHaveValue("Acme");
     expect(screen.getByLabelText("Puesto *")).toHaveValue(
       "Desarrollador/a Frontend Senior",
@@ -203,7 +203,9 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     pasteOffer();
     await user.click(analyzeButton());
 
-    await screen.findByText("Hemos rellenado 2 campos. Revísalos.");
+    await screen.findByText(
+      "Hemos rellenado 2 campos. Revísalos. Te falta completar: Puesto, Modalidad y Seniority.",
+    );
     expect(screen.getByLabelText("Empresa *")).toHaveValue("Acme SL");
     expect(screen.getByLabelText("Ubicación")).toHaveValue("Sevilla");
     expect(screen.getByLabelText("Puesto *")).toHaveValue("");
@@ -222,7 +224,9 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     await user.click(analyzeButton());
 
     expect(
-      await screen.findByText("Hemos rellenado 1 campo. Revísalo."),
+      await screen.findByText(
+        "Hemos rellenado 1 campo. Revísalo. Te falta completar: Puesto, Modalidad y Seniority.",
+      ),
     ).toBeInTheDocument();
   });
 
@@ -236,7 +240,7 @@ describe("ApplicationEditContainer AI autocomplete", () => {
 
     expect(
       await screen.findByText(
-        "No hemos encontrado datos nuevos en la oferta. Completa el formulario a mano.",
+        "No hemos encontrado datos nuevos en la oferta. Completa el formulario a mano. Te falta completar: Puesto, Empresa, Modalidad y Seniority.",
       ),
     ).toBeInTheDocument();
   });
@@ -281,7 +285,7 @@ describe("ApplicationEditContainer AI autocomplete", () => {
 
       await user.click(analyzeButton());
       expect(
-        await screen.findByText("Hemos rellenado 6 campos. Revísalos."),
+        await screen.findByText("Hemos rellenado 9 campos. Revísalos."),
       ).toBeInTheDocument();
       expect(screen.queryByText(message)).toBeNull();
     },
@@ -307,6 +311,111 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     expect(screen.getByLabelText("Empresa *")).toBeEnabled();
   });
 
+  it("fills the salary range and the currency of an empty create form and counts them", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () =>
+        jsonResponse({
+          ...EXTRACTION,
+          salaryMin: 45000,
+          salaryMax: 55000,
+          currency: "USD",
+          seniority: null,
+        }),
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+
+    expect(
+      await screen.findByText(
+        "Hemos rellenado 8 campos. Revísalos. Te falta completar: Seniority.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Salario mínimo")).toHaveValue(45000);
+    expect(screen.getByLabelText("Salario máximo")).toHaveValue(55000);
+    expect(screen.getByLabelText("Moneda")).toHaveValue("USD");
+  });
+
+  it("names two missing fields with «y»", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () =>
+        jsonResponse({ ...EXTRACTION, company: null, seniority: null }),
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+
+    expect(
+      await screen.findByText(/Te falta completar: Empresa y Seniority\.$/),
+    ).toBeInTheDocument();
+  });
+
+  it("names the four relevant fields when none was found", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () =>
+        jsonResponse({
+          ...EXTRACTION,
+          title: null,
+          company: null,
+          workMode: null,
+          seniority: null,
+        }),
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+
+    expect(
+      await screen.findByText(
+        /Te falta completar: Puesto, Empresa, Modalidad y Seniority\.$/,
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps a salary the user typed instead of inverting the range", async () => {
+    const user = userEvent.setup();
+    mockFetch({ "POST /api/offers/extract": () => jsonResponse(EXTRACTION) });
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Salario mínimo"), "60000");
+    pasteOffer();
+    await user.click(analyzeButton());
+
+    await screen.findByText("Hemos rellenado 6 campos. Revísalos.");
+    expect(screen.getByLabelText("Salario mínimo")).toHaveValue(60000);
+    expect(screen.getByLabelText("Salario máximo")).toHaveValue(null);
+    expect(screen.getByLabelText("Moneda")).toHaveValue("EUR");
+  });
+
+  it("drops the missing sentence on a second analysis once the user completed the field", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () =>
+        jsonResponse({ ...EXTRACTION, seniority: null }),
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Te falta completar: Seniority\.$/);
+
+    await user.selectOptions(screen.getByLabelText("Seniority"), "mid");
+    await user.click(analyzeButton());
+
+    expect(
+      await screen.findByText(
+        "No hemos encontrado datos nuevos en la oferta. Completa el formulario a mano.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/Te falta completar/)).toBeNull();
+  });
+
   it("keeps the status region outside the collapsible content so a collapse does not lose it", async () => {
     const user = userEvent.setup();
     mockFetch({ "POST /api/offers/extract": () => jsonResponse(EXTRACTION) });
@@ -314,12 +423,12 @@ describe("ApplicationEditContainer AI autocomplete", () => {
 
     pasteOffer();
     await user.click(analyzeButton());
-    await screen.findByText("Hemos rellenado 6 campos. Revísalos.");
+    await screen.findByText("Hemos rellenado 9 campos. Revísalos.");
     await user.click(screen.getByRole("button", { name: "Pegar oferta" }));
 
     const status = container.querySelector("[role='status']");
     expect(status).toHaveAttribute("aria-live", "polite");
-    expect(status).toHaveTextContent("Hemos rellenado 6 campos. Revísalos.");
+    expect(status).toHaveTextContent("Hemos rellenado 9 campos. Revísalos.");
     expect(screen.queryByLabelText("Texto de la oferta")).toBeNull();
   });
 
