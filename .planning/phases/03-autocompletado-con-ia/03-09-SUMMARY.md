@@ -275,6 +275,7 @@ The user ran one UI pass against the dev stack (web 5173, API 3000, `LLM_PROVIDE
 - **Intended behaviour (user decision, 2026-11-01):** on re-analysis, fields still marked «IA» and not edited by the user are replaced by the new offer's values, or cleared if the new offer lacks them. AI-proposed tags not edited by the user are replaced too. User-typed or user-edited fields and the user's own tags are never touched.
 - **Status:** not a bug in this plan's scope; recorded as a follow-up fix to `mergeExtractionIntoForm` and its callers (via `/gsd-quick`, orchestrator).
 - **Spec clarification needed (follow-up):** state the rule above in `docs/AI-EXTRACTION.md` flow step 4 and in the line of `.planning/phases/03-autocompletado-con-ia/03-UI-SPEC.md` that describes re-analysing.
+- **Applied:** 2026-11-01 by quick task 261101-gpz (commits in its SUMMARY); spec clarified in docs/AI-EXTRACTION.md flow step 4, 03-UI-SPEC.md and D-11 in 03-CONTEXT.md.
 
 ## Phase-wide spec additions (for the record)
 

@@ -6,8 +6,11 @@
 3. API → `LlmClient.extractStructured(prompt, text, offerExtractionSchema)` → valida con Zod → normaliza → responde `OfferExtraction`.
 4. Web (mapper del pod `application-edit`) **fusiona** con los valores actuales del formulario:
    - Campo vacío (`""`/`null`) → se rellena y se marca «IA».
-   - Campo con valor del usuario → no se toca.
-   - Etiquetas → unión sin duplicados (comparación en minúsculas).
+   - Campo que sigue marcado «IA» (lo rellenó un análisis anterior y el usuario no lo ha editado) → cuenta como vacío: se sustituye por el valor nuevo, o se vacía si la nueva extracción no lo trae (la moneda vuelve a EUR).
+   - Campo con valor del usuario (escrito o editado por él) → no se toca.
+   - Salario y moneda → el relleno nunca invierte el rango frente a un salario del usuario. La moneda se rellena solo si ningún extremo del salario es del usuario, el análisis ha rellenado alguno y la moneda seguía marcada «IA» o ambos extremos estaban vacíos.
+   - Etiquetas → las que propuso la IA y siguen en la lista se sustituyen por las nuevas; con las del usuario se hace la unión sin duplicados (comparación en minúsculas). Las del usuario no cambian y ganan en un duplicado.
+   - Marcas «IA» y «faltan» → se recalculan con el resultado del análisis nuevo.
    - Campos que siguen vacíos tras la extracción y son relevantes (título, empresa, modalidad, seniority) → resaltados como «faltan».
    - `offerText` ← texto pegado.
 5. El usuario revisa y guarda. Nada se persiste en el paso 3.

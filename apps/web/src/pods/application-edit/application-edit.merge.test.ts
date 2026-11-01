@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { mergeExtractionIntoForm } from "./application-edit.mapper";
 import {
   EMPTY_FORM_VALUES,
+  type AiFillableField,
   type ApplicationFormValues,
 } from "./application-edit.vm";
 
@@ -413,5 +414,236 @@ describe("mergeExtractionIntoForm: tags", () => {
       ANALYZED_TEXT,
     );
     expect(current).toStrictEqual(snapshot);
+  });
+});
+
+const marked = (
+  fields: AiFillableField[],
+  tags: string[] = [],
+): { aiFields: ReadonlySet<AiFillableField>; aiTags: ReadonlySet<string> } => ({
+  aiFields: new Set(fields),
+  aiTags: new Set(tags),
+});
+
+describe("mergeExtractionIntoForm: re-analysis of fields", () => {
+  it("replaces a field still marked IA", () => {
+    const merge = mergeExtractionIntoForm(
+      form({ title: "Frontend" }),
+      extraction({ title: "Backend" }),
+      ANALYZED_TEXT,
+      marked(["title"]),
+    );
+    expect(merge.values.title).toBe("Backend");
+    expect(merge.aiFields).toEqual(["title"]);
+  });
+
+  it("clears a marked field the new extraction lacks", () => {
+    const merge = mergeExtractionIntoForm(
+      form({ company: "Acme", workMode: "remoto" }),
+      NOTHING,
+      ANALYZED_TEXT,
+      marked(["company", "workMode"]),
+    );
+    expect(merge.values.company).toBe("");
+    expect(merge.values.workMode).toBe("");
+    expect(merge.aiFields).toEqual([]);
+    expect(merge.missingFields).toContain("company");
+    expect(merge.missingFields).toContain("workMode");
+  });
+
+  it("keeps a filled field without the mark", () => {
+    const merge = mergeExtractionIntoForm(
+      form({ title: "Mi puesto" }),
+      extraction({ title: "Otro" }),
+      ANALYZED_TEXT,
+      marked([]),
+    );
+    expect(merge.values.title).toBe("Mi puesto");
+    expect(merge.aiFields).toEqual([]);
+  });
+
+  it("replaces the marked salary range and currency", () => {
+    const merge = mergeExtractionIntoForm(
+      form({ salaryMin: "45000", salaryMax: "55000", currency: "USD" }),
+      extraction({ salaryMin: 50000, salaryMax: 60000, currency: "GBP" }),
+      ANALYZED_TEXT,
+      marked(["salaryMin", "salaryMax", "currency"]),
+    );
+    expect(merge.values).toMatchObject({
+      salaryMin: "50000",
+      salaryMax: "60000",
+      currency: "GBP",
+    });
+    expect(merge.aiFields).toEqual(["salaryMin", "salaryMax", "currency"]);
+  });
+
+  it("resets the marked salary range and currency when the new extraction has no salary", () => {
+    const merge = mergeExtractionIntoForm(
+      form({ salaryMin: "45000", salaryMax: "55000", currency: "USD" }),
+      NOTHING,
+      ANALYZED_TEXT,
+      marked(["salaryMin", "salaryMax", "currency"]),
+    );
+    expect(merge.values).toMatchObject({
+      salaryMin: "",
+      salaryMax: "",
+      currency: "EUR",
+    });
+    expect(merge.aiFields).toEqual([]);
+  });
+
+  it("keeps the inversion guard against a user maximum", () => {
+    const merge = mergeExtractionIntoForm(
+      form({ salaryMin: "45000", salaryMax: "30000", currency: "USD" }),
+      extraction({ salaryMin: 50000, salaryMax: 60000, currency: "GBP" }),
+      ANALYZED_TEXT,
+      marked(["salaryMin"]),
+    );
+    expect(merge.values.salaryMin).toBe("");
+    expect(merge.values.salaryMax).toBe("30000");
+    expect(merge.values.currency).toBe("USD");
+    expect(merge.aiFields).toEqual([]);
+  });
+
+  it("resets a marked currency when a salary side belongs to the user", () => {
+    const merge = mergeExtractionIntoForm(
+      form({ salaryMin: "45000", salaryMax: "55000", currency: "GBP" }),
+      extraction({ salaryMin: 40000, currency: "USD" }),
+      ANALYZED_TEXT,
+      marked(["salaryMin", "currency"]),
+    );
+    expect(merge.values.salaryMin).toBe("40000");
+    expect(merge.values.salaryMax).toBe("55000");
+    expect(merge.values.currency).toBe("EUR");
+    expect(merge.aiFields).toEqual(["salaryMin"]);
+  });
+
+  it("keeps an unmarked currency next to marked salaries", () => {
+    const merge = mergeExtractionIntoForm(
+      form({ salaryMin: "45000", salaryMax: "55000", currency: "EUR" }),
+      extraction({ salaryMin: 50000, salaryMax: 60000, currency: "GBP" }),
+      ANALYZED_TEXT,
+      marked(["salaryMin", "salaryMax"]),
+    );
+    expect(merge.values).toMatchObject({
+      salaryMin: "50000",
+      salaryMax: "60000",
+      currency: "EUR",
+    });
+    expect(merge.aiFields).toEqual(["salaryMin", "salaryMax"]);
+  });
+
+  it("does not mutate the current values nor the previous marks", () => {
+    const current = form({ title: "Frontend", tags: [] });
+    const snapshot = structuredClone(current);
+    const previous = marked(["title"], ["react"]);
+    mergeExtractionIntoForm(
+      current,
+      extraction({ title: "Backend" }),
+      ANALYZED_TEXT,
+      previous,
+    );
+    expect(current).toStrictEqual(snapshot);
+    expect(previous.aiFields.size).toBe(1);
+    expect(previous.aiTags.size).toBe(1);
+  });
+});
+
+describe("mergeExtractionIntoForm: re-analysis of tags", () => {
+  const withTags = (tags: ApplicationFormValues["tags"]) =>
+    form({ tags: tags.map((tag) => ({ ...tag })) });
+
+  it("replaces the marked chips and keeps the user's first", () => {
+    const merge = mergeExtractionIntoForm(
+      withTags([
+        { label: "React", group: "stack" },
+        { label: "Vue", group: "stack" },
+      ]),
+      extraction({ tags: [{ label: "Angular", group: "stack" }] }),
+      ANALYZED_TEXT,
+      marked([], ["vue"]),
+    );
+    expect(merge.values.tags).toStrictEqual([
+      { label: "React", group: "stack" },
+      { label: "Angular", group: "stack" },
+    ]);
+    expect(merge.aiTags).toStrictEqual(["angular"]);
+  });
+
+  it("brings a re-proposed marked chip back in the new spelling and group, still marked", () => {
+    const merge = mergeExtractionIntoForm(
+      withTags([{ label: "React", group: "stack" }]),
+      extraction({ tags: [{ label: "react", group: "nice_to_have" }] }),
+      ANALYZED_TEXT,
+      marked([], ["react"]),
+    );
+    expect(merge.values.tags).toStrictEqual([
+      { label: "react", group: "nice_to_have" },
+    ]);
+    expect(merge.aiTags).toStrictEqual(["react"]);
+  });
+
+  it("removes the marked chips when the new extraction has none", () => {
+    const merge = mergeExtractionIntoForm(
+      withTags([
+        { label: "Node", group: "stack" },
+        { label: "Vue", group: "stack" },
+      ]),
+      NOTHING,
+      ANALYZED_TEXT,
+      marked([], ["vue"]),
+    );
+    expect(merge.values.tags).toStrictEqual([
+      { label: "Node", group: "stack" },
+    ]);
+    expect(merge.aiTags).toStrictEqual([]);
+  });
+
+  it("lets the user's chip win on a duplicate key", () => {
+    const merge = mergeExtractionIntoForm(
+      withTags([
+        { label: "Docker", group: "nice_to_have" },
+        { label: "Vue", group: "stack" },
+      ]),
+      extraction({
+        tags: [
+          { label: "docker", group: "stack" },
+          { label: "Go", group: "stack" },
+        ],
+      }),
+      ANALYZED_TEXT,
+      marked([], ["vue"]),
+    );
+    expect(merge.values.tags).toStrictEqual([
+      { label: "Docker", group: "nice_to_have" },
+      { label: "Go", group: "stack" },
+    ]);
+    expect(merge.aiTags).toStrictEqual(["go"]);
+  });
+
+  it("frees the slots of the dropped AI chips under the cap", () => {
+    const user = Array.from({ length: 19 }, (_, index) => ({
+      label: `Tag${index}`,
+      group: "stack" as const,
+    }));
+    const merge = mergeExtractionIntoForm(
+      withTags([...user, { label: "Vue", group: "stack" }]),
+      extraction({
+        tags: [
+          { label: "Uno", group: "stack" },
+          { label: "Dos", group: "stack" },
+          { label: "Tres", group: "stack" },
+        ],
+      }),
+      ANALYZED_TEXT,
+      marked([], ["vue"]),
+    );
+    expect(merge.values.tags).toHaveLength(20);
+    expect(merge.values.tags.slice(0, 19)).toStrictEqual(user);
+    expect(merge.values.tags[19]).toStrictEqual({
+      label: "Uno",
+      group: "stack",
+    });
+    expect(merge.aiTags).toStrictEqual(["uno"]);
   });
 });
