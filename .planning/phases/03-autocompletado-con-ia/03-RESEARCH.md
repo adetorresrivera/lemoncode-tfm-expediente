@@ -504,24 +504,33 @@ export const extractOffer = (text: string, signal?: AbortSignal): Promise<OfferE
 | A5 | `temperature: 0` is accepted by the user's chosen OpenAI-compatible model (reasoning models such as `gpt-5`/o-series reject it) | Pattern 2 | Cloud fallback errors out; drop the field |
 | A6 | Gemini's OpenAI-compatible layer honours `response_format: json_schema` reliably | Pattern 2 | A forum report says it ignored the schema intermittently; our own validate + retry covers it, but quality of the cloud plan B is unproven |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All seven resolved with the user on 2026-10-31; plan numbers refer to the revised Phase 3 plan set (03-01 … 03-09).
 
 1. **System prompt vs `gemma4:e2b` quality (needs the user, per D-25).**
    - What we know: verbatim prompt → tag labels equal to group names on 2/2 runs and a missed company on 1/2; +2 rule lines → correct on the 1 run tried (see Pitfall 7).
    - What's unclear: whether the three real fixtures behave like the toy offer; whether the user accepts adding rules to the "literal" prompt, changing model, or accepting the weak tags.
    - Recommendation: build the literal prompt first, run D-24, and bring the table plus the Pitfall 7 evidence to the user. Candidate fixes in order of cost: add the two lines (prompt change), a different local model (e.g. a 4B instruction model), cloud `gemini-2.5-flash-lite`.
+   - **RESOLVED (user decision 2026-10-31):** ship the literal prompt verbatim (`EXTRACTION_SYSTEM_PROMPT`, checked against docs/AI-EXTRACTION.md by a route test in 03-01). The D-24 manual run is plan 03-09 Task 2 (manual evidence), and the D-25 decision on prompt or model is the blocking human checkpoint 03-09 Task 3; any approved change is a follow-up after it.
 
 2. **`options.num_ctx` is outside the literal spec.** The spec says `options.temperature:0` only. Without `num_ctx` the long-offer case is broken on this Ollama (Pitfall 1). Recommendation: add `num_ctx: 8192` and record it in the SUMMARY as a spec addition; ask for approval together with Q1 since both touch the Ollama request/prompt contract.
+   - **RESOLVED (user decision 2026-10-31):** `options: { temperature: 0, num_ctx: 8192 }` approved as a spec addition; implemented and tested in plan 03-02 and recorded in its SUMMARY.
 
 3. **`strict: true` on the OpenAI request.** Spec: `json_schema: { name, schema }`. `strict: true` makes constrained decoding actually apply on OpenAI. Recommendation: include it (validate + retry covers failures); drop it if a vendor rejects it.
+   - **RESOLVED (2026-10-31, recommendation accepted):** `strict: true` is sent, with the top-level `$schema` key left out of the OpenAI body (A1); plan 03-02, covered by stubbed-`fetch` tests.
 
 4. **File names: docs vs CONTEXT/UI-SPEC.** ARCHITECTURE.md names `offers/extract.routes.ts`, `common/components/ai-mark.tsx`, and `scripts/seed.ts` under `apps/api/src/`; CONTEXT/UI-SPEC suggest `offers.routes.ts`, `ai-badge.tsx` and `apps/api/scripts/try-extract.ts` (marked "e.g."/"suggestions"). Recommendation: follow the docs (`extract.routes.ts`, `ai-mark.tsx`, `apps/api/src/scripts/try-extract.ts`; the last gets typechecked and linted for free since `tsconfig.json` includes only `src`). CLAUDE.md says contradictions with docs/ must be flagged; these are naming-only, so the planner may proceed with the docs' names unless the user objects.
+   - **RESOLVED (2026-10-31, recommendation accepted):** the docs' names are used: `offers/extract.routes.ts` and `offers/extract.service.ts` (03-01), `common/components/ai-mark.tsx` (03-05), `apps/api/src/scripts/try-extract.ts` (03-03).
 
 5. **D-04 signature.** `mergeExtractionIntoForm(current, extraction)` cannot "set `offerText`" without the analyzed text. Recommendation: add a third parameter `text` (or have the hook set `offerText` right after the merge). Flag in the plan.
+   - **RESOLVED (2026-10-31, recommendation accepted):** `mergeExtractionIntoForm(current, extraction, text)` with a required third parameter; plan 03-07 adds it and updates every call site in the same task.
 
 6. **Spec order vs tag truncation (Pitfall 8).** Real over-long labels/arrays → retry → 502, not truncation. Recommendation: implement truncation in the normalizer for the fake-client tests as the spec requires, document the real-model behaviour in the SUMMARY, and only if the manual test shows it happening consider a lenient schema (needs user approval because it changes the schema sent to the model).
+   - **RESOLVED (2026-10-31, recommendation accepted):** truncation and the 20-tag cap live in `normalizeExtraction` (plan 03-03) and run on fake-client data; the real-model behaviour (retry, then 502) is documented in the 03-03 SUMMARY; no lenient schema without user approval.
 
 7. **Small, low-risk normalization/merge choices** (discretion): treat whitespace-only form values as empty; uppercase `currency` in the API normalizer; narrow the currency rule when there is no salary (Pitfall 10). Recommend all three; mention in the plan so they are visible.
+   - **RESOLVED (2026-10-31, recommendation accepted):** whitespace-only form values count as empty (03-01, unit-tested in 03-04); `currency` is upper-cased by the API normalizer (03-03); the currency fill is narrowed to analyses that filled a salary (03-04).
 
 ## Environment Availability
 

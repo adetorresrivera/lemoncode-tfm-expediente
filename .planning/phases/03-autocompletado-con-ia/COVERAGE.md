@@ -3,7 +3,7 @@
 > Full coverage by default. Opt-outs are explicit, reasoned decisions.
 > Detector result at plan time: `{"detected": false}` on the roadmap section. The phase still calls two external LLM APIs through native `fetch` (D-01, no SDK): Ollama (`LLM_PROVIDER=ollama`, local `gemma4:e2b`) and any OpenAI-compatible endpoint (`LLM_PROVIDER=openai`, e.g. Gemini or Groq). The `mock` provider has no external surface. The project's own `POST /api/offers/extract` is internal and covered by plans 03-01 and 03-03.
 
-## Ollama (HTTP API, devcontainer 0.40.13 / compose image 0.40.3) — plans 03-02, 03-08
+## Ollama (HTTP API, devcontainer 0.40.13 / compose image 0.40.3) — plans 03-02, 03-09
 
 | capability | decision | reason |
 |---|---|---|
@@ -15,7 +15,7 @@
 | ollama:/api/generate, embeddings, tools, images and audio inputs | OPT-OUT | explicitly out of scope — the feature is one text-to-structured-draft call (docs/AI-EXTRACTION.md) |
 | ollama:model management (/api/pull, /api/tags, keep_alive) from the API | OPT-OUT | not needed — the compose `ollama-init` service pulls the model; keep_alive is not in the spec (RESEARCH Pitfall 12) |
 
-## OpenAI-compatible chat completions — plans 03-02, 03-08
+## OpenAI-compatible chat completions — plans 03-02, 03-09
 
 | capability | decision | reason |
 |---|---|---|
