@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Spoken languages outside the closed list are silently demoted to `stack`"
   - id: IN-01
     severity: info
@@ -31,7 +31,7 @@ findings:
     severity: info
     disposition: open
     title: "Trailing-slash normalization of `LLM_BASE_URL` is done three times"
-open: 6
+open: 5
 total: 7
 recorded: 2026-11-01T17:34:10.757Z
 ---
@@ -40,7 +40,7 @@ recorded: 2026-11-01T17:34:10.757Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
+| WR-01 | warning | fixed | quick 261101-qh3 (separate idiomas field, guard kept; user decision 2026-11-01) |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
