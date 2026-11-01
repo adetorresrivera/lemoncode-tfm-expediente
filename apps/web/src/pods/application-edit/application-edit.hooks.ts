@@ -4,7 +4,7 @@ import {
   type ApplicationInput,
 } from "@tfm/contracts";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { HttpError, type HttpErrorCode } from "@/core/http/http-client";
 import { extractOffer, getApplication } from "./api/api";
 import {
@@ -14,14 +14,19 @@ import {
   mergeExtractionIntoForm,
   validateApplicationForm,
 } from "./application-edit.mapper";
-import type {
-  AiFillableField,
-  ApplicationEditSummary,
-  ApplicationFormValues,
-  ExtractionMerge,
-  FormMessage,
-  OfferAnalysisStatus,
-  OfferErrorReason,
+import {
+  EMPTY_FORM_VALUES,
+  RELEVANT_FIELDS,
+  type AiFillableField,
+  type AiMarks,
+  type ApplicationEditSummary,
+  type ApplicationFormValues,
+  type ExtractionMerge,
+  type FormFieldName,
+  type FormMessage,
+  type OfferAnalysisStatus,
+  type OfferErrorReason,
+  type RelevantField,
 } from "./application-edit.vm";
 
 const INVALID_SUBMIT_MESSAGE = "Revisa los campos marcados.";
@@ -41,18 +46,35 @@ interface Options {
   initialValues: ApplicationFormValues;
   save: (input: ApplicationInput) => Promise<Application>;
   onSaved: (application: Application) => void;
+  // A user edit of a top-level field. The merge writes without running listeners, so an AI fill
+  // never reaches this.
+  onUserChange?: (name: FormFieldName, value: unknown) => void;
 }
+
+const isFormFieldName = (name: string): name is FormFieldName =>
+  Object.hasOwn(EMPTY_FORM_VALUES, name);
 
 // Errors appear on the first submit and then update while typing (`revalidateLogic`). The
 // validators read the form values (strings), so the contracts schema runs through
 // `validateApplicationForm`. The save happens in `onSubmitAsync` so a server 400 can come back as
 // field errors in the same channel as the client ones.
-export function useApplicationForm({ initialValues, save, onSaved }: Options) {
+export function useApplicationForm({
+  initialValues,
+  save,
+  onSaved,
+  onUserChange,
+}: Options) {
   const [formMessage, setFormMessage] = useState<FormMessage | null>(null);
   const savingRef = useRef(false);
 
   const form = useForm({
     defaultValues: initialValues,
+    listeners: {
+      onChange: ({ fieldApi }) => {
+        const name = fieldApi.name;
+        if (isFormFieldName(name)) onUserChange?.(name, fieldApi.state.value);
+      },
+    },
     validationLogic: revalidateLogic({
       mode: "submit",
       modeAfterSubmission: "change",
@@ -106,6 +128,83 @@ export function useApplicationForm({ initialValues, save, onSaved }: Options) {
 }
 
 export type ApplicationFormApi = ReturnType<typeof useApplicationForm>["form"];
+
+const EMPTY_MARKS: AiMarks = { aiFields: new Set(), missingFields: new Set() };
+
+const isAiFillable = (name: FormFieldName): name is AiFillableField => {
+  switch (name) {
+    case "title":
+    case "company":
+    case "location":
+    case "workMode":
+    case "seniority":
+    case "contractType":
+    case "salaryMin":
+    case "salaryMax":
+    case "currency":
+      return true;
+    default:
+      return false;
+  }
+};
+
+const isRelevant = (name: FormFieldName): name is RelevantField =>
+  RELEVANT_FIELDS.some((field) => field === name);
+
+const without = <T>(set: ReadonlySet<T>, value: T): ReadonlySet<T> => {
+  if (!set.has(value)) return set;
+  const next = new Set(set);
+  next.delete(value);
+  return next;
+};
+
+export interface AiMarksControl {
+  marks: AiMarks;
+  addFromMerge: (merge: ExtractionMerge) => void;
+  onUserChange: (name: FormFieldName, value: unknown) => void;
+  clear: () => void;
+}
+
+// Session state of the «IA» and «Complétalo tú» marks (D-17): never persisted, never set on load.
+// A merge adds its filled fields to the earlier ones and replaces the missing list (D-11). Any
+// user change drops the field's «IA» mark, even when the value ends up the same (D-13); the
+// «Complétalo tú» mark goes only when the field gets a non-blank value and is not restored by
+// clearing it again (D-16). The callbacks are stable, so a listener holding the first reference
+// stays correct.
+export function useAiMarks(): AiMarksControl {
+  const [marks, setMarks] = useState<AiMarks>(EMPTY_MARKS);
+
+  const addFromMerge = useCallback((merge: ExtractionMerge) => {
+    setMarks((current) => ({
+      aiFields: new Set([...current.aiFields, ...merge.aiFields]),
+      missingFields: new Set(merge.missingFields),
+    }));
+  }, []);
+
+  const onUserChange = useCallback((name: FormFieldName, value: unknown) => {
+    setMarks((current) => {
+      const filled = typeof value === "string" && value.trim() !== "";
+      const aiFields = isAiFillable(name)
+        ? without(current.aiFields, name)
+        : current.aiFields;
+      const missingFields =
+        filled && isRelevant(name)
+          ? without(current.missingFields, name)
+          : current.missingFields;
+      if (
+        aiFields === current.aiFields &&
+        missingFields === current.missingFields
+      ) {
+        return current;
+      }
+      return { aiFields, missingFields };
+    });
+  }, []);
+
+  const clear = useCallback(() => setMarks(EMPTY_MARKS), []);
+
+  return { marks, addFromMerge, onUserChange, clear };
+}
 
 const errorReasonOf = (error: unknown): OfferErrorReason => {
   if (error instanceof HttpError) {
@@ -207,7 +306,9 @@ export function useOfferExtraction({
       });
   };
 
-  return { draft, setDraft, status, analyze };
+  const clearStatus = (): void => setStatus({ kind: "idle" });
+
+  return { draft, setDraft, status, analyze, clearStatus };
 }
 
 type LoadOk = {
