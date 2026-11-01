@@ -1,6 +1,6 @@
 import { OFFER_TEXT_MAX, OFFER_TEXT_MIN } from "@tfm/contracts";
 import { ChevronDown, Sparkles } from "lucide-react";
-import { useId } from "react";
+import { useId, useRef } from "react";
 import { RequestStatus } from "@/common/components/request-status";
 import { Button } from "@/common/components/ui/button";
 import {
@@ -9,6 +9,7 @@ import {
   CollapsibleTrigger,
 } from "@/common/components/ui/collapsible";
 import { Label } from "@/common/components/ui/label";
+import { cn } from "@/common/lib/utils";
 import { Textarea } from "@/common/components/ui/textarea";
 import type {
   OfferAnalysisStatus,
@@ -100,6 +101,10 @@ function AnalysisStatus({ status }: { status: OfferAnalysisStatus }) {
       return (
         <RequestStatus kind="error" message={ERROR_MESSAGES[status.reason]} />
       );
+    case "cancelled":
+      return (
+        <p className="text-sm text-muted-foreground">Análisis cancelado.</p>
+      );
   }
 }
 
@@ -109,7 +114,9 @@ export function OfferPanel({
   status,
   onDraftChange,
   onAnalyze,
+  onCancel,
 }: OfferPanelModel) {
+  const analyzeRef = useRef<HTMLButtonElement>(null);
   const headingId = useId();
   const textareaId = useId();
   const hintId = useId();
@@ -138,7 +145,10 @@ export function OfferPanel({
           id={headingId}
           className="font-serif text-base font-semibold leading-[1.2]"
         >
-          <CollapsibleTrigger className="group flex min-h-11 w-full items-center justify-between rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none">
+          <CollapsibleTrigger
+            disabled={analysing}
+            className="group flex min-h-11 w-full items-center justify-between rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+          >
             Pegar oferta
             <ChevronDown
               aria-hidden="true"
@@ -152,7 +162,8 @@ export function OfferPanel({
             <Label htmlFor={textareaId}>Texto de la oferta</Label>
             <Textarea
               id={textareaId}
-              className="min-h-40 resize-y"
+              className={cn("min-h-40 resize-y", analysing && "bg-muted")}
+              readOnly={analysing}
               placeholder="Pega aquí la descripción completa de la oferta"
               value={draft}
               maxLength={OFFER_TEXT_MAX}
@@ -177,6 +188,7 @@ export function OfferPanel({
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button
+              ref={analyzeRef}
               type="button"
               variant="default"
               aria-disabled={tooShort || analysing}
@@ -190,6 +202,19 @@ export function OfferPanel({
               <Sparkles aria-hidden="true" />
               Autocompletar con IA
             </Button>
+            {analysing && (
+              <Button
+                type="button"
+                variant="outline"
+                className="h-11 w-full sm:w-auto"
+                onClick={() => {
+                  onCancel();
+                  analyzeRef.current?.focus();
+                }}
+              >
+                Cancelar análisis
+              </Button>
+            )}
           </div>
         </CollapsibleContent>
       </Collapsible>

@@ -357,9 +357,19 @@ export function useOfferExtraction({
       });
   };
 
+  // Aborting makes a late response or rejection a no-op (the handlers check the signal), and
+  // releasing the ref lets the user analyse again right away.
+  const cancel = (): void => {
+    const controller = controllerRef.current;
+    if (controller === null) return;
+    controller.abort();
+    controllerRef.current = null;
+    setStatus({ kind: "cancelled" });
+  };
+
   const clearStatus = (): void => setStatus({ kind: "idle" });
 
-  return { draft, setDraft, status, analyze, clearStatus };
+  return { draft, setDraft, status, analyze, cancel, clearStatus };
 }
 
 type LoadOk = {
