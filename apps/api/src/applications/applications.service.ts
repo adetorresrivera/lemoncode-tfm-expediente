@@ -28,9 +28,10 @@ export interface ApplicationsService {
 }
 
 // Copies the editable keys one by one (no rest, no spread): status, statusHistory, interviews,
-// ownerId, createdAt, offerText and the document links in the input can never reach Mongo.
-// Phase 3 (offerText) and Phase 5 (cvDocumentId, coverLetterDocumentId) must add their field here
-// and make the form always send it, otherwise a save would wipe it.
+// ownerId, createdAt and the document links in the input can never reach Mongo. offerText is
+// written as sent (null clears it), so the edit form always sends the loaded value back.
+// Phase 5 (cvDocumentId, coverLetterDocumentId) must add its fields here and make the form
+// always send them, otherwise a save would wipe them.
 function toEditableFields(input: ApplicationInput): EditableFields {
   return {
     title: input.title,
@@ -49,6 +50,7 @@ function toEditableFields(input: ApplicationInput): EditableFields {
     sourceUrl: input.sourceUrl,
     appliedAt: input.appliedAt !== null ? new Date(input.appliedAt) : null,
     notes: input.notes,
+    offerText: input.offerText,
   };
 }
 
