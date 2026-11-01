@@ -1,4 +1,4 @@
-import { offerExtractionSchema } from "@tfm/contracts";
+import { offerExtractionSchema, tagGroupSchema } from "@tfm/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { z } from "zod";
 import { createApp, type AppDeps } from "../app.js";
@@ -110,29 +110,91 @@ describe.each([
     expect(result.currency).toBeNull();
   });
 
-  it("still shows the model the schema of the contract, not the lenient one", async () => {
+  it("shows the model the provider-facing schema, without the word language", async () => {
     const fetchMock = stubModel(config, RAW_OFF_SPEC);
     await createExtractService(createLlmClient(config)).extract(TEXT);
 
     const init = fetchMock.mock.calls[0]?.[1];
-    const body = JSON.parse(String(init?.body)) as Record<string, unknown>;
+    const body = JSON.parse(String(init?.body)) as {
+      format?: unknown;
+      response_format?: { json_schema: { schema: unknown } };
+      messages: { role: string; content: string }[];
+    };
     const sent =
       config.LLM_PROVIDER === "ollama"
         ? body.format
-        : (
-            body.response_format as {
-              json_schema: { schema: unknown };
-            }
-          ).json_schema.schema;
-    const { $schema: _dialect, ...contract } = z.toJSONSchema(
-      offerExtractionSchema,
-    );
-    void _dialect;
-    const expected =
-      config.LLM_PROVIDER === "ollama"
-        ? z.toJSONSchema(offerExtractionSchema)
-        : contract;
+        : body.response_format?.json_schema.schema;
+
+    const contract: Record<string, unknown> = {
+      ...z.toJSONSchema(offerExtractionSchema),
+    };
+    if (config.LLM_PROVIDER !== "ollama") delete contract.$schema;
+    const expected = structuredClone(contract) as {
+      properties: {
+        tags: { items: { properties: { group: { enum: string[] } } } };
+      };
+    };
+    expect(expected.properties.tags.items.properties.group.enum).toEqual([
+      "stack",
+      "nice_to_have",
+      "language",
+    ]);
+    expected.properties.tags.items.properties.group.enum = [
+      "stack",
+      "nice_to_have",
+      "idioma",
+    ];
     expect(sent).toEqual(expected);
+    expect(JSON.stringify(sent)).not.toContain("language");
+    expect(body.messages[0]?.content).not.toContain("language");
+  });
+
+  it("moves programming languages the model put in the language group to stack", async () => {
+    const model = {
+      ...RAW_OFF_SPEC,
+      salaryMin: null,
+      salaryMax: null,
+      currency: null,
+      tags: [
+        { label: "C", group: "idioma" },
+        { label: "Python", group: "idioma" },
+        { label: "Java", group: "language" },
+        { label: "Inglés B2", group: "idioma" },
+      ],
+    };
+    const expected = [
+      { label: "C", group: "stack" },
+      { label: "Python", group: "stack" },
+      { label: "Java", group: "stack" },
+      { label: "Inglés B2", group: "language" },
+    ];
+
+    stubModel(config, model);
+    const result = await createExtractService(createLlmClient(config)).extract(
+      TEXT,
+    );
+    expect(result.tags).toEqual(expected);
+
+    stubModel(config, model);
+    const deps: AppDeps = {
+      pingMongo: async () => true,
+      pingS3: async () => true,
+      pingLlm: async () => true,
+      llm: createLlmClient(config),
+    };
+    const res = await createApp(deps).request("/api/offers/extract", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ text: TEXT }),
+    });
+    expect(res.status).toBe(200);
+    const body = offerExtractionSchema.parse(await res.json());
+    expect(body.tags).toEqual(expected);
+    const groups: readonly string[] = tagGroupSchema.options;
+    expect(body.tags.every((tag) => groups.includes(tag.group))).toBe(true);
+    expect(body.tags.some((tag) => (tag.group as string) === "idioma")).toBe(
+      false,
+    );
   });
 
   it("answers 502 LLM_ERROR after one retry when the output is genuinely unusable", async () => {

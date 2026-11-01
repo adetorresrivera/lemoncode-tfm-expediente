@@ -17,6 +17,7 @@ import {
 } from "./__fixtures__/fixtures.js";
 import {
   EXTRACTION_SYSTEM_PROMPT,
+  modelOfferExtractionSchema,
   rawOfferExtractionSchema,
 } from "./extract.service.js";
 
@@ -114,7 +115,7 @@ describe("POST /api/offers/extract", () => {
     expect(args[3]).toEqual(
       expect.objectContaining({
         signal: expect.any(AbortSignal),
-        responseSchema: offerExtractionSchema,
+        responseSchema: modelOfferExtractionSchema,
       }),
     );
   });
@@ -128,6 +129,7 @@ describe("POST /api/offers/extract", () => {
     const args: unknown[] = calls[0] ?? [];
     expect(args[0]).toBe(promptDoc);
     expect(EXTRACTION_SYSTEM_PROMPT).toBe(promptDoc);
+    expect(EXTRACTION_SYSTEM_PROMPT).not.toContain("language");
   });
 
   it("answers the mock extraction offline with LLM_PROVIDER=mock", async () => {
