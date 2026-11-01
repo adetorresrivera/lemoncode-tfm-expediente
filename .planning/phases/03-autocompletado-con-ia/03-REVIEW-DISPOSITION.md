@@ -3,6 +3,18 @@ phase: 03
 review: 03-REVIEW.md
 titles: json
 findings:
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "Symbol currency is dropped instead of mapped, although the prompt tells the model to map it"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "Tag label limit is a second hard-coded copy of the contract's `max(40)`"
+  - id: IN-03
+    severity: info
+    disposition: open
+    title: "The fixed SyntaxError log string names a cause the handler cannot guarantee"
   - id: WR-01
     severity: warning
     disposition: fixed
@@ -11,18 +23,6 @@ findings:
     severity: warning
     disposition: fixed
     title: "The global error handler logs a fragment of the pasted offer on malformed JSON"
-  - id: IN-01
-    severity: info
-    disposition: open
-    title: "Any non-recognised failure of the extraction request is reported as \"No hay conexión\"; a throw in the merge is also mislabeled"
-  - id: IN-02
-    severity: info
-    disposition: open
-    title: "A user-chosen currency can be overwritten when both salary fields are blank"
-  - id: IN-03
-    severity: info
-    disposition: open
-    title: "Retrying at temperature 0 repeats the same failure"
   - id: IN-04
     severity: info
     disposition: open
@@ -33,20 +33,20 @@ findings:
     title: "Trailing-slash normalization of `LLM_BASE_URL` is done three times"
 open: 5
 total: 7
-recorded: 2026-11-01T12:47:44.354Z
+recorded: 2026-11-01T13:57:32.741Z
 ---
 
 # Phase 03: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | fixed | 03-REVIEW-FIX.md |
-| WR-02 | warning | fixed | 03-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
-| IN-04 | info | open | - |
-| IN-05 | info | open | - |
+| WR-01 | warning | fixed | 03-REVIEW-FIX.md (not in the current review) |
+| WR-02 | warning | fixed | 03-REVIEW-FIX.md (not in the current review) |
+| IN-04 | info | open | - (not in the current review) |
+| IN-05 | info | open | - (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
