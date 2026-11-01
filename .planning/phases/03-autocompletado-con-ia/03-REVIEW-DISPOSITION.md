@@ -10,15 +10,15 @@ findings:
   - id: IN-01
     severity: info
     disposition: open
-    title: "Exports with no consumer outside their module"
+    title: "`strokeWidth={1.5}` is applied to some lucide icons only"
   - id: IN-02
     severity: info
     disposition: open
-    title: "Redundant condition in the focus-restore effect"
+    title: "`idiomas` entries are fully trusted and can silently absorb a `stack` tag"
   - id: IN-03
     severity: info
     disposition: open
-    title: "Test assertions on the shown schema rely on a substring check"
+    title: "The model-facing schema still advertises the `idioma` tag group that the prompt no longer describes"
   - id: WR-02
     severity: warning
     disposition: fixed
@@ -33,14 +33,14 @@ findings:
     title: "Trailing-slash normalization of `LLM_BASE_URL` is done three times"
 open: 5
 total: 7
-recorded: 2026-11-01T17:34:10.757Z
+recorded: 2026-11-01T20:08:38.000Z
 ---
 
 # Phase 03: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | fixed | quick 261101-qh3 (separate idiomas field, guard kept; user decision 2026-11-01) |
+| WR-01 | warning | fixed | quick 261101-qh3 (separate idiomas field, guard kept; user decision 2026-11-01) (not in the current review) |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
