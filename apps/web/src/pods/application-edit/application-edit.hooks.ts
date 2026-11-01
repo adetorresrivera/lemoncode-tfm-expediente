@@ -326,6 +326,11 @@ export function useOfferExtraction({
           analyzedText,
         );
         for (const field of merge.aiFields) applyField(field, merge.values);
+        // The analyzed offer is stored with the application (D-10). It has no mounted field, and
+        // typing in the textarea never reaches it: only a successful analysis writes it.
+        form.setFieldValue("offerText", merge.values.offerText, {
+          dontRunListeners: true,
+        });
         // Only when the AI added chips: the tag list stays untouched otherwise.
         if (merge.aiTags.length > 0) {
           form.setFieldValue("tags", merge.values.tags, {
