@@ -17,7 +17,9 @@ export function createOpenAiProvider(config: LlmConfig): LlmClient {
   return {
     async extractStructured(system, input, schema, options) {
       // Some OpenAI-compatible vendors reject unknown top-level keywords.
-      const { $schema: _dialect, ...jsonSchema } = z.toJSONSchema(schema);
+      const { $schema: _dialect, ...jsonSchema } = z.toJSONSchema(
+        options?.responseSchema ?? schema,
+      );
       void _dialect;
       const body = JSON.stringify({
         model: config.LLM_MODEL,

@@ -16,7 +16,7 @@ export function createOllamaProvider(config: LlmConfig): LlmClient {
         think: false, // gemma4:e2b reports the thinking capability; keep it off
         // num_ctx 8192: Ollama defaults to a small window and truncates long offers silently.
         options: { temperature: 0, num_ctx: 8192 },
-        format: z.toJSONSchema(schema),
+        format: z.toJSONSchema(options?.responseSchema ?? schema),
         messages: [
           { role: "system", content: system },
           { role: "user", content: input },

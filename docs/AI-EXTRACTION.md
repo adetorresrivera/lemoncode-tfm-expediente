@@ -35,7 +35,14 @@ El JSON Schema que se envía al modelo se obtiene con `z.toJSONSchema(offerExtra
 ## LlmClient (`apps/api/src/llm/`)
 ```ts
 export interface LlmClient {
-  extractStructured<T>(system: string, input: string, schema: z.ZodType<T>): Promise<T>;
+  // `schema` valida la respuesta cruda; `options.responseSchema` (por defecto `schema`) es el
+  // JSON Schema que se le muestra al modelo; `options.signal` cancela la llamada.
+  extractStructured<T>(
+    system: string,
+    input: string,
+    schema: z.ZodType<T>,
+    options?: LlmCallOptions,
+  ): Promise<T>;
   ping(): Promise<boolean>; // para /api/health
 }
 export function createLlmClient(config: LlmConfig): LlmClient; // según LLM_PROVIDER
@@ -43,11 +50,12 @@ export function createLlmClient(config: LlmConfig): LlmClient; // según LLM_PRO
 | Provider | Llamada | Salida estructurada |
 |---|---|---|
 | `ollama` | `POST {LLM_BASE_URL}/api/chat` con `stream:false`, `options.temperature:0` | parámetro `format` = JSON Schema |
-| `openai` | `POST {LLM_BASE_URL}/chat/completions` con `Authorization: Bearer` | `response_format: { type: "json_schema", json_schema: { name, schema } }` |
+| `openai` | `POST {LLM_BASE_URL}/chat/completions` con `Authorization: Bearer` | `response_format: { type: "json_schema", json_schema: { name, strict: true, schema } }` |
 | `mock` | sin red | devuelve un `OfferExtraction` fijo y realista tras 300 ms |
 
 - Timeout `LLM_TIMEOUT_MS` (90 s por defecto) con `AbortSignal.timeout` → 504 `LLM_TIMEOUT`.
-- Respuesta no parseable o que no cumple el esquema → un reintento; si vuelve a fallar → 502 `LLM_ERROR`.
+- Al modelo se le muestra siempre el JSON Schema de `offerExtractionSchema` (contracts). La respuesta cruda se valida con un esquema más permisivo (`rawOfferExtractionSchema`, en `offers/extract.service.ts`: etiquetas de cualquier longitud y número, `currency` libre, salarios sin signo exigido) para poder normalizarla; el resultado normalizado se vuelve a validar con `offerExtractionSchema`.
+- Respuesta no parseable o que no cumple ni siquiera el esquema permisivo → un reintento; si vuelve a fallar → 502 `LLM_ERROR`.
 - Si el modelo es de razonamiento (p. ej. qwen3), desactivar el modo «thinking».
 - Nunca loguear el texto completo de la oferta; solo longitud y duración.
 
@@ -77,7 +85,8 @@ Iteración futura: añadir al prompt las etiquetas existentes de `GET /api/tags`
 ## Normalización en la API
 - `trim` de strings; strings vacíos → `null`.
 - Si `salaryMin > salaryMax`, intercambiar.
-- Etiquetas: deduplicar por minúsculas, quitar vacías, recortar a 40 caracteres.
+- Etiquetas: deduplicar por minúsculas, quitar vacías, recortar a 40 caracteres y conservar las 20 primeras (en el orden del modelo).
+- `currency` que no sea un código de tres letras (p. ej. `"€"`) → `null`; en mayúsculas si lo es. Un salario negativo → `null`.
 
 ## Tests (Vitest)
 - `mock.provider` devuelve datos que cumplen el esquema.

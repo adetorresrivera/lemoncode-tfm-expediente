@@ -6,6 +6,8 @@ import {
   createExtractService,
   EXTRACTION_SYSTEM_PROMPT,
   normalizeExtraction,
+  rawOfferExtractionSchema,
+  type RawOfferExtraction,
 } from "./extract.service.js";
 
 const BASE: OfferExtraction = {
@@ -156,9 +158,43 @@ describe("normalizeExtraction", () => {
     expect(first).not.toBe(input);
   });
 
+  it("drops a currency that is not a three-letter code instead of failing", () => {
+    expect(normalizeExtraction(draft({ currency: "€" })).currency).toBeNull();
+    expect(normalizeExtraction(draft({ currency: " EU" })).currency).toBeNull();
+    expect(normalizeExtraction(draft({ currency: " usd " })).currency).toBe(
+      "USD",
+    );
+  });
+
+  it("drops a negative salary and swaps the remaining range", () => {
+    const result = normalizeExtraction(
+      draft({ salaryMin: -5, salaryMax: 50000 }),
+    );
+    expect(result.salaryMin).toBeNull();
+    expect(result.salaryMax).toBe(50000);
+  });
+
+  it("removes empty and blank labels", () => {
+    const result = normalizeExtraction(
+      draft({
+        tags: [
+          { label: "", group: "stack" },
+          { label: "   ", group: "language" },
+          { label: "React", group: "stack" },
+        ],
+      }),
+    );
+    expect(result.tags).toEqual([{ label: "React", group: "stack" }]);
+  });
+
   it("throws 502 LLM_ERROR when the normalized draft still breaks the schema", () => {
+    // Defensive path: an enum value the normalization cannot repair.
+    const broken = {
+      ...BASE,
+      workMode: "remote",
+    } as unknown as RawOfferExtraction;
     try {
-      normalizeExtraction(draft({ currency: "€" }));
+      normalizeExtraction(broken);
       expect.unreachable("must throw");
     } catch (err) {
       expect(err).toBeInstanceOf(ApiError);
@@ -189,8 +225,8 @@ describe("createExtractService", () => {
     expect(extractStructured).toHaveBeenCalledWith(
       EXTRACTION_SYSTEM_PROMPT,
       TEXT,
-      offerExtractionSchema,
-      { signal: controller.signal },
+      rawOfferExtractionSchema,
+      { signal: controller.signal, responseSchema: offerExtractionSchema },
     );
   });
 

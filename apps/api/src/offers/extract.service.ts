@@ -2,8 +2,10 @@ import {
   normalizeTagLabel,
   normalizeTags,
   offerExtractionSchema,
+  tagGroupSchema,
   type OfferExtraction,
 } from "@tfm/contracts";
+import { z } from "zod";
 import { ApiError } from "../errors.js";
 import type { LlmCallOptions, LlmClient } from "../llm/llm.client.js";
 
@@ -30,10 +32,31 @@ export const EXTRACTION_SYSTEM_PROMPT = [
 
 const MAX_LABEL_UNITS = 40;
 
+// What the pipeline accepts from the model before normalizing. The model is still shown
+// offerExtractionSchema (D-01); this one only decides what is usable once it answers, so
+// an over-long label, a 21st tag, an empty label or a free-form currency is normalized
+// instead of failing the whole analysis. It is not an API model: nothing leaves the API with it.
+export const rawOfferExtractionSchema = offerExtractionSchema.extend({
+  salaryMin: z.number().nullable(),
+  salaryMax: z.number().nullable(),
+  currency: z.string().nullable(),
+  tags: z.array(z.object({ label: z.string(), group: tagGroupSchema })),
+});
+
+export type RawOfferExtraction = z.infer<typeof rawOfferExtractionSchema>;
+
+const CURRENCY_CODE = /^[A-Z]{3}$/;
+
 function clean(value: string | null): string | null {
   if (value === null) return null;
   const trimmed = value.trim();
   return trimmed === "" ? null : trimmed;
+}
+
+function toCurrencyCode(value: string | null): string | null {
+  if (value === null) return null;
+  const code = value.toUpperCase();
+  return CURRENCY_CODE.test(code) ? code : null;
 }
 
 // Keeps the first 40 UTF-16 code units (what tagSchema counts) and never ends on a lone high surrogate.
@@ -46,8 +69,11 @@ function cutLabel(label: string): string {
 }
 
 // Pure: builds a new object and never mutates its input (docs/AI-EXTRACTION.md §Normalización).
-export function normalizeExtraction(raw: OfferExtraction): OfferExtraction {
-  let { salaryMin, salaryMax } = raw;
+export function normalizeExtraction(raw: RawOfferExtraction): OfferExtraction {
+  let salaryMin =
+    raw.salaryMin !== null && raw.salaryMin >= 0 ? raw.salaryMin : null;
+  let salaryMax =
+    raw.salaryMax !== null && raw.salaryMax >= 0 ? raw.salaryMax : null;
   if (salaryMin !== null && salaryMax !== null && salaryMin > salaryMax) {
     [salaryMin, salaryMax] = [salaryMax, salaryMin];
   }
@@ -61,7 +87,8 @@ export function normalizeExtraction(raw: OfferExtraction): OfferExtraction {
     contractType: raw.contractType,
     salaryMin,
     salaryMax,
-    currency: currency === null ? null : currency.toUpperCase(),
+    // A value that is not an ISO 4217-shaped code (for example "€") is dropped, not guessed.
+    currency: toCurrencyCode(currency),
     tags: normalizeTags(
       raw.tags.map((tag) => ({
         label: cutLabel(normalizeTagLabel(tag.label)),
@@ -93,8 +120,8 @@ export function createExtractService(llm: LlmClient): ExtractService {
         const raw = await llm.extractStructured(
           EXTRACTION_SYSTEM_PROMPT,
           text,
-          offerExtractionSchema,
-          { signal: options?.signal },
+          rawOfferExtractionSchema,
+          { signal: options?.signal, responseSchema: offerExtractionSchema },
         );
         return normalizeExtraction(raw);
       } finally {

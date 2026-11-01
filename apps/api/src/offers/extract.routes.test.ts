@@ -15,7 +15,10 @@ import {
   readFixtureText,
   type FixtureName,
 } from "./__fixtures__/fixtures.js";
-import { EXTRACTION_SYSTEM_PROMPT } from "./extract.service.js";
+import {
+  EXTRACTION_SYSTEM_PROMPT,
+  rawOfferExtractionSchema,
+} from "./extract.service.js";
 
 const allUp: AppDeps = {
   pingMongo: async () => true,
@@ -107,9 +110,12 @@ describe("POST /api/offers/extract", () => {
     expect(calls).toHaveLength(1);
     const args: unknown[] = calls[0] ?? [];
     expect(args[1]).toBe(OFFER_TEXT.trim());
-    expect(args[2]).toBe(offerExtractionSchema);
+    expect(args[2]).toBe(rawOfferExtractionSchema);
     expect(args[3]).toEqual(
-      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+      expect.objectContaining({
+        signal: expect.any(AbortSignal),
+        responseSchema: offerExtractionSchema,
+      }),
     );
   });
 
