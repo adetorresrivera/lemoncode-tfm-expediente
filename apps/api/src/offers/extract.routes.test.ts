@@ -115,6 +115,74 @@ describe("POST /api/offers/extract", () => {
     expect(await res.json()).toEqual(MOCK_OFFER_EXTRACTION);
   });
 
+  it.each([
+    ["an empty body", {}],
+    ["a missing text", { other: "x" }],
+    ["whitespace only", { text: "   " }],
+    ["49 trimmed characters", { text: ` ${"a".repeat(49)} ` }],
+    ["20,001 trimmed characters", { text: "a".repeat(20001) }],
+  ])("answers 400 VALIDATION_ERROR for %s", async (_name, body) => {
+    const { llm, calls } = fakeLlm();
+    const res = await postExtract(createApp({ ...allUp, llm }), body);
+
+    expect(res.status).toBe(400);
+    const parsed = errorResponseSchema.parse(await res.json());
+    expect(parsed.error.code).toBe("VALIDATION_ERROR");
+    expect(calls).toHaveLength(0);
+  });
+
+  it("answers 400 VALIDATION_ERROR for a non-JSON content type", async () => {
+    const { llm, calls } = fakeLlm();
+    const res = await postExtract(
+      createApp({ ...allUp, llm }),
+      JSON.stringify({ text: OFFER_TEXT }),
+      { "content-type": "text/plain" },
+    );
+
+    expect(res.status).toBe(400);
+    const parsed = errorResponseSchema.parse(await res.json());
+    expect(parsed.error.code).toBe("VALIDATION_ERROR");
+    expect(calls).toHaveLength(0);
+  });
+
+  it("answers 400 VALIDATION_ERROR for malformed JSON", async () => {
+    const { llm } = fakeLlm();
+    const res = await postExtract(createApp({ ...allUp, llm }), "{not json");
+
+    expect(res.status).toBe(400);
+    const parsed = errorResponseSchema.parse(await res.json());
+    expect(parsed.error.code).toBe("VALIDATION_ERROR");
+  });
+
+  it.each([
+    ["50", "a".repeat(50)],
+    ["20,000", "a".repeat(20000)],
+  ])("accepts %s trimmed characters", async (_name, text) => {
+    const { llm, calls } = fakeLlm();
+    const res = await postExtract(createApp({ ...allUp, llm }), {
+      text: ` ${text} `,
+    });
+
+    expect(res.status).toBe(200);
+    expect(calls[0]?.[1]).toBe(text);
+  });
+
+  it("serves two concurrent requests independently", async () => {
+    const { llm, calls } = fakeLlm();
+    const app = createApp({ ...allUp, llm });
+    const first = `${OFFER_TEXT} primera`;
+    const second = `${OFFER_TEXT} segunda`;
+
+    const [a, b] = await Promise.all([
+      postExtract(app, { text: first }),
+      postExtract(app, { text: second }),
+    ]);
+
+    expect(a.status).toBe(200);
+    expect(b.status).toBe(200);
+    expect(calls.map((call) => call[1])).toStrictEqual([first, second]);
+  });
+
   it("does not mount /api/offers without an llm dependency", async () => {
     const res = await postExtract(createApp(allUp), { text: OFFER_TEXT });
 

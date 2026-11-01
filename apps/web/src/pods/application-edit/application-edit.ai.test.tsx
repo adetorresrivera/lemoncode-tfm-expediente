@@ -2,7 +2,7 @@ import { applicationSchema } from "@tfm/contracts";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { jsonResponse, mockFetch } from "@/test/mock-fetch";
 import { ApplicationEditContainer } from "./application-edit.container";
 
@@ -66,6 +66,33 @@ const pasteOffer = (text = OFFER_TEXT) => {
     target: { value: text },
   });
 };
+
+const NO_DATA = {
+  title: null,
+  company: null,
+  location: null,
+  workMode: null,
+  seniority: null,
+  contractType: null,
+  salaryMin: null,
+  salaryMax: null,
+  currency: null,
+  tags: [],
+};
+
+const errorBody = (code: string) => ({ error: { code, message: "x" } });
+
+const analyzeButton = () =>
+  screen.getByRole("button", { name: "Autocompletar con IA" });
+
+// A response the test releases by hand, to act while the analysis is in flight.
+function deferred() {
+  let release: (response: Response) => void = () => {};
+  const promise = new Promise<Response>((resolve) => {
+    release = resolve;
+  });
+  return { promise, release };
+}
 
 describe("ApplicationEditContainer AI autocomplete", () => {
   it("opens the offer panel on create, analyses the pasted text and fills only the empty fields", async () => {
@@ -143,5 +170,222 @@ describe("ApplicationEditContainer AI autocomplete", () => {
       company: "Lumen Analytics",
       workMode: "remoto",
     });
+  });
+
+  it("keeps a value typed while the analysis runs (D-20)", async () => {
+    const user = userEvent.setup();
+    const pending = deferred();
+    mockFetch({ "POST /api/offers/extract": () => pending.promise });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText("Analizando la oferta…");
+    await user.type(screen.getByLabelText("Empresa *"), "Acme");
+    pending.release(jsonResponse(EXTRACTION));
+
+    await screen.findByText("Hemos rellenado 5 campos. Revísalos.");
+    expect(screen.getByLabelText("Empresa *")).toHaveValue("Acme");
+    expect(screen.getByLabelText("Puesto *")).toHaveValue(
+      "Desarrollador/a Frontend Senior",
+    );
+  });
+
+  it("treats a whitespace-only value as empty and ignores null extraction values", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () =>
+        jsonResponse({ ...NO_DATA, company: "Acme SL", location: "Sevilla" }),
+    });
+    renderCreate();
+
+    await user.type(screen.getByLabelText("Empresa *"), "   ");
+    pasteOffer();
+    await user.click(analyzeButton());
+
+    await screen.findByText("Hemos rellenado 2 campos. Revísalos.");
+    expect(screen.getByLabelText("Empresa *")).toHaveValue("Acme SL");
+    expect(screen.getByLabelText("Ubicación")).toHaveValue("Sevilla");
+    expect(screen.getByLabelText("Puesto *")).toHaveValue("");
+    expect(screen.getByLabelText("Modalidad")).toHaveValue("");
+  });
+
+  it("reads «Hemos rellenado 1 campo. Revísalo.» when one field is filled", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () =>
+        jsonResponse({ ...NO_DATA, company: "Acme SL" }),
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+
+    expect(
+      await screen.findByText("Hemos rellenado 1 campo. Revísalo."),
+    ).toBeInTheDocument();
+  });
+
+  it("says nothing new was found when the extraction adds no data", async () => {
+    const user = userEvent.setup();
+    mockFetch({ "POST /api/offers/extract": () => jsonResponse(NO_DATA) });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+
+    expect(
+      await screen.findByText(
+        "No hemos encontrado datos nuevos en la oferta. Completa el formulario a mano.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it.each([
+    [
+      "LLM_TIMEOUT",
+      504,
+      "La IA ha tardado demasiado. Inténtalo otra vez o rellena el formulario a mano.",
+    ],
+    [
+      "LLM_ERROR",
+      502,
+      "No hemos podido leer la oferta. Inténtalo otra vez o rellena el formulario a mano.",
+    ],
+    [
+      "VALIDATION_ERROR",
+      400,
+      "No hay conexión con el servidor. Inténtalo otra vez.",
+    ],
+  ])(
+    "shows the message for a %s answer and lets the user retry",
+    async (code, status, message) => {
+      const user = userEvent.setup();
+      let attempts = 0;
+      mockFetch({
+        "POST /api/offers/extract": () => {
+          attempts += 1;
+          return attempts === 1
+            ? jsonResponse(errorBody(code), status)
+            : jsonResponse(EXTRACTION);
+        },
+      });
+      renderCreate();
+
+      pasteOffer();
+      await user.click(analyzeButton());
+
+      expect(await screen.findByText(message)).toBeInTheDocument();
+      expect(screen.getByLabelText("Puesto *")).toBeEnabled();
+      expect(analyzeButton()).not.toHaveAttribute("aria-disabled", "true");
+
+      await user.click(analyzeButton());
+      expect(
+        await screen.findByText("Hemos rellenado 6 campos. Revísalos."),
+      ).toBeInTheDocument();
+      expect(screen.queryByText(message)).toBeNull();
+    },
+  );
+
+  it("shows the connection message when the request itself fails", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () => {
+        throw new TypeError("Failed to fetch");
+      },
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+
+    expect(
+      await screen.findByText(
+        "No hay conexión con el servidor. Inténtalo otra vez.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByLabelText("Empresa *")).toBeEnabled();
+  });
+
+  it("keeps the status region outside the collapsible content so a collapse does not lose it", async () => {
+    const user = userEvent.setup();
+    mockFetch({ "POST /api/offers/extract": () => jsonResponse(EXTRACTION) });
+    const { container } = renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText("Hemos rellenado 6 campos. Revísalos.");
+    await user.click(screen.getByRole("button", { name: "Pegar oferta" }));
+
+    const status = container.querySelector("[role='status']");
+    expect(status).toHaveAttribute("aria-live", "polite");
+    expect(status).toHaveTextContent("Hemos rellenado 6 campos. Revísalos.");
+    expect(screen.queryByLabelText("Texto de la oferta")).toBeNull();
+  });
+
+  it("starts collapsed in edit mode and opens on demand", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "GET /api/applications/a1": () =>
+        jsonResponse(
+          applicationSchema.parse({
+            id: "a1",
+            title: "Frontend Developer",
+            company: "Acme",
+            status: "enviada",
+            statusHistory: [
+              { status: "guardada", at: "2026-10-12T10:00:00.000Z" },
+            ],
+            interviews: [],
+            createdAt: "2026-10-12T10:00:00.000Z",
+            updatedAt: "2026-10-30T08:15:00.000Z",
+            ownerId: null,
+          }),
+        ),
+    });
+    render(
+      <ApplicationEditContainer
+        applicationId="a1"
+        onSaved={() => {}}
+        renderCancelLink={link("/applications")}
+        renderListLink={link("/applications-list-stub")}
+      />,
+    );
+
+    const trigger = await screen.findByRole("button", { name: "Pegar oferta" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("Texto de la oferta")).toBeNull();
+
+    await user.click(trigger);
+
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText("Texto de la oferta")).toBeInTheDocument();
+  });
+
+  it("aborts the request on unmount and writes no state afterwards", async () => {
+    const user = userEvent.setup();
+    const consoleError = vi
+      .spyOn(console, "error")
+      .mockImplementation(() => undefined);
+    const pending = deferred();
+    const fetchMock = mockFetch({
+      "POST /api/offers/extract": () => pending.promise,
+    });
+    const { unmount } = renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText("Analizando la oferta…");
+    const sent = callsTo(fetchMock, "POST", "/api/offers/extract");
+    const signal = sent[0]?.[1]?.signal;
+    expect(signal?.aborted).toBe(false);
+
+    unmount();
+    expect(signal?.aborted).toBe(true);
+    pending.release(jsonResponse(EXTRACTION));
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(consoleError).not.toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 });
