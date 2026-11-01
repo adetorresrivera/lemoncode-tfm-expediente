@@ -2,6 +2,7 @@ import { applicationStatusSchema } from "@tfm/contracts";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { AiMark } from "./ai-mark";
 import { RequestStatus } from "./request-status";
 import { StatusBadge } from "./status-badge";
 import { TagChip } from "./tag-chip";
@@ -163,5 +164,28 @@ describe("RequestStatus", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("AiMark", () => {
+  it("renders the navy badge with a visible «IA» hidden from assistive tech and an sr-only reading", () => {
+    render(<AiMark id="field-title-ai" />);
+
+    const badge = document.getElementById("field-title-ai");
+    expect(badge).not.toBeNull();
+    expect(badge).toHaveClass(
+      "inline-flex",
+      "h-5",
+      "items-center",
+      "rounded-sm",
+      "bg-brand-navy",
+      "px-1.5",
+      "text-[11px]",
+      "font-bold",
+      "tracking-wide",
+      "text-brand-parchment",
+    );
+    expect(screen.getByText("IA")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("Rellenado por la IA")).toHaveClass("sr-only");
   });
 });

@@ -15,11 +15,17 @@ import {
   WORK_MODE_LABELS,
 } from "@/common/lib/enum-labels";
 import type { ApplicationFormApi } from "../application-edit.hooks";
+import type {
+  AiFillableField,
+  AiMarks,
+  RelevantField,
+} from "../application-edit.vm";
 import { controlProps, firstFieldError } from "./field-props";
 import { FormField } from "./form-field";
 
 interface Props {
   form: ApplicationFormApi;
+  marks?: AiMarks;
 }
 
 const DEFAULT_CURRENCIES = ["EUR", "USD", "GBP"];
@@ -30,8 +36,12 @@ const currencyOptions = (current: string): string[] =>
     ? DEFAULT_CURRENCIES
     : [...DEFAULT_CURRENCIES, current];
 
-export function ConditionsSection({ form }: Props) {
+export function ConditionsSection({ form, marks }: Props) {
   const headingId = useId();
+  const isAiFilled = (name: AiFillableField): boolean =>
+    marks?.aiFields.has(name) === true;
+  const isMissing = (name: RelevantField): boolean =>
+    marks?.missingFields.has(name) === true;
   return (
     <section
       aria-labelledby={headingId}
@@ -48,9 +58,20 @@ export function ConditionsSection({ form }: Props) {
           {(field) => {
             const error = firstFieldError(field.state.meta.errors);
             return (
-              <FormField id="field-workMode" label="Modalidad" error={error}>
+              <FormField
+                id="field-workMode"
+                label="Modalidad"
+                error={error}
+                aiFilled={isAiFilled("workMode")}
+                missing={isMissing("workMode")}
+              >
                 <NativeSelect
-                  {...controlProps({ id: "field-workMode", error })}
+                  {...controlProps({
+                    id: "field-workMode",
+                    error,
+                    aiFilled: isAiFilled("workMode"),
+                    missing: isMissing("workMode"),
+                  })}
                   name={field.name}
                   value={field.state.value}
                   onBlur={field.handleBlur}
@@ -75,9 +96,20 @@ export function ConditionsSection({ form }: Props) {
           {(field) => {
             const error = firstFieldError(field.state.meta.errors);
             return (
-              <FormField id="field-seniority" label="Seniority" error={error}>
+              <FormField
+                id="field-seniority"
+                label="Seniority"
+                error={error}
+                aiFilled={isAiFilled("seniority")}
+                missing={isMissing("seniority")}
+              >
                 <NativeSelect
-                  {...controlProps({ id: "field-seniority", error })}
+                  {...controlProps({
+                    id: "field-seniority",
+                    error,
+                    aiFilled: isAiFilled("seniority"),
+                    missing: isMissing("seniority"),
+                  })}
                   name={field.name}
                   value={field.state.value}
                   onBlur={field.handleBlur}
@@ -106,9 +138,14 @@ export function ConditionsSection({ form }: Props) {
                 id="field-contractType"
                 label="Tipo de contrato"
                 error={error}
+                aiFilled={isAiFilled("contractType")}
               >
                 <NativeSelect
-                  {...controlProps({ id: "field-contractType", error })}
+                  {...controlProps({
+                    id: "field-contractType",
+                    error,
+                    aiFilled: isAiFilled("contractType"),
+                  })}
                   name={field.name}
                   value={field.state.value}
                   onBlur={field.handleBlur}
@@ -134,9 +171,18 @@ export function ConditionsSection({ form }: Props) {
           {(field) => {
             const error = firstFieldError(field.state.meta.errors);
             return (
-              <FormField id="field-location" label="Ubicación" error={error}>
+              <FormField
+                id="field-location"
+                label="Ubicación"
+                error={error}
+                aiFilled={isAiFilled("location")}
+              >
                 <Input
-                  {...controlProps({ id: "field-location", error })}
+                  {...controlProps({
+                    id: "field-location",
+                    error,
+                    aiFilled: isAiFilled("location"),
+                  })}
                   name={field.name}
                   value={field.state.value}
                   onBlur={field.handleBlur}
@@ -158,9 +204,15 @@ export function ConditionsSection({ form }: Props) {
                 label="Salario mínimo"
                 hint={hint}
                 error={error}
+                aiFilled={isAiFilled("salaryMin")}
               >
                 <Input
-                  {...controlProps({ id: "field-salaryMin", hint, error })}
+                  {...controlProps({
+                    id: "field-salaryMin",
+                    hint,
+                    error,
+                    aiFilled: isAiFilled("salaryMin"),
+                  })}
                   name={field.name}
                   type="number"
                   inputMode="numeric"
@@ -181,9 +233,14 @@ export function ConditionsSection({ form }: Props) {
                 id="field-salaryMax"
                 label="Salario máximo"
                 error={error}
+                aiFilled={isAiFilled("salaryMax")}
               >
                 <Input
-                  {...controlProps({ id: "field-salaryMax", error })}
+                  {...controlProps({
+                    id: "field-salaryMax",
+                    error,
+                    aiFilled: isAiFilled("salaryMax"),
+                  })}
                   name={field.name}
                   type="number"
                   inputMode="numeric"
@@ -200,9 +257,18 @@ export function ConditionsSection({ form }: Props) {
           {(field) => {
             const error = firstFieldError(field.state.meta.errors);
             return (
-              <FormField id="field-currency" label="Moneda" error={error}>
+              <FormField
+                id="field-currency"
+                label="Moneda"
+                error={error}
+                aiFilled={isAiFilled("currency")}
+              >
                 <NativeSelect
-                  {...controlProps({ id: "field-currency", error })}
+                  {...controlProps({
+                    id: "field-currency",
+                    error,
+                    aiFilled: isAiFilled("currency"),
+                  })}
                   name={field.name}
                   value={field.state.value}
                   onBlur={field.handleBlur}
