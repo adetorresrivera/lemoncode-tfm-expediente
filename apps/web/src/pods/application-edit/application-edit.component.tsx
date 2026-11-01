@@ -4,10 +4,12 @@ import type { ApplicationFormApi } from "./application-edit.hooks";
 import type {
   ApplicationEditSummary,
   FormMessage,
+  OfferPanelModel,
   RenderCancelLink,
 } from "./application-edit.vm";
 import { ConditionsSection } from "./components/conditions-section";
 import { JobSection } from "./components/job-section";
+import { OfferPanel } from "./components/offer-panel";
 import { TagsSection } from "./components/tags-section";
 import { TrackingSection } from "./components/tracking-section";
 
@@ -17,6 +19,7 @@ interface Props {
   summary?: ApplicationEditSummary;
   form: ApplicationFormApi;
   formMessage: FormMessage | null;
+  offerPanel: OfferPanelModel;
   renderCancelLink: RenderCancelLink;
 }
 
@@ -25,6 +28,7 @@ export function ApplicationEditComponent({
   summary,
   form,
   formMessage,
+  offerPanel,
   renderCancelLink,
 }: Props) {
   return (
@@ -39,6 +43,7 @@ export function ApplicationEditComponent({
         void form.handleSubmit();
       }}
     >
+      <OfferPanel {...offerPanel} />
       {mode === "edit" && summary ? (
         <p className="min-w-0 break-words text-muted-foreground">
           {summary.title} · {summary.company}

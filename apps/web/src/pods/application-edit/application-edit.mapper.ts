@@ -2,11 +2,14 @@ import {
   applicationInputSchema,
   type Application,
   type ApplicationInput,
+  type OfferExtraction,
 } from "@tfm/contracts";
 import { z } from "zod";
 import {
   EMPTY_FORM_VALUES,
+  type AiFillableField,
   type ApplicationFormValues,
+  type ExtractionMerge,
   type FormFieldName,
 } from "./application-edit.vm";
 
@@ -130,6 +133,40 @@ export const mapFormValuesToApiInput = (
     coverLetterDocumentId: null,
   };
 };
+
+type MergedTextField =
+  "title" | "company" | "location" | "workMode" | "seniority" | "contractType";
+
+// Fills only what is empty (a whitespace-only value counts as empty) and only with a value the
+// extraction found: a value the user typed is never overwritten (AI-06, D-04). Pure: `current` is
+// not mutated.
+export function mergeExtractionIntoForm(
+  current: ApplicationFormValues,
+  extraction: OfferExtraction,
+): ExtractionMerge {
+  const values: ApplicationFormValues = { ...current };
+  const aiFields: AiFillableField[] = [];
+
+  const fill = <F extends MergedTextField>(
+    field: F,
+    extracted: ApplicationFormValues[F] | null,
+  ): void => {
+    if (extracted === null || extracted.trim() === "") return;
+    const existing: string = current[field];
+    if (existing.trim() !== "") return;
+    values[field] = extracted;
+    aiFields.push(field);
+  };
+
+  fill("title", extraction.title);
+  fill("company", extraction.company);
+  fill("location", extraction.location);
+  fill("workMode", extraction.workMode);
+  fill("seniority", extraction.seniority);
+  fill("contractType", extraction.contractType);
+
+  return { values, aiFields };
+}
 
 const isEmptyInput = (issue: z.core.$ZodIssue): boolean =>
   typeof issue.input === "string" && issue.input.trim() === "";

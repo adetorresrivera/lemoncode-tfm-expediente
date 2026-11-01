@@ -3,6 +3,7 @@ import { ApplicationEditComponent } from "./application-edit.component";
 import {
   useApplicationEditLoad,
   useApplicationForm,
+  useOfferExtraction,
 } from "./application-edit.hooks";
 import { keepStoredAppliedAt } from "./application-edit.mapper";
 import {
@@ -37,12 +38,23 @@ function ApplicationCreate({ onSaved, renderCancelLink }: CreateProps) {
     save: createApplication,
     onSaved: (application) => onSaved(application.id),
   });
+  const { draft, setDraft, status, analyze } = useOfferExtraction({
+    form,
+    initialDraft: "",
+  });
 
   return (
     <ApplicationEditComponent
       mode="create"
       form={form}
       formMessage={formMessage}
+      offerPanel={{
+        defaultOpen: true,
+        draft,
+        status,
+        onDraftChange: setDraft,
+        onAnalyze: analyze,
+      }}
       renderCancelLink={renderCancelLink}
     />
   );
@@ -72,6 +84,10 @@ function ApplicationEditForm({
       ),
     onSaved: (application) => onSaved(application.id),
   });
+  const { draft, setDraft, status, analyze } = useOfferExtraction({
+    form,
+    initialDraft: "",
+  });
 
   return (
     <ApplicationEditComponent
@@ -79,6 +95,13 @@ function ApplicationEditForm({
       summary={summary}
       form={form}
       formMessage={formMessage}
+      offerPanel={{
+        defaultOpen: false,
+        draft,
+        status,
+        onDraftChange: setDraft,
+        onAnalyze: analyze,
+      }}
       renderCancelLink={renderCancelLink}
     />
   );

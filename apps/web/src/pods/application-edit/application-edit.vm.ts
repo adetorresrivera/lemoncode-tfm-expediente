@@ -76,3 +76,40 @@ export interface ApplicationEditSummary {
   status: ApplicationStatus;
   appliedAt: string | null;
 }
+
+// Fields the AI analysis can fill. The merge lists the ones it wrote; the hook applies them
+// without running the field listeners.
+export type AiFillableField =
+  | "title"
+  | "company"
+  | "location"
+  | "workMode"
+  | "seniority"
+  | "contractType"
+  | "salaryMin"
+  | "salaryMax"
+  | "currency";
+
+// Result of merging an extraction into the current form values: the new values and the fields
+// the AI filled (in form order).
+export interface ExtractionMerge {
+  values: ApplicationFormValues;
+  aiFields: AiFillableField[];
+}
+
+export type OfferErrorReason = "timeout" | "model" | "network";
+
+export type OfferAnalysisStatus =
+  | { kind: "idle" }
+  | { kind: "analysing" }
+  | { kind: "success"; filled: number }
+  | { kind: "error"; reason: OfferErrorReason };
+
+// What the «Pegar oferta» panel needs: the container owns the draft and the analysis state.
+export interface OfferPanelModel {
+  defaultOpen: boolean;
+  draft: string;
+  status: OfferAnalysisStatus;
+  onDraftChange: (draft: string) => void;
+  onAnalyze: () => void;
+}
