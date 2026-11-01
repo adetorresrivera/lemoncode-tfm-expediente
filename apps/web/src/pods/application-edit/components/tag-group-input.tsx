@@ -9,6 +9,8 @@ import type { ApplicationFormTag } from "../application-edit.vm";
 interface Props {
   group: TagGroup;
   legend: string;
+  // Example shown in the empty input; each group sets its own (D-27).
+  placeholder: string;
   soft?: boolean;
   // The full tag list of the form (every group); `onChange` receives the full normalized list.
   tags: ApplicationFormTag[];
@@ -23,6 +25,7 @@ type PendingFocus = { kind: "chip"; label: string } | { kind: "input" };
 export function TagGroupInput({
   group,
   legend,
+  placeholder,
   soft,
   tags,
   aiTags,
@@ -97,7 +100,7 @@ export function TagGroupInput({
           ref={inputRef}
           value={draft}
           maxLength={40}
-          placeholder="Ej.: React"
+          placeholder={placeholder}
           autoComplete="off"
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {

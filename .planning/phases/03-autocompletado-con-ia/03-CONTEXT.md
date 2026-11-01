@@ -60,6 +60,7 @@ Out of scope: reusing the user's existing tags in the prompt (documented as a "f
 
 ### Gap closure decisions (UAT 2026-11-01)
 - **D-26:** `normalizeExtraction` keeps tag group «language» only when the label, lower-cased, without accents and compared word by word, names a spoken language from the closed list `SPOKEN_LANGUAGE_WORDS`; otherwise the tag moves to «stack»; deduplication runs after the move; «stack» and «nice_to_have» are not touched; spec line in docs/AI-EXTRACTION.md §Normalización (user decision 2026-11-01, UAT G-03-2, plan 03-10). Later gap plans append to this subsection.
+- **D-27:** Each tag-group input shows its own example placeholder: Stack tecnológico «Ej.: React», Se valora «Ej.: Docker», Idiomas «Ej.: Inglés B2»; `TagGroupInput` takes it as a required prop set by `TagsSection`; amends the phase-2 copy contract (02-UI-SPEC.md lines ~271 and ~393) (user decision 2026-11-01, UAT G-03-2b, plan 03-11).
 
 ### Claude's Discretion
 - Propagating a client cancel to the server: combine the request's abort signal (`c.req.raw.signal`) with the timeout signal (`AbortSignal.any`) so a cancelled request also stops the LLM call, if Hono's Node adapter exposes it reliably. Otherwise the server just finishes and the web ignores the result.
