@@ -7,6 +7,7 @@ import {
 import { z } from "zod";
 import {
   EMPTY_FORM_VALUES,
+  RELEVANT_FIELDS,
   type AiFillableField,
   type ApplicationFormValues,
   type ExtractionMerge,
@@ -137,9 +138,13 @@ export const mapFormValuesToApiInput = (
 type MergedTextField =
   "title" | "company" | "location" | "workMode" | "seniority" | "contractType";
 
+const isBlank = (text: string): boolean => text.trim() === "";
+
 // Fills only what is empty (a whitespace-only value counts as empty) and only with a value the
-// extraction found: a value the user typed is never overwritten (AI-06, D-04). Pure: `current` is
-// not mutated.
+// extraction found: a value the user typed is never overwritten (AI-06, D-04). Two refinements
+// guard the salary: a fill never leaves the minimum above a maximum the user kept (Pitfall 9), and
+// the currency is filled only together with a salary the analysis filled (Pitfall 10). Reports
+// the relevant fields still empty after the merge (AI-08). Pure: `current` is not mutated.
 export function mergeExtractionIntoForm(
   current: ApplicationFormValues,
   extraction: OfferExtraction,
@@ -165,7 +170,49 @@ export function mergeExtractionIntoForm(
   fill("seniority", extraction.seniority);
   fill("contractType", extraction.contractType);
 
-  return { values, aiFields };
+  const keptMin = isBlank(current.salaryMin) ? null : Number(current.salaryMin);
+  const keptMax = isBlank(current.salaryMax) ? null : Number(current.salaryMax);
+
+  // A fill that would leave the minimum above a maximum the user kept (or the maximum below a
+  // minimum the user kept) is skipped: the AI never overwrites and never inverts the range.
+  const minToFill =
+    extraction.salaryMin !== null &&
+    isBlank(current.salaryMin) &&
+    !(keptMax !== null && extraction.salaryMin > keptMax)
+      ? extraction.salaryMin
+      : null;
+  const maxToFill =
+    extraction.salaryMax !== null &&
+    isBlank(current.salaryMax) &&
+    !(keptMin !== null && extraction.salaryMax < keptMin)
+      ? extraction.salaryMax
+      : null;
+
+  if (minToFill !== null) {
+    values.salaryMin = String(minToFill);
+    aiFields.push("salaryMin");
+  }
+  if (maxToFill !== null) {
+    values.salaryMax = String(maxToFill);
+    aiFields.push("salaryMax");
+  }
+
+  const salaryWasEmpty =
+    isBlank(current.salaryMin) && isBlank(current.salaryMax);
+  if (
+    salaryWasEmpty &&
+    (minToFill !== null || maxToFill !== null) &&
+    extraction.currency !== null
+  ) {
+    values.currency = extraction.currency;
+    aiFields.push("currency");
+  }
+
+  const missingFields = RELEVANT_FIELDS.filter((field) =>
+    isBlank(values[field]),
+  );
+
+  return { values, aiFields, missingFields };
 }
 
 const isEmptyInput = (issue: z.core.$ZodIssue): boolean =>
