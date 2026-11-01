@@ -47,13 +47,22 @@ function ApplicationCreate({ onSaved, renderCancelLink }: CreateProps) {
       onSaved(application.id);
     },
   });
-  const { draft, setDraft, status, analyze, cancel, clearStatus } =
-    useOfferExtraction({
-      form,
-      initialDraft: "",
-      getMarks: marks.getMarks,
-      onMerged: marks.setFromMerge,
-    });
+  const {
+    draft,
+    setDraft,
+    open,
+    setOpen,
+    status,
+    analyze,
+    cancel,
+    clearStatus,
+  } = useOfferExtraction({
+    form,
+    initialDraft: "",
+    initialOpen: true,
+    getMarks: marks.getMarks,
+    onMerged: marks.setFromMerge,
+  });
 
   return (
     <ApplicationEditComponent
@@ -62,7 +71,8 @@ function ApplicationCreate({ onSaved, renderCancelLink }: CreateProps) {
       marks={marks.marks}
       formMessage={formMessage}
       offerPanel={{
-        defaultOpen: true,
+        open,
+        onOpenChange: setOpen,
         draft,
         status,
         onDraftChange: setDraft,
@@ -104,13 +114,22 @@ function ApplicationEditForm({
       onSaved(application.id);
     },
   });
-  const { draft, setDraft, status, analyze, cancel, clearStatus } =
-    useOfferExtraction({
-      form,
-      initialDraft: values.offerText,
-      getMarks: marks.getMarks,
-      onMerged: marks.setFromMerge,
-    });
+  const {
+    draft,
+    setDraft,
+    open,
+    setOpen,
+    status,
+    analyze,
+    cancel,
+    clearStatus,
+  } = useOfferExtraction({
+    form,
+    initialDraft: values.offerText,
+    initialOpen: false,
+    getMarks: marks.getMarks,
+    onMerged: marks.setFromMerge,
+  });
 
   return (
     <ApplicationEditComponent
@@ -120,7 +139,8 @@ function ApplicationEditForm({
       marks={marks.marks}
       formMessage={formMessage}
       offerPanel={{
-        defaultOpen: false,
+        open,
+        onOpenChange: setOpen,
         draft,
         status,
         onDraftChange: setDraft,

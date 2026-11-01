@@ -137,9 +137,11 @@ export type OfferAnalysisStatus =
   | { kind: "error"; reason: OfferErrorReason }
   | { kind: "cancelled" };
 
-// What the «Pegar oferta» panel needs: the container owns the draft and the analysis state.
+// What the «Pegar oferta» panel needs: the container owns the draft, the analysis state and the
+// open state (the hook folds the panel after an analysis that filled something, D-12).
 export interface OfferPanelModel {
-  defaultOpen: boolean;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
   draft: string;
   status: OfferAnalysisStatus;
   onDraftChange: (draft: string) => void;
