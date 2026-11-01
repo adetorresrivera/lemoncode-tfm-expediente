@@ -1,10 +1,20 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { errorResponseSchema, offerExtractionSchema } from "@tfm/contracts";
+import {
+  errorResponseSchema,
+  offerExtractionSchema,
+  type OfferExtraction,
+} from "@tfm/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createApp, type AppDeps } from "../app.js";
+import { ApiError } from "../errors.js";
 import { createLlmClient, type LlmClient } from "../llm/llm.client.js";
 import { MOCK_OFFER_EXTRACTION } from "../llm/mock.provider.js";
+import {
+  OFFER_FIXTURES,
+  readFixtureText,
+  type FixtureName,
+} from "./__fixtures__/fixtures.js";
 import { EXTRACTION_SYSTEM_PROMPT } from "./extract.service.js";
 
 const allUp: AppDeps = {
@@ -22,8 +32,8 @@ const OFFER_TEXT =
 function fakeLlm() {
   const calls: unknown[][] = [];
   const llm: LlmClient = {
-    async extractStructured(system, input, schema) {
-      calls.push([system, input, schema]);
+    async extractStructured(system, input, schema, options) {
+      calls.push([system, input, schema, options]);
       return schema.parse(MOCK_OFFER_EXTRACTION);
     },
     ping: async () => true,
@@ -64,8 +74,20 @@ function promptFromDoc(): string {
   return lines.slice(open + 1, close).join("\n");
 }
 
+const CONSOLE_METHODS = ["log", "info", "warn", "error", "debug"] as const;
+type ConsoleSpies = Record<
+  (typeof CONSOLE_METHODS)[number],
+  ReturnType<typeof vi.spyOn>
+>;
+let consoleSpies: ConsoleSpies;
+
 beforeEach(() => {
-  vi.spyOn(console, "error").mockImplementation(() => undefined);
+  consoleSpies = Object.fromEntries(
+    CONSOLE_METHODS.map((method) => [
+      method,
+      vi.spyOn(console, method).mockImplementation(() => undefined),
+    ]),
+  ) as ConsoleSpies;
 });
 
 afterEach(() => {
@@ -86,6 +108,9 @@ describe("POST /api/offers/extract", () => {
     const args: unknown[] = calls[0] ?? [];
     expect(args[1]).toBe(OFFER_TEXT.trim());
     expect(args[2]).toBe(offerExtractionSchema);
+    expect(args[3]).toEqual(
+      expect.objectContaining({ signal: expect.any(AbortSignal) }),
+    );
   });
 
   it("hands the model the system prompt of docs/AI-EXTRACTION.md byte for byte", async () => {
@@ -189,5 +214,197 @@ describe("POST /api/offers/extract", () => {
     expect(res.status).toBe(404);
     const body = errorResponseSchema.parse(await res.json());
     expect(body.error.code).toBe("NOT_FOUND");
+  });
+});
+
+// A client that answers a fixed (possibly dirty) draft or rejects with the given error.
+function scriptedLlm(outcome: OfferExtraction | Error): LlmClient {
+  return {
+    async extractStructured() {
+      if (outcome instanceof Error) throw outcome;
+      return outcome as never;
+    },
+    ping: async () => true,
+  };
+}
+
+const DIRTY: Record<FixtureName, OfferExtraction> = {
+  "remote-senior": {
+    title: "  Desarrollador/a Frontend Senior  ",
+    company: "",
+    location: "   ",
+    workMode: "remoto",
+    seniority: "senior",
+    contractType: "indefinido",
+    salaryMin: 55000,
+    salaryMax: 45000,
+    currency: "eur",
+    tags: [
+      { label: "React", group: "stack" },
+      { label: " react ", group: "stack" },
+      { label: "Inglés  B2", group: "language" },
+    ],
+  },
+  "onsite-junior": {
+    title: "Programador/a Backend Junior ",
+    company: " Talleres Digitales del Sur",
+    location: "Sevilla",
+    workMode: "presencial",
+    seniority: "junior",
+    contractType: "temporal",
+    salaryMin: null,
+    salaryMax: null,
+    currency: " ",
+    tags: [
+      { label: "Java", group: "stack" },
+      { label: "JAVA", group: "nice_to_have" },
+      { label: "  ", group: "stack" },
+    ],
+  },
+  "english-nice-to-have": {
+    title: "Full Stack Engineer",
+    company: "Northwind Labs",
+    location: "London",
+    workMode: "hibrido",
+    seniority: "mid",
+    contractType: "indefinido",
+    salaryMin: 50000,
+    salaryMax: 60000,
+    currency: "gbp",
+    tags: [
+      { label: "x".repeat(45), group: "stack" },
+      { label: "GraphQL", group: "nice_to_have" },
+    ],
+  },
+};
+
+describe("POST /api/offers/extract with the fixture offers", () => {
+  it.each(OFFER_FIXTURES.map((fixture) => [fixture.name] as const))(
+    "answers a normalized draft for %s",
+    async (name) => {
+      const llm = scriptedLlm(DIRTY[name]);
+      const res = await postExtract(createApp({ ...allUp, llm }), {
+        text: readFixtureText(name),
+      });
+
+      expect(res.status).toBe(200);
+      const body = offerExtractionSchema.parse(await res.json());
+      expect(body.title).toBe(DIRTY[name].title?.trim());
+      expect(body.company).toBe(DIRTY[name].company?.trim() || null);
+      expect(body.currency).toBe(
+        DIRTY[name].currency?.trim().toUpperCase() || null,
+      );
+      if (name === "remote-senior") {
+        expect([body.salaryMin, body.salaryMax]).toEqual([45000, 55000]);
+        expect(body.location).toBeNull();
+        expect(body.tags).toEqual([
+          { label: "React", group: "stack" },
+          { label: "Inglés B2", group: "language" },
+        ]);
+      }
+      if (name === "onsite-junior") {
+        expect(body.tags).toEqual([{ label: "Java", group: "stack" }]);
+      }
+      if (name === "english-nice-to-have") {
+        expect(body.tags[0]?.label).toBe("x".repeat(40));
+      }
+    },
+  );
+});
+
+describe("POST /api/offers/extract hardening", () => {
+  it("answers 400 VALIDATION_ERROR for a 300 KiB body and never calls the model", async () => {
+    const { llm, calls } = fakeLlm();
+    const res = await postExtract(createApp({ ...allUp, llm }), {
+      text: "a".repeat(300 * 1024),
+    });
+
+    expect(res.status).toBe(400);
+    const parsed = errorResponseSchema.parse(await res.json());
+    expect(parsed.error.code).toBe("VALIDATION_ERROR");
+    expect(calls).toHaveLength(0);
+  });
+
+  it("maps a model timeout to 504 LLM_TIMEOUT", async () => {
+    const llm = scriptedLlm(
+      new ApiError(504, "LLM_TIMEOUT", "El modelo tardó demasiado"),
+    );
+    const res = await postExtract(createApp({ ...allUp, llm }), {
+      text: OFFER_TEXT,
+    });
+
+    expect(res.status).toBe(504);
+    expect(errorResponseSchema.parse(await res.json()).error.code).toBe(
+      "LLM_TIMEOUT",
+    );
+  });
+
+  it("maps a model failure to 502 LLM_ERROR", async () => {
+    const llm = scriptedLlm(
+      new ApiError(502, "LLM_ERROR", "El modelo no respondió"),
+    );
+    const res = await postExtract(createApp({ ...allUp, llm }), {
+      text: OFFER_TEXT,
+    });
+
+    expect(res.status).toBe(502);
+    expect(errorResponseSchema.parse(await res.json()).error.code).toBe(
+      "LLM_ERROR",
+    );
+  });
+
+  describe("never leaks the offer text", () => {
+    const SENTINEL = "SENTINEL-OFFER-9c1";
+
+    function loggedText(): string {
+      return JSON.stringify(
+        CONSOLE_METHODS.flatMap((method) => consoleSpies[method].mock.calls),
+      );
+    }
+
+    it.each([
+      ["200", scriptedLlm(DIRTY["remote-senior"])],
+      [
+        "502",
+        scriptedLlm(new ApiError(502, "LLM_ERROR", "El modelo no respondió")),
+      ],
+      [
+        "504",
+        scriptedLlm(
+          new ApiError(504, "LLM_TIMEOUT", "El modelo tardó demasiado"),
+        ),
+      ],
+    ])(
+      "on %s neither the logs nor the body carry the text",
+      async (_s, llm) => {
+        const text = `${SENTINEL} ${OFFER_TEXT}`;
+        const res = await postExtract(createApp({ ...allUp, llm }), { text });
+
+        expect(await res.text()).not.toContain(SENTINEL);
+        expect(loggedText()).not.toContain(SENTINEL);
+      },
+    );
+
+    it("on 400 for a 49-character text", async () => {
+      const { llm } = fakeLlm();
+      const res = await postExtract(createApp({ ...allUp, llm }), {
+        text: `${SENTINEL} ${"a".repeat(30)}`,
+      });
+
+      expect(res.status).toBe(400);
+      expect(await res.text()).not.toContain(SENTINEL);
+      expect(loggedText()).not.toContain(SENTINEL);
+    });
+
+    it("on 400 for a 300 KiB body", async () => {
+      const { llm } = fakeLlm();
+      const res = await postExtract(createApp({ ...allUp, llm }), {
+        text: `${SENTINEL} ${"a".repeat(300 * 1024)}`,
+      });
+
+      expect(res.status).toBe(400);
+      expect(await res.text()).not.toContain(SENTINEL);
+      expect(loggedText()).not.toContain(SENTINEL);
+    });
   });
 });

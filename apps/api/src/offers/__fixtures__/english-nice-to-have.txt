@@ -1,0 +1,40 @@
+Full Stack Engineer
+Northwind Labs · London, UK · Hybrid (3 days a week in the office)
+
+About Northwind Labs
+Northwind Labs builds analytics tools that help independent retailers understand their sales, stock and customers. We are a team of around 40 people based in Shoreditch, London. Our product is used by thousands of small shops across the UK and Ireland, and we are growing fast.
+
+The role
+We are looking for a Full Stack Engineer to join one of our product teams. You will work across the whole stack, from the user interface to the services and the database behind it, and you will own features end to end: from the first conversation with the product manager to monitoring them in production.
+
+What you will do
+- Build and ship new features for our web application and the APIs behind it.
+- Improve the performance and reliability of our services.
+- Review code, share knowledge and help us raise our engineering standards.
+- Work closely with designers, product managers and customer support to understand what our users need.
+- Take part in our on-call rota, with a fair compensation for it.
+
+What we are looking for
+- 3+ years of professional experience as a full stack or backend engineer.
+- Strong experience with Node.js and TypeScript.
+- Solid knowledge of React and modern frontend practices.
+- Experience designing and querying relational databases, ideally PostgreSQL.
+- Good written and spoken English.
+
+Nice to have
+- Experience with GraphQL.
+- Experience running workloads on Kubernetes.
+- Previous work in retail, e-commerce or analytics products.
+
+What we offer
+- A permanent contract with a salary of £50,000 – £60,000 per year, depending on experience.
+- Hybrid working: three days a week in our London office, the rest from home.
+- 28 days of holiday plus bank holidays.
+- A learning budget of £1,000 per year and paid time to use it.
+- Private health insurance and a pension plan with employer contributions.
+- A friendly, inclusive team that values curiosity and kindness.
+
+Hiring process
+A short call with our talent team, a technical conversation with two engineers, a small take-home exercise and a final chat with the head of engineering. We aim to give you an answer within ten working days of each step.
+
+We welcome applications from everyone, whatever your background. If you need any adjustment during the process, just let us know.

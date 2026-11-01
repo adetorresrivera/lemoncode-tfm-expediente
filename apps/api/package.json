@@ -9,6 +9,7 @@
     "start": "node dist/main.js",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
+    "try-extract": "tsx --conditions=@tfm/source src/scripts/try-extract.ts",
     "seed": "node -e \"console.log('seed: pendiente (fase 6)')\""
   },
   "dependencies": {

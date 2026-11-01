@@ -1,5 +1,11 @@
-import { offerExtractionSchema, type OfferExtraction } from "@tfm/contracts";
-import type { LlmClient } from "../llm/llm.client.js";
+import {
+  normalizeTagLabel,
+  normalizeTags,
+  offerExtractionSchema,
+  type OfferExtraction,
+} from "@tfm/contracts";
+import { ApiError } from "../errors.js";
+import type { LlmCallOptions, LlmClient } from "../llm/llm.client.js";
 
 // Literal copy of the fenced block under «Prompt de sistema» in docs/AI-EXTRACTION.md (D-25).
 // extract.routes.test.ts compares it with the document: edit both together, with approval.
@@ -20,18 +26,81 @@ export const EXTRACTION_SYSTEM_PROMPT = [
   "  - Grafía canónica (React, TypeScript, C#, .NET 8, AWS). Sin duplicados. Máximo 20.",
 ].join("\n");
 
-export interface ExtractService {
-  extract(text: string): Promise<OfferExtraction>;
+const MAX_LABEL_UNITS = 40;
+
+function clean(value: string | null): string | null {
+  if (value === null) return null;
+  const trimmed = value.trim();
+  return trimmed === "" ? null : trimmed;
 }
 
-// Never logs: the offer text must not reach the logs (plan 03-03 adds length and duration only).
+// Keeps the first 40 UTF-16 code units (what tagSchema counts) and never ends on a lone high surrogate.
+function cutLabel(label: string): string {
+  if (label.length <= MAX_LABEL_UNITS) return label;
+  let cut = label.slice(0, MAX_LABEL_UNITS);
+  const last = cut.charCodeAt(cut.length - 1);
+  if (last >= 0xd800 && last <= 0xdbff) cut = cut.slice(0, -1);
+  return cut.trim();
+}
+
+// Pure: builds a new object and never mutates its input (docs/AI-EXTRACTION.md §Normalización).
+export function normalizeExtraction(raw: OfferExtraction): OfferExtraction {
+  let { salaryMin, salaryMax } = raw;
+  if (salaryMin !== null && salaryMax !== null && salaryMin > salaryMax) {
+    [salaryMin, salaryMax] = [salaryMax, salaryMin];
+  }
+  const currency = clean(raw.currency);
+  const result: OfferExtraction = {
+    title: clean(raw.title),
+    company: clean(raw.company),
+    location: clean(raw.location),
+    workMode: raw.workMode,
+    seniority: raw.seniority,
+    contractType: raw.contractType,
+    salaryMin,
+    salaryMax,
+    currency: currency === null ? null : currency.toUpperCase(),
+    tags: normalizeTags(
+      raw.tags.map((tag) => ({
+        label: cutLabel(normalizeTagLabel(tag.label)),
+        group: tag.group,
+      })),
+    ),
+  };
+  const parsed = offerExtractionSchema.safeParse(result);
+  if (!parsed.success) {
+    throw new ApiError(
+      502,
+      "LLM_ERROR",
+      "La respuesta del modelo no es válida",
+    );
+  }
+  return parsed.data;
+}
+
+export interface ExtractService {
+  extract(text: string, options?: LlmCallOptions): Promise<OfferExtraction>;
+}
+
+// The only log line carries the text length and the duration: never the offer or the model output (D-02).
 export function createExtractService(llm: LlmClient): ExtractService {
   return {
-    extract: (text) =>
-      llm.extractStructured(
-        EXTRACTION_SYSTEM_PROMPT,
-        text,
-        offerExtractionSchema,
-      ),
+    async extract(text, options) {
+      const started = performance.now();
+      try {
+        const raw = await llm.extractStructured(
+          EXTRACTION_SYSTEM_PROMPT,
+          text,
+          offerExtractionSchema,
+          { signal: options?.signal },
+        );
+        return normalizeExtraction(raw);
+      } finally {
+        console.info("offers.extract", {
+          length: text.length,
+          durationMs: Math.round(performance.now() - started),
+        });
+      }
+    },
   };
 }

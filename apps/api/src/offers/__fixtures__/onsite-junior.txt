@@ -1,0 +1,34 @@
+Programador/a Backend Junior
+Talleres Digitales del Sur · Sevilla · Presencial
+
+¿Quiénes somos?
+Talleres Digitales del Sur es una consultora tecnológica con oficina en el centro de Sevilla. Desarrollamos software a medida para empresas de la zona: logística, turismo y comercio local. Somos un equipo de 25 personas y apostamos por que quien empieza en esta profesión aprenda al lado de gente con experiencia.
+
+Qué buscamos
+Una persona con ganas de aprender para incorporarse al equipo de backend como programador o programadora junior. Trabajarás en proyectos reales desde el primer mes, siempre acompañada por una persona de referencia que revisará tu código y te ayudará a crecer.
+
+Funciones
+- Desarrollar y mantener servicios y APIs REST para los proyectos de nuestros clientes.
+- Escribir consultas y optimizar el acceso a bases de datos relacionales.
+- Corregir incidencias y participar en las revisiones de código del equipo.
+- Documentar lo que construyes para que otra persona pueda continuarlo.
+
+Requisitos
+- Entre 0 y 2 años de experiencia profesional; se aceptan prácticas y proyectos personales.
+- Conocimientos de Java y de Spring Boot.
+- Buen manejo de SQL y de bases de datos relacionales.
+- Ganas de trabajar en equipo y de preguntar cuando algo no está claro.
+- Titulación en Informática, ciclo formativo superior en desarrollo o formación equivalente.
+
+Se valora
+- Haber usado Docker en algún proyecto, aunque sea personal.
+
+Condiciones
+- Trabajo presencial en nuestra oficina de Sevilla, de lunes a viernes.
+- Contrato temporal de 12 meses, con posibilidad real de pasar a plantilla.
+- Jornada completa de 8:00 a 16:00 los viernes y de 9:00 a 18:00 el resto de la semana.
+- Plan de formación con una tarde semanal dedicada a aprender.
+- Ambiente cercano, café incluido y un equipo que come junto los jueves.
+
+Cómo participar
+Envía tu currículum a nuestro equipo de selección con una nota breve sobre el proyecto del que más has aprendido. Haremos una entrevista con una persona de recursos humanos y una prueba técnica sencilla con el equipo, y te daremos respuesta en una semana.
