@@ -3,22 +3,22 @@ phase: 03
 review: 03-REVIEW.md
 titles: json
 findings:
+  - id: WR-01
+    severity: warning
+    disposition: open
+    title: "Spoken languages outside the closed list are silently demoted to `stack`"
   - id: IN-01
     severity: info
     disposition: open
-    title: "Symbol currency is dropped instead of mapped, although the prompt tells the model to map it"
+    title: "Exports with no consumer outside their module"
   - id: IN-02
     severity: info
     disposition: open
-    title: "Tag label limit is a second hard-coded copy of the contract's `max(40)`"
+    title: "Redundant condition in the focus-restore effect"
   - id: IN-03
     severity: info
     disposition: open
-    title: "The fixed SyntaxError log string names a cause the handler cannot guarantee"
-  - id: WR-01
-    severity: warning
-    disposition: fixed
-    title: "Normalization of over-long labels and surplus tags is unreachable; one off-spec field fails the whole analysis"
+    title: "Test assertions on the shown schema rely on a substring check"
   - id: WR-02
     severity: warning
     disposition: fixed
@@ -31,19 +31,19 @@ findings:
     severity: info
     disposition: open
     title: "Trailing-slash normalization of `LLM_BASE_URL` is done three times"
-open: 5
+open: 6
 total: 7
-recorded: 2026-11-01T13:57:32.741Z
+recorded: 2026-11-01T17:34:10.757Z
 ---
 
 # Phase 03: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
+| WR-01 | warning | open | - |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
-| WR-01 | warning | fixed | 03-REVIEW-FIX.md (not in the current review) |
 | WR-02 | warning | fixed | 03-REVIEW-FIX.md (not in the current review) |
 | IN-04 | info | open | - (not in the current review) |
 | IN-05 | info | open | - (not in the current review) |
