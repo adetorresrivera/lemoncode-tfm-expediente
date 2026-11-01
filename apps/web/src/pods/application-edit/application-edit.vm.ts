@@ -102,16 +102,20 @@ export const RELEVANT_FIELDS: readonly RelevantField[] = [
 ];
 
 // Result of merging an extraction into the current form values: the new values, the fields the AI
-// filled (in form order) and the relevant fields still empty afterwards.
+// filled (in form order), the keys (tagKey) of the tags it added and the relevant fields still
+// empty afterwards.
 export interface ExtractionMerge {
   values: ApplicationFormValues;
   aiFields: AiFillableField[];
+  aiTags: string[];
   missingFields: RelevantField[];
 }
 
-// The session view of a merge's two lists, what the form marks next to the fields.
+// The session view of a merge's lists, what the form marks: «IA» next to fields, «Complétalo tú»
+// on relevant fields still empty and the AI mark on the tag chips (keys from tagKey).
 export interface AiMarks {
   aiFields: ReadonlySet<AiFillableField>;
+  aiTags: ReadonlySet<string>;
   missingFields: ReadonlySet<RelevantField>;
 }
 
@@ -120,7 +124,12 @@ export type OfferErrorReason = "timeout" | "model" | "network";
 export type OfferAnalysisStatus =
   | { kind: "idle" }
   | { kind: "analysing" }
-  | { kind: "success"; filled: number; missing: RelevantField[] }
+  | {
+      kind: "success";
+      filled: number;
+      tagsAdded: number;
+      missing: RelevantField[];
+    }
   | { kind: "error"; reason: OfferErrorReason };
 
 // What the «Pegar oferta» panel needs: the container owns the draft and the analysis state.

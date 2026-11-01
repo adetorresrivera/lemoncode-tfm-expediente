@@ -1,4 +1,4 @@
-import { Check, X } from "lucide-react";
+import { Check, Sparkles, X } from "lucide-react";
 import { cn } from "@/common/lib/utils";
 
 const BASE =
@@ -10,9 +10,19 @@ interface Props {
   onRemove?: () => void;
   selected?: boolean;
   onToggle?: () => void;
+  // The AI proposed this tag and the user has not removed it yet (D-14). Static and removable
+  // chips only; the toggle chip is a filter and never carries the mark.
+  aiSuggested?: boolean;
 }
 
-export function TagChip({ label, soft, onRemove, selected, onToggle }: Props) {
+export function TagChip({
+  label,
+  soft,
+  onRemove,
+  selected,
+  onToggle,
+  aiSuggested,
+}: Props) {
   if (onToggle) {
     return (
       <button
@@ -46,9 +56,19 @@ export function TagChip({ label, soft, onRemove, selected, onToggle }: Props) {
         onRemove !== undefined && "pr-1",
       )}
     >
+      {aiSuggested === true ? (
+        <Sparkles
+          aria-hidden="true"
+          strokeWidth={1.5}
+          className="size-3 shrink-0 text-primary"
+        />
+      ) : null}
       <span className="truncate" title={label}>
         {label}
       </span>
+      {aiSuggested === true ? (
+        <span className="sr-only">(propuesta por IA)</span>
+      ) : null}
       {onRemove ? (
         <button
           type="button"

@@ -37,13 +37,33 @@ const joinLabels = (labels: string[]): string =>
     ? labels.join("")
     : `${labels.slice(0, -1).join(", ")} y ${labels[labels.length - 1]}`;
 
-const successMessage = (filled: number, missing: RelevantField[]): string => {
-  const summary =
-    filled === 0
-      ? "No hemos encontrado datos nuevos en la oferta. Completa el formulario a mano."
-      : filled === 1
-        ? "Hemos rellenado 1 campo. Revísalo."
-        : `Hemos rellenado ${filled} campos. Revísalos.`;
+const fieldsText = (count: number): string =>
+  count === 1 ? "1 campo" : `${count} campos`;
+
+const tagsText = (count: number): string =>
+  count === 1 ? "1 etiqueta" : `${count} etiquetas`;
+
+// One sentence per case: nothing new, fields only, tags only or both. The closing verb agrees with
+// what is shown («Revísalo», «Revísala», «Revísalos», «Revísalas»).
+const summaryMessage = (filled: number, tagsAdded: number): string => {
+  if (filled === 0 && tagsAdded === 0) {
+    return "No hemos encontrado datos nuevos en la oferta. Completa el formulario a mano.";
+  }
+  if (tagsAdded === 0) {
+    return `Hemos rellenado ${fieldsText(filled)}. ${filled === 1 ? "Revísalo." : "Revísalos."}`;
+  }
+  if (filled === 0) {
+    return `Hemos añadido ${tagsText(tagsAdded)}. ${tagsAdded === 1 ? "Revísala." : "Revísalas."}`;
+  }
+  return `Hemos rellenado ${fieldsText(filled)} y añadido ${tagsText(tagsAdded)}. Revísalos.`;
+};
+
+const successMessage = (
+  filled: number,
+  tagsAdded: number,
+  missing: RelevantField[],
+): string => {
+  const summary = summaryMessage(filled, tagsAdded);
   if (missing.length === 0) return summary;
   const labels = joinLabels(missing.map((field) => RELEVANT_LABELS[field]));
   return `${summary} Te falta completar: ${labels}.`;
@@ -61,7 +81,11 @@ function AnalysisStatus({ status }: { status: OfferAnalysisStatus }) {
       return (
         <RequestStatus
           kind="success"
-          message={successMessage(status.filled, status.missing)}
+          message={successMessage(
+            status.filled,
+            status.tagsAdded,
+            status.missing,
+          )}
         />
       );
     case "error":

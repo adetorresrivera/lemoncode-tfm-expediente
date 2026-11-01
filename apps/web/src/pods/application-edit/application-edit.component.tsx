@@ -58,7 +58,7 @@ export function ApplicationEditComponent({
       </p>
       <JobSection form={form} marks={marks} />
       <ConditionsSection form={form} marks={marks} />
-      <TagsSection form={form} />
+      <TagsSection form={form} aiTags={marks.aiTags} />
       <TrackingSection
         form={form}
         mode={mode}

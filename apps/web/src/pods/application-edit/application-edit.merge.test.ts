@@ -272,3 +272,84 @@ describe("mergeExtractionIntoForm: missing fields", () => {
     expect(second.missingFields).not.toContain("seniority");
   });
 });
+
+describe("mergeExtractionIntoForm: tags", () => {
+  const withTags = (tags: ApplicationFormValues["tags"]) =>
+    form({ tags: tags.map((tag) => ({ ...tag })) });
+
+  it("adds the proposed tags after the existing ones, in model order, without duplicates", () => {
+    const merge = mergeExtractionIntoForm(
+      withTags([{ label: "React", group: "stack" }]),
+      extraction({
+        tags: [
+          { label: "react", group: "stack" },
+          { label: "TypeScript", group: "stack" },
+          { label: "Inglés B2", group: "language" },
+        ],
+      }),
+    );
+    expect(merge.values.tags).toStrictEqual([
+      { label: "React", group: "stack" },
+      { label: "TypeScript", group: "stack" },
+      { label: "Inglés B2", group: "language" },
+    ]);
+    expect(merge.aiTags).toStrictEqual(["typescript", "inglés b2"]);
+  });
+
+  it("keeps the user spelling and group when the key already exists", () => {
+    const merge = mergeExtractionIntoForm(
+      withTags([{ label: "Docker", group: "nice_to_have" }]),
+      extraction({ tags: [{ label: "  docker ", group: "stack" }] }),
+    );
+    expect(merge.values.tags).toStrictEqual([
+      { label: "Docker", group: "nice_to_have" },
+    ]);
+    expect(merge.aiTags).toStrictEqual([]);
+  });
+
+  it("compares keys ignoring case, extra spaces and Unicode form", () => {
+    const merge = mergeExtractionIntoForm(
+      withTags([{ label: "Café  Racer", group: "stack" }]),
+      extraction({ tags: [{ label: "café racer", group: "stack" }] }),
+    );
+    expect(merge.values.tags).toHaveLength(1);
+    expect(merge.aiTags).toStrictEqual([]);
+  });
+
+  it("stops at the cap keeping the user's tags and drops the extra ones", () => {
+    const existing = Array.from({ length: 19 }, (_, index) => ({
+      label: `Tag ${index}`,
+      group: "stack" as const,
+    }));
+    const merge = mergeExtractionIntoForm(
+      withTags(existing),
+      extraction({
+        tags: [
+          { label: "Uno", group: "stack" },
+          { label: "Dos", group: "stack" },
+          { label: "Tres", group: "stack" },
+        ],
+      }),
+    );
+    expect(merge.values.tags).toHaveLength(20);
+    expect(merge.values.tags.slice(0, 19)).toStrictEqual(existing);
+    expect(merge.aiTags).toStrictEqual(["uno"]);
+  });
+
+  it("leaves the tags as they were when the extraction has none", () => {
+    const current = withTags([{ label: "React", group: "stack" }]);
+    const merge = mergeExtractionIntoForm(current, NOTHING);
+    expect(merge.values.tags).toStrictEqual(current.tags);
+    expect(merge.aiTags).toStrictEqual([]);
+  });
+
+  it("does not mutate the current tags", () => {
+    const current = withTags([{ label: "React", group: "stack" }]);
+    const snapshot = structuredClone(current);
+    mergeExtractionIntoForm(
+      current,
+      extraction({ tags: [{ label: "Vue", group: "stack" }] }),
+    );
+    expect(current).toStrictEqual(snapshot);
+  });
+});

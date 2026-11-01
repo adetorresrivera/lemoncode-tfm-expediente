@@ -1,5 +1,11 @@
 import { applicationSchema } from "@tfm/contracts";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -27,7 +33,7 @@ const EXTRACTION = {
   salaryMin: 45000,
   salaryMax: 55000,
   currency: "EUR",
-  tags: [{ label: "React", group: "stack" }],
+  tags: [],
 };
 
 const created = applicationSchema.parse({
@@ -762,5 +768,243 @@ describe("ApplicationEditContainer AI marks", () => {
 
     expect(screen.queryByText(BADGE)).toBeNull();
     expect(screen.queryByText(MISSING)).toBeNull();
+  });
+});
+
+const AI_NOTE = "(propuesta por IA)";
+const STACK = "Stack tecnológico";
+const NICE = "Se valora";
+const LANGUAGES = "Idiomas";
+
+const groupOf = (legend: string) => screen.getByRole("group", { name: legend });
+const chip = (label: string) =>
+  screen.queryByRole("button", { name: `Quitar ${label}` });
+const typeTag = async (
+  user: ReturnType<typeof userEvent.setup>,
+  legend: string,
+  text: string,
+) => {
+  await user.type(
+    screen.getByLabelText(`Añadir etiqueta a ${legend}`),
+    `${text}{Enter}`,
+  );
+};
+
+const withTags = (tags: { label: string; group: string }[]) => ({
+  ...NO_DATA,
+  tags,
+});
+
+const TAGGED = withTags([
+  { label: "React", group: "stack" },
+  { label: "TypeScript", group: "stack" },
+  { label: "Inglés B2", group: "language" },
+]);
+
+// The chip is the list item that holds the «Quitar {label}» button.
+const chipOf = (label: string): HTMLElement => {
+  const item = screen
+    .getByRole("button", { name: `Quitar ${label}` })
+    .closest("li");
+  if (item === null) throw new Error(`No chip for ${label}`);
+  return item;
+};
+
+describe("ApplicationEditContainer AI tags", () => {
+  it("adds the proposed tags to their groups, marks each one and counts them in the summary", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () =>
+        jsonResponse({ ...TAGGED, company: "Acme SL", location: "Sevilla" }),
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+
+    expect(
+      await screen.findByText(
+        "Hemos rellenado 2 campos y añadido 3 etiquetas. Revísalos. Te falta completar: Puesto, Modalidad y Seniority.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getByText("3 de 20")).toBeInTheDocument();
+    expect(within(groupOf(STACK)).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(groupOf(LANGUAGES)).getAllByRole("listitem")).toHaveLength(1);
+    for (const label of ["React", "TypeScript", "Inglés B2"]) {
+      expect(chipOf(label)).toHaveTextContent(`${label}${AI_NOTE}`);
+    }
+    // The group legends get no badge.
+    expect(screen.getByText(STACK)).toHaveTextContent(/^Stack tecnológico$/);
+  });
+
+  it("reads the tags-only sentences in the singular and the plural", async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    mockFetch({
+      "POST /api/offers/extract": () => {
+        calls += 1;
+        return jsonResponse(
+          calls === 1
+            ? withTags([{ label: "React", group: "stack" }])
+            : withTags([
+                { label: "Vue", group: "stack" },
+                { label: "Docker", group: "nice_to_have" },
+              ]),
+        );
+      },
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    expect(
+      await screen.findByText(
+        "Hemos añadido 1 etiqueta. Revísala. Te falta completar: Puesto, Empresa, Modalidad y Seniority.",
+      ),
+    ).toBeInTheDocument();
+
+    await user.click(analyzeButton());
+    expect(
+      await screen.findByText(
+        "Hemos añadido 2 etiquetas. Revísalas. Te falta completar: Puesto, Empresa, Modalidad y Seniority.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("reads one field and one tag in the singular", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () =>
+        jsonResponse({
+          ...withTags([{ label: "React", group: "stack" }]),
+          company: "Acme SL",
+        }),
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+
+    expect(
+      await screen.findByText(
+        "Hemos rellenado 1 campo y añadido 1 etiqueta. Revísalos. Te falta completar: Puesto, Modalidad y Seniority.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps a user tag with its spelling and no mark when the AI proposes the same one", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () =>
+        jsonResponse(withTags([{ label: "React", group: "stack" }])),
+    });
+    renderCreate();
+
+    await typeTag(user, STACK, "react");
+    pasteOffer();
+    await user.click(analyzeButton());
+
+    expect(
+      await screen.findByText(/No hemos encontrado datos nuevos/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("1 de 20")).toBeInTheDocument();
+    expect(chipOf("react")).not.toHaveTextContent(AI_NOTE);
+    expect(chip("React")).toBeNull();
+  });
+
+  it("drops the mark of a removed chip for good, even when the user adds it again", async () => {
+    const user = userEvent.setup();
+    mockFetch({ "POST /api/offers/extract": () => jsonResponse(TAGGED) });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/añadido 3 etiquetas/);
+
+    await user.click(screen.getByRole("button", { name: "Quitar TypeScript" }));
+    expect(chip("TypeScript")).toBeNull();
+    await typeTag(user, STACK, "TypeScript");
+
+    expect(chipOf("TypeScript")).not.toHaveTextContent(AI_NOTE);
+    expect(chipOf("React")).toHaveTextContent(AI_NOTE);
+    expect(chipOf("Inglés B2")).toHaveTextContent(AI_NOTE);
+  });
+
+  it("keeps the marks of the chips still present when a second analysis adds only new tags", async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    mockFetch({
+      "POST /api/offers/extract": () => {
+        calls += 1;
+        return jsonResponse(
+          calls === 1
+            ? withTags([{ label: "React", group: "stack" }])
+            : withTags([
+                { label: "react", group: "stack" },
+                { label: "Docker", group: "nice_to_have" },
+              ]),
+        );
+      },
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/añadido 1 etiqueta\./);
+    await user.click(analyzeButton());
+    await waitFor(() => expect(chip("Docker")).not.toBeNull());
+
+    expect(screen.getByText("2 de 20")).toBeInTheDocument();
+    expect(chipOf("React")).toHaveTextContent(AI_NOTE);
+    expect(chipOf("Docker")).toHaveTextContent(AI_NOTE);
+    expect(within(groupOf(NICE)).getAllByRole("listitem")).toHaveLength(1);
+  });
+
+  it("leaves the chips as they were while analysing and after an error", async () => {
+    const user = userEvent.setup();
+    const pending = deferred();
+    mockFetch({ "POST /api/offers/extract": () => pending.promise });
+    renderCreate();
+
+    await typeTag(user, STACK, "Node");
+    pasteOffer();
+    await user.click(analyzeButton());
+    expect(await screen.findByText("Analizando la oferta…")).toBeVisible();
+    expect(screen.getByText("1 de 20")).toBeInTheDocument();
+
+    pending.release(jsonResponse(errorBody("LLM_ERROR"), 502));
+    await screen.findByText(/No hemos podido leer la oferta/);
+
+    expect(screen.getByText("1 de 20")).toBeInTheDocument();
+    expect(chipOf("Node")).not.toHaveTextContent(AI_NOTE);
+  });
+
+  it("clears the chip marks with the other marks after a successful save", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () =>
+        jsonResponse({ ...TAGGED, title: "Frontend", company: "Acme SL" }),
+      "POST /api/applications": () => jsonResponse(created, 201),
+    });
+    const onSaved = vi.fn();
+    render(
+      <ApplicationEditContainer
+        onSaved={onSaved}
+        renderCancelLink={link("/applications")}
+        renderListLink={link("/applications-list-stub")}
+      />,
+    );
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/añadido 3 etiquetas/);
+    expect(screen.getAllByText(AI_NOTE)).toHaveLength(3);
+
+    await user.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith("new1"));
+    expect(screen.queryByText(AI_NOTE)).toBeNull();
   });
 });

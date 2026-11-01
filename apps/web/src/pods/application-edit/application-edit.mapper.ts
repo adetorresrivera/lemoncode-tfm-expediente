@@ -1,5 +1,7 @@
 import {
   applicationInputSchema,
+  normalizeTags,
+  tagKey,
   type Application,
   type ApplicationInput,
   type OfferExtraction,
@@ -208,11 +210,23 @@ export function mergeExtractionIntoForm(
     aiFields.push("currency");
   }
 
+  // The user's tags come first and win on a repeated key (any group); the new ones follow in model
+  // order and the cap keeps the user's tags (AI-06, D-04). The shared normalizer does the work.
+  const mergedTags = normalizeTags([...current.tags, ...extraction.tags]);
+  const currentKeys = new Set(current.tags.map((tag) => tagKey(tag.label)));
+  const aiTags = mergedTags
+    .map((tag) => tagKey(tag.label))
+    .filter((key) => !currentKeys.has(key));
+  values.tags = mergedTags.map((tag) => ({
+    label: tag.label,
+    group: tag.group,
+  }));
+
   const missingFields = RELEVANT_FIELDS.filter((field) =>
     isBlank(values[field]),
   );
 
-  return { values, aiFields, missingFields };
+  return { values, aiFields, aiTags, missingFields };
 }
 
 const isEmptyInput = (issue: z.core.$ZodIssue): boolean =>

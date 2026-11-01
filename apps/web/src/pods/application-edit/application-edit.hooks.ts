@@ -1,5 +1,6 @@
 import {
   applicationInputSchema,
+  tagKey,
   type Application,
   type ApplicationInput,
 } from "@tfm/contracts";
@@ -129,7 +130,11 @@ export function useApplicationForm({
 
 export type ApplicationFormApi = ReturnType<typeof useApplicationForm>["form"];
 
-const EMPTY_MARKS: AiMarks = { aiFields: new Set(), missingFields: new Set() };
+const EMPTY_MARKS: AiMarks = {
+  aiFields: new Set(),
+  aiTags: new Set(),
+  missingFields: new Set(),
+};
 
 const isAiFillable = (name: FormFieldName): name is AiFillableField => {
   switch (name) {
@@ -158,6 +163,26 @@ const without = <T>(set: ReadonlySet<T>, value: T): ReadonlySet<T> => {
   return next;
 };
 
+const hasLabel = (item: unknown): item is { label: string } =>
+  typeof item === "object" &&
+  item !== null &&
+  "label" in item &&
+  typeof item.label === "string";
+
+// A chip loses its AI mark for good once it leaves the list: a later chip with the same key, added
+// by hand, is the user's (D-15). Anything that is not a tag list leaves the marks as they were.
+const keepPresentTags = (
+  aiTags: ReadonlySet<string>,
+  value: unknown,
+): ReadonlySet<string> => {
+  if (!Array.isArray(value)) return aiTags;
+  const present = new Set(
+    value.filter(hasLabel).map((tag) => tagKey(tag.label)),
+  );
+  const kept = [...aiTags].filter((key) => present.has(key));
+  return kept.length === aiTags.size ? aiTags : new Set(kept);
+};
+
 export interface AiMarksControl {
   marks: AiMarks;
   addFromMerge: (merge: ExtractionMerge) => void;
@@ -177,6 +202,7 @@ export function useAiMarks(): AiMarksControl {
   const addFromMerge = useCallback((merge: ExtractionMerge) => {
     setMarks((current) => ({
       aiFields: new Set([...current.aiFields, ...merge.aiFields]),
+      aiTags: new Set([...current.aiTags, ...merge.aiTags]),
       missingFields: new Set(merge.missingFields),
     }));
   }, []);
@@ -187,17 +213,22 @@ export function useAiMarks(): AiMarksControl {
       const aiFields = isAiFillable(name)
         ? without(current.aiFields, name)
         : current.aiFields;
+      const aiTags =
+        name === "tags"
+          ? keepPresentTags(current.aiTags, value)
+          : current.aiTags;
       const missingFields =
         filled && isRelevant(name)
           ? without(current.missingFields, name)
           : current.missingFields;
       if (
         aiFields === current.aiFields &&
+        aiTags === current.aiTags &&
         missingFields === current.missingFields
       ) {
         return current;
       }
-      return { aiFields, missingFields };
+      return { aiFields, aiTags, missingFields };
     });
   }, []);
 
@@ -290,10 +321,17 @@ export function useOfferExtraction({
         if (controller.signal.aborted) return;
         const merge = mergeExtractionIntoForm(form.state.values, extraction);
         for (const field of merge.aiFields) applyField(field, merge.values);
+        // Only when the AI added chips: the tag list stays untouched otherwise.
+        if (merge.aiTags.length > 0) {
+          form.setFieldValue("tags", merge.values.tags, {
+            dontRunListeners: true,
+          });
+        }
         onMerged?.(merge);
         setStatus({
           kind: "success",
           filled: merge.aiFields.length,
+          tagsAdded: merge.aiTags.length,
           missing: merge.missingFields,
         });
       })
