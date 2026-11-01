@@ -1,6 +1,6 @@
 import { OFFER_TEXT_MAX, OFFER_TEXT_MIN } from "@tfm/contracts";
 import { ChevronDown, Sparkles } from "lucide-react";
-import { useId, useRef } from "react";
+import { useEffect, useId, useRef } from "react";
 import { RequestStatus } from "@/common/components/request-status";
 import { Button } from "@/common/components/ui/button";
 import {
@@ -109,7 +109,8 @@ function AnalysisStatus({ status }: { status: OfferAnalysisStatus }) {
 }
 
 export function OfferPanel({
-  defaultOpen,
+  open,
+  onOpenChange,
   draft,
   status,
   onDraftChange,
@@ -117,6 +118,9 @@ export function OfferPanel({
   onCancel,
 }: OfferPanelModel) {
   const analyzeRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const wasOpenRef = useRef(open);
   const headingId = useId();
   const textareaId = useId();
   const hintId = useId();
@@ -126,6 +130,24 @@ export function OfferPanel({
   // caps (the raw draft): both are UTF-16 code units, the unit of String.length and of Zod.
   const tooShort = draft.trim().length < OFFER_TEXT_MIN;
   const atLimit = draft.length >= OFFER_TEXT_MAX;
+  // Radix unmounts the content on close, so focus on the AI button would fall to the body: when
+  // the panel folds and focus is lost or was inside it, it goes to the trigger. A user typing in a
+  // form field keeps focus there (D-20).
+  useEffect(() => {
+    if (wasOpenRef.current && !open) {
+      const active = document.activeElement;
+      if (
+        active === null ||
+        active === document.body ||
+        !active.isConnected ||
+        contentRef.current?.contains(active)
+      ) {
+        triggerRef.current?.focus();
+      }
+    }
+    wasOpenRef.current = open;
+  }, [open]);
+
   const hint = tooShort
     ? `Pega al menos ${MIN_TEXT} caracteres`
     : atLimit
@@ -138,7 +160,8 @@ export function OfferPanel({
       className="flex min-w-0 flex-col gap-4 rounded-md border border-border bg-card p-4 lg:p-6"
     >
       <Collapsible
-        defaultOpen={defaultOpen}
+        open={open}
+        onOpenChange={onOpenChange}
         className="flex min-w-0 flex-col gap-4"
       >
         <h2
@@ -146,6 +169,7 @@ export function OfferPanel({
           className="font-serif text-base font-semibold leading-[1.2]"
         >
           <CollapsibleTrigger
+            ref={triggerRef}
             disabled={analysing}
             className="group flex min-h-11 w-full items-center justify-between rounded-sm text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
@@ -157,7 +181,10 @@ export function OfferPanel({
             />
           </CollapsibleTrigger>
         </h2>
-        <CollapsibleContent className="flex min-w-0 flex-col gap-4">
+        <CollapsibleContent
+          ref={contentRef}
+          className="flex min-w-0 flex-col gap-4"
+        >
           <div className="flex min-w-0 flex-col gap-1">
             <Label htmlFor={textareaId}>Texto de la oferta</Label>
             <Textarea

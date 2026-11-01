@@ -269,6 +269,8 @@ const errorReasonOf = (error: unknown): OfferErrorReason => {
 interface OfferExtractionOptions {
   form: ApplicationFormApi;
   initialDraft: string;
+  // Open on create, collapsed on edit (D-05); after that the hook owns the state (D-12).
+  initialOpen: boolean;
   getMarks: () => AiMarks;
   onMerged?: (merge: ExtractionMerge) => void;
 }
@@ -277,13 +279,18 @@ interface OfferExtractionOptions {
 // and re-opening the panel keeps it. The merge reads the form values and the «IA» marks when the
 // response arrives (not when the request left), so what the user typed during the wait is kept
 // (D-20). Fields are written without running their listeners: an AI fill is not a user edit.
+// The panel folds after a success that filled at least one field or tag (D-12 as amended
+// 2026-11-01, G-03-3); an error, a cancel or a success with nothing new keep it open. The draft
+// stays here, so reopening the panel keeps the text.
 export function useOfferExtraction({
   form,
   initialDraft,
+  initialOpen,
   getMarks,
   onMerged,
 }: OfferExtractionOptions) {
   const [draft, setDraft] = useState(initialDraft);
+  const [open, setOpen] = useState(initialOpen);
   const [status, setStatus] = useState<OfferAnalysisStatus>({ kind: "idle" });
   const controllerRef = useRef<AbortController | null>(null);
 
@@ -373,6 +380,9 @@ export function useOfferExtraction({
           tagsAdded: merge.aiTags.length,
           missing: merge.missingFields,
         });
+        if (merge.aiFields.length > 0 || merge.aiTags.length > 0) {
+          setOpen(false);
+        }
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
@@ -395,7 +405,16 @@ export function useOfferExtraction({
 
   const clearStatus = (): void => setStatus({ kind: "idle" });
 
-  return { draft, setDraft, status, analyze, cancel, clearStatus };
+  return {
+    draft,
+    setDraft,
+    open,
+    setOpen,
+    status,
+    analyze,
+    cancel,
+    clearStatus,
+  };
 }
 
 type LoadOk = {

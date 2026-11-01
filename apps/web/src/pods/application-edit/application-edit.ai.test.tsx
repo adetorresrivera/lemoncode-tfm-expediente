@@ -1,5 +1,6 @@
 import { applicationSchema } from "@tfm/contracts";
 import {
+  act,
   fireEvent,
   render,
   screen,
@@ -88,6 +89,17 @@ const NO_DATA = {
 
 const errorBody = (code: string) => ({ error: { code, message: "x" } });
 
+// After a successful analysis the panel is folded; reopen it before using the textarea or the AI
+// button again (G-03-3).
+const openOfferPanel = async (user: ReturnType<typeof userEvent.setup>) => {
+  const trigger = screen.getByRole("button", { name: "Pegar oferta" });
+  if (trigger.getAttribute("aria-expanded") === "false") {
+    await user.click(trigger);
+  }
+};
+
+const panelTrigger = () => screen.getByRole("button", { name: "Pegar oferta" });
+
 const analyzeButton = () =>
   screen.getByRole("button", { name: "Autocompletar con IA" });
 
@@ -140,8 +152,14 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     expect(screen.getByLabelText("Modalidad")).toHaveValue("remoto");
     expect(screen.getByLabelText("Seniority")).toHaveValue("senior");
     expect(screen.getByLabelText("Tipo de contrato")).toHaveValue("indefinido");
-    expect(analyze).toHaveFocus();
-    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    // G-03-3: a success that filled something folds the panel; the analysis started from the AI
+    // button, so focus goes to the trigger.
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("Texto de la oferta")).toBeNull();
+    expect(
+      screen.queryByRole("button", { name: "Autocompletar con IA" }),
+    ).toBeNull();
+    expect(trigger).toHaveFocus();
     expect(callsTo(fetchMock, "POST", "/api/applications")).toHaveLength(0);
   });
 
@@ -195,6 +213,83 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     expect(screen.getByLabelText("Puesto *")).toHaveValue(
       "Desarrollador/a Frontend Senior",
     );
+    // The panel folds, but the user is typing in «Empresa *»: focus stays there.
+    expect(panelTrigger()).toHaveAttribute("aria-expanded", "false");
+    expect(screen.getByLabelText("Empresa *")).toHaveFocus();
+  });
+
+  it("moves focus to the panel trigger when it was lost while the analysis ran", async () => {
+    const user = userEvent.setup();
+    const pending = deferred();
+    mockFetch({ "POST /api/offers/extract": () => pending.promise });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText("Analizando la oferta…");
+    act(() => {
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+    });
+    expect(document.activeElement).toBe(document.body);
+    pending.release(jsonResponse(EXTRACTION));
+
+    await screen.findByText("Hemos rellenado 9 campos. Revísalos.");
+    expect(panelTrigger()).toHaveAttribute("aria-expanded", "false");
+    expect(panelTrigger()).toHaveFocus();
+  });
+
+  it("names the missing fields in the status line after the fold and keeps their highlight", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () =>
+        jsonResponse({ ...EXTRACTION, seniority: null }),
+    });
+    const { container } = renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+
+    await screen.findByText(/Te falta completar: Seniority\.$/);
+    expect(panelTrigger()).toHaveAttribute("aria-expanded", "false");
+    expect(container.querySelector("[role='status']")).toHaveTextContent(
+      "Hemos rellenado 8 campos. Revísalos. Te falta completar: Seniority.",
+    );
+    expect(screen.getByText("Complétalo tú")).toBeInTheDocument();
+  });
+
+  it("keeps the draft when the panel folds, reopens with it and folds again on a new analysis", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "POST /api/offers/extract": () => jsonResponse(EXTRACTION),
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText("Hemos rellenado 9 campos. Revísalos.");
+    expect(panelTrigger()).toHaveAttribute("aria-expanded", "false");
+
+    await openOfferPanel(user);
+    expect(panelTrigger()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText("Texto de la oferta")).toHaveValue(OFFER_TEXT);
+
+    // The second analysis fills nothing new except the fields still marked «IA», which are
+    // written again (D-11 as amended), so the summary is the same sentence and the panel folds.
+    await user.click(analyzeButton());
+    await waitFor(() =>
+      expect(callsTo(fetchMock, "POST", "/api/offers/extract")).toHaveLength(2),
+    );
+    await waitFor(() =>
+      expect(panelTrigger()).toHaveAttribute("aria-expanded", "false"),
+    );
+    const sent = callsTo(fetchMock, "POST", "/api/offers/extract");
+    expect(sent[1]?.[1]?.body).toBe(sent[0]?.[1]?.body);
+    expect(
+      screen.getByText("Hemos rellenado 9 campos. Revísalos."),
+    ).toBeInTheDocument();
+    expect(panelTrigger()).toHaveFocus();
   });
 
   it("treats a whitespace-only value as empty and ignores null extraction values", async () => {
@@ -249,6 +344,10 @@ describe("ApplicationEditContainer AI autocomplete", () => {
         "No hemos encontrado datos nuevos en la oferta. Completa el formulario a mano. Te falta completar: Puesto, Empresa, Modalidad y Seniority.",
       ),
     ).toBeInTheDocument();
+    // Nothing was filled, so the panel stays open and focus does not move.
+    expect(panelTrigger()).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByLabelText("Texto de la oferta")).toBeInTheDocument();
+    expect(analyzeButton()).toHaveFocus();
   });
 
   it.each([
@@ -286,6 +385,8 @@ describe("ApplicationEditContainer AI autocomplete", () => {
       await user.click(analyzeButton());
 
       expect(await screen.findByText(message)).toBeInTheDocument();
+      expect(panelTrigger()).toHaveAttribute("aria-expanded", "true");
+      expect(analyzeButton()).toHaveFocus();
       expect(screen.getByLabelText("Puesto *")).toBeEnabled();
       expect(analyzeButton()).not.toHaveAttribute("aria-disabled", "true");
 
@@ -314,6 +415,7 @@ describe("ApplicationEditContainer AI autocomplete", () => {
         "No hay conexión con el servidor. Inténtalo otra vez.",
       ),
     ).toBeInTheDocument();
+    expect(panelTrigger()).toHaveAttribute("aria-expanded", "true");
     expect(screen.getByLabelText("Empresa *")).toBeEnabled();
   });
 
@@ -412,6 +514,7 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     await screen.findByText(/Te falta completar: Seniority\.$/);
 
     await user.selectOptions(screen.getByLabelText("Seniority"), "mid");
+    await openOfferPanel(user);
     await user.click(analyzeButton());
 
     // The 8 fields still marked «IA» are filled again by the second analysis.
@@ -429,7 +532,8 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     pasteOffer();
     await user.click(analyzeButton());
     await screen.findByText("Hemos rellenado 9 campos. Revísalos.");
-    await user.click(screen.getByRole("button", { name: "Pegar oferta" }));
+    // The panel folds by itself (G-03-3); nobody clicked the trigger.
+    expect(panelTrigger()).toHaveAttribute("aria-expanded", "false");
 
     const status = container.querySelector("[role='status']");
     expect(status).toHaveAttribute("aria-live", "polite");
@@ -623,6 +727,7 @@ describe("ApplicationEditContainer AI marks", () => {
     await user.type(screen.getByLabelText("Empresa *"), "x");
     expect(screen.getAllByText(BADGE)).toHaveLength(2);
 
+    await openOfferPanel(user);
     await user.click(analyzeButton());
     await waitFor(() =>
       expect(screen.getByLabelText("Seniority")).toHaveValue("senior"),
@@ -649,6 +754,7 @@ describe("ApplicationEditContainer AI marks", () => {
     await user.selectOptions(seniority, "");
     expect(screen.queryByText(MISSING)).toBeNull();
 
+    await openOfferPanel(user);
     await user.click(analyzeButton());
     // The second analysis reads the same summary as the first, so wait on the mark itself.
     expect(await screen.findByText(MISSING)).toBeInTheDocument();
@@ -675,6 +781,7 @@ describe("ApplicationEditContainer AI marks", () => {
     await screen.findByText(/Hemos rellenado 3 campos/);
     await user.type(screen.getByLabelText("Empresa *"), "x");
 
+    await openOfferPanel(user);
     await user.click(analyzeButton());
     await screen.findByText(
       "Hemos rellenado 2 campos. Revísalos. Te falta completar: Modalidad.",
@@ -716,6 +823,7 @@ describe("ApplicationEditContainer AI marks", () => {
       expect(screen.getByLabelText("Moneda")).toHaveValue("USD"),
     );
 
+    await openOfferPanel(user);
     await user.click(analyzeButton());
     await waitFor(() =>
       expect(screen.getByLabelText("Moneda")).toHaveValue("GBP"),
@@ -724,6 +832,7 @@ describe("ApplicationEditContainer AI marks", () => {
     expect(screen.getByLabelText("Salario máximo")).toHaveValue(60000);
     expect(screen.getAllByText(BADGE)).toHaveLength(3);
 
+    await openOfferPanel(user);
     await user.click(analyzeButton());
     await waitFor(() =>
       expect(screen.getByLabelText("Moneda")).toHaveValue("EUR"),
@@ -749,6 +858,7 @@ describe("ApplicationEditContainer AI marks", () => {
     await user.click(analyzeButton());
     await screen.findByText(/Hemos rellenado 3 campos/);
 
+    await openOfferPanel(user);
     await user.click(analyzeButton());
     await screen.findByText("Analizando la oferta…");
     await user.type(screen.getByLabelText("Empresa *"), "x");
@@ -966,6 +1076,7 @@ describe("ApplicationEditContainer AI tags", () => {
       ),
     ).toBeInTheDocument();
 
+    await openOfferPanel(user);
     await user.click(analyzeButton());
     expect(
       await screen.findByText(
@@ -1058,6 +1169,7 @@ describe("ApplicationEditContainer AI tags", () => {
     await user.click(analyzeButton());
     await screen.findByText(/añadido 3 etiquetas/);
 
+    await openOfferPanel(user);
     await user.click(analyzeButton());
     await screen.findByText(
       "Hemos añadido 1 etiqueta. Revísala. Te falta completar: Puesto, Empresa, Modalidad y Seniority.",
@@ -1069,6 +1181,7 @@ describe("ApplicationEditContainer AI tags", () => {
     expect(chip("Inglés B2")).toBeNull();
     expect(screen.getByText("2 de 20")).toBeInTheDocument();
 
+    await openOfferPanel(user);
     await user.click(analyzeButton());
     await waitFor(() => expect(chip("Vue")).toBeNull());
     expect(chipOf("Node")).toBeInTheDocument();
@@ -1098,6 +1211,7 @@ describe("ApplicationEditContainer AI tags", () => {
     pasteOffer();
     await user.click(analyzeButton());
     await screen.findByText(/añadido 1 etiqueta\./);
+    await openOfferPanel(user);
     await user.click(analyzeButton());
     await waitFor(() => expect(chip("Docker")).not.toBeNull());
 
@@ -1231,6 +1345,7 @@ describe("ApplicationEditContainer stored offer text", () => {
     pasteOffer();
     await user.click(analyzeButton());
     await screen.findByText(/Hemos rellenado/);
+    await openOfferPanel(user);
     pasteOffer("Otro texto distinto que se teclea pero no se analiza nunca.");
     await user.click(
       screen.getByRole("button", { name: "Guardar candidatura" }),
@@ -1348,6 +1463,33 @@ describe("ApplicationEditContainer stored offer text", () => {
     expect(sentBody(fetchMock, "PUT", "/api/applications/a1").offerText).toBe(
       OFFER_TEXT,
     );
+  });
+
+  it("folds the edit panel after a successful analysis and reopens it with the analysed text", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "GET /api/applications/a1": () =>
+        jsonResponse(storedApplication(STORED_OFFER)),
+      "POST /api/offers/extract": () =>
+        jsonResponse({ ...NO_DATA, location: "Sevilla" }),
+    });
+    renderEdit();
+
+    const trigger = await screen.findByRole("button", { name: "Pegar oferta" });
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    await user.click(trigger);
+    expect(trigger).toHaveAttribute("aria-expanded", "true");
+    pasteOffer(OFFER_TEXT);
+    await user.click(analyzeButton());
+
+    await screen.findByText(/Hemos rellenado 1 campo\. Revísalo\./);
+    expect(trigger).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByLabelText("Texto de la oferta")).toBeNull();
+    expect(trigger).toHaveFocus();
+    expect(screen.getByLabelText("Ubicación")).toHaveValue("Sevilla");
+
+    await openOfferPanel(user);
+    expect(screen.getByLabelText("Texto de la oferta")).toHaveValue(OFFER_TEXT);
   });
 
   it("starts with an empty textarea when the stored offerText is null", async () => {
@@ -1529,6 +1671,7 @@ describe("ApplicationEditContainer cancel and analysing state", () => {
     expect(message.querySelector("svg")).toBeNull();
     expect(screen.queryByText("Analizando la oferta…")).toBeNull();
     expect(queryCancel()).toBeNull();
+    expect(panelTrigger()).toHaveAttribute("aria-expanded", "true");
     expect(analyzeButton()).toHaveFocus();
     expect(screen.getByLabelText("Texto de la oferta")).not.toHaveAttribute(
       "readonly",
@@ -1574,29 +1717,19 @@ describe("ApplicationEditContainer cancel and analysing state", () => {
     expect(screen.queryByText("Análisis cancelado.")).toBeNull();
   });
 
-  it("does not move focus when the analysis succeeds or fails", async () => {
+  it("keeps the panel open and does not move focus when the analysis fails", async () => {
     const user = userEvent.setup();
-    let calls = 0;
     mockFetch({
-      "POST /api/offers/extract": () => {
-        calls += 1;
-        return calls === 1
-          ? jsonResponse(errorBody("LLM_ERROR"), 502)
-          : jsonResponse(EXTRACTION);
-      },
+      "POST /api/offers/extract": () =>
+        jsonResponse(errorBody("LLM_ERROR"), 502),
     });
     renderCreate();
 
     pasteOffer();
     await user.click(analyzeButton());
     await screen.findByText(/No hemos podido leer la oferta/);
+    expect(panelTrigger()).toHaveAttribute("aria-expanded", "true");
     expect(analyzeButton()).toHaveFocus();
-
-    screen.getByLabelText("Empresa *").focus();
-    await user.click(analyzeButton());
-    await screen.findByText(/Hemos rellenado/);
-    await user.click(screen.getByLabelText("Ubicación"));
-    expect(screen.getByLabelText("Ubicación")).toHaveFocus();
   });
 
   it("inserts a newline with Enter in the textarea and submits nothing", async () => {

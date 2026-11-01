@@ -43,7 +43,7 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **AI-02**: `LlmClient` is swappable by `LLM_PROVIDER` between `ollama`, `openai` (OpenAI-compatible) and `mock`, with `ping()` feeding `/api/health`
 - [ ] **AI-03**: Extraction returns 504 `LLM_TIMEOUT` after `LLM_TIMEOUT_MS`, and 502 `LLM_ERROR` after one retry when the output does not parse or fails the schema
 - [ ] **AI-04**: API normalizes the draft (trim, empty → `null`, swap inverted salary range, dedupe and truncate tags) and never logs the full offer text
-- [ ] **AI-05**: User sees a «Pegar oferta» panel in the form (open on create, collapsed on edit) with an «Autocompletar con IA» action and a non-blocking «Analizando la oferta…» / error state
+- [ ] **AI-05**: User sees a «Pegar oferta» panel in the form (open on create, collapsed on edit, folded after a successful analysis) with an «Autocompletar con IA» action and a non-blocking «Analizando la oferta…» / error state
 - [ ] **AI-06**: Applying a draft fills empty fields and fields still marked «IA» (replacing or clearing them), never touches user-typed or user-edited values, merges tags without duplicates (AI chips not edited are replaced), and never persists anything until the user saves
 - [ ] **AI-07**: Fields filled by the AI show the «IA» mark, which disappears when the user edits the field
 - [ ] **AI-08**: Relevant fields still empty after extraction (title, company, work mode, seniority) are highlighted with «Complétalo tú»
