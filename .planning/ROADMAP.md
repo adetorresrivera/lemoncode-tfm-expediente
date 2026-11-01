@@ -114,7 +114,7 @@ Plans:
   3. A model timeout answers 504 `LLM_TIMEOUT` after `LLM_TIMEOUT_MS`, and unparseable or schema-invalid output is retried once and then answers 502 `LLM_ERROR`; in the form the user sees a non-blocking «Analizando la oferta…» state or a clear error and can keep editing.
   4. The «Pegar oferta» panel is open when creating and collapsed when editing; «Autocompletar con IA» fills only empty fields, merges tags without duplicates, and persists nothing until the user saves.
   5. Fields filled by the AI show the «IA» mark that disappears when the user edits them, relevant fields still empty (title, company, work mode, seniority) are highlighted with «Complétalo tú», and the pasted text is stored as `offerText` on save.
-**Plans**: 11/12 plans executed (9 executed, 3 gap closure from UAT 2026-11-01)
+**Plans**: 12/12 plans executed (9 executed, 3 gap closure from UAT 2026-11-01)
 Plans:
 **Wave 1**
 - [x] 03-01-PLAN.md — Tracer: «Pegar oferta» panel → POST /api/offers/extract → extract service (literal prompt, verified against the doc) → LlmClient (mock end to end) → fill-only-empty merge of the text/enum fields; then limits, errors, the wait and edit mode on the same path (wave 1)
@@ -146,7 +146,7 @@ Plans:
 - [x] 03-11-PLAN.md — G-03-2b: per-group tag placeholders «Ej.: React» / «Ej.: Docker» / «Ej.: Inglés B2» (D-27), 02-UI-SPEC copy amended
 
 **Gap closure wave 3** *(blocked on gap wave 2: shared 03-CONTEXT.md)*
-- [ ] 03-12-PLAN.md — G-03-3: the «Pegar oferta» panel folds after a successful analysis on create and edit, focus rule, keep-open cases, D-12 amended in CONTEXT, UI-SPEC, DESIGN and AI-05
+- [x] 03-12-PLAN.md — G-03-3: the «Pegar oferta» panel folds after a successful analysis on create and edit, focus rule, keep-open cases, D-12 amended in CONTEXT, UI-SPEC, DESIGN and AI-05
 **UI hint**: yes
 
 ### Phase 4: Rondas de entrevista
@@ -227,7 +227,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Fundaciones y walking skeleton | 6/6 | Complete    | 2026-10-29 |
 | 2. Candidaturas | 12/12 | Complete    | 2026-10-31 |
-| 3. Autocompletado con IA | 11/12 | In Progress | - |
+| 3. Autocompletado con IA | 12/12 | In Progress | - |
 | 4. Rondas de entrevista | 0/TBD | Not started | - |
 | 5. Documentos en S3 | 0/TBD | Not started | - |
 | 6. Pulido de demo | 0/TBD | Not started | - |
