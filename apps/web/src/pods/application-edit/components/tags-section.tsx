@@ -39,6 +39,7 @@ export function TagsSection({ form, aiTags }: Props) {
               <TagGroupInput
                 group="stack"
                 legend="Stack tecnológico"
+                placeholder="Ej.: React"
                 tags={tags}
                 aiTags={aiTags}
                 onChange={field.handleChange}
@@ -46,6 +47,7 @@ export function TagsSection({ form, aiTags }: Props) {
               <TagGroupInput
                 group="nice_to_have"
                 legend="Se valora"
+                placeholder="Ej.: Docker"
                 soft
                 tags={tags}
                 aiTags={aiTags}
@@ -54,6 +56,7 @@ export function TagsSection({ form, aiTags }: Props) {
               <TagGroupInput
                 group="language"
                 legend="Idiomas"
+                placeholder="Ej.: Inglés B2"
                 tags={tags}
                 aiTags={aiTags}
                 onChange={field.handleChange}

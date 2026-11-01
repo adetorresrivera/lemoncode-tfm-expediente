@@ -772,10 +772,15 @@ describe("ApplicationEditContainer tags", () => {
   it("shows three labelled groups, the counter and always-mounted status lines", () => {
     renderForm();
 
+    const placeholders: Record<string, string> = {
+      [GROUPS.stack]: "Ej.: React",
+      [GROUPS.nice]: "Ej.: Docker",
+      [GROUPS.language]: "Ej.: Inglés B2",
+    };
     for (const legend of Object.values(GROUPS)) {
       const group = groupOf(legend);
       const input = tagInput(legend);
-      expect(input).toHaveAttribute("placeholder", "Ej.: React");
+      expect(input).toHaveAttribute("placeholder", placeholders[legend]);
       expect(input).toHaveAttribute("maxlength", "40");
       const status = group.querySelector("[role='status']");
       expect(status).toHaveAttribute("aria-live", "polite");
