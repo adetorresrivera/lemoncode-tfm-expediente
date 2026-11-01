@@ -51,7 +51,8 @@ function ApplicationCreate({ onSaved, renderCancelLink }: CreateProps) {
     useOfferExtraction({
       form,
       initialDraft: "",
-      onMerged: marks.addFromMerge,
+      getMarks: marks.getMarks,
+      onMerged: marks.setFromMerge,
     });
 
   return (
@@ -107,7 +108,8 @@ function ApplicationEditForm({
     useOfferExtraction({
       form,
       initialDraft: values.offerText,
-      onMerged: marks.addFromMerge,
+      getMarks: marks.getMarks,
+      onMerged: marks.setFromMerge,
     });
 
   return (

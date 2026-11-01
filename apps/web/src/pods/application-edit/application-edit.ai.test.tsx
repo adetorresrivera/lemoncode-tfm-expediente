@@ -414,10 +414,9 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     await user.selectOptions(screen.getByLabelText("Seniority"), "mid");
     await user.click(analyzeButton());
 
+    // The 8 fields still marked «IA» are filled again by the second analysis.
     expect(
-      await screen.findByText(
-        "No hemos encontrado datos nuevos en la oferta. Completa el formulario a mano.",
-      ),
+      await screen.findByText("Hemos rellenado 8 campos. Revísalos."),
     ).toBeInTheDocument();
     expect(screen.queryByText(/Te falta completar/)).toBeNull();
   });
@@ -605,7 +604,7 @@ describe("ApplicationEditContainer AI marks", () => {
     expect(seniority).not.toHaveClass(...GOLD);
   });
 
-  it("keeps earlier badges on a second analysis, adds the new ones and recalculates the missing list", async () => {
+  it("marks the fields a second analysis fills again, leaves the edited one unmarked and recalculates the missing list", async () => {
     const user = userEvent.setup();
     let calls = 0;
     mockFetch({
@@ -629,7 +628,7 @@ describe("ApplicationEditContainer AI marks", () => {
       expect(screen.getByLabelText("Seniority")).toHaveValue("senior"),
     );
 
-    // Title and work mode keep their badge, the edited company stays unmarked, seniority is new.
+    // Title and work mode are filled again and marked, the edited company stays unmarked, seniority is new.
     expect(document.getElementById("field-title-ai")).not.toBeNull();
     expect(document.getElementById("field-workMode-ai")).not.toBeNull();
     expect(document.getElementById("field-seniority-ai")).not.toBeNull();
@@ -651,10 +650,114 @@ describe("ApplicationEditContainer AI marks", () => {
     expect(screen.queryByText(MISSING)).toBeNull();
 
     await user.click(analyzeButton());
-    await screen.findByText(/No hemos encontrado datos nuevos/);
-
-    expect(screen.getByText(MISSING)).toBeInTheDocument();
+    // The second analysis reads the same summary as the first, so wait on the mark itself.
+    expect(await screen.findByText(MISSING)).toBeInTheDocument();
     expect(seniority).toHaveClass(...GOLD);
+  });
+
+  it("replaces the fields still marked «IA» on a second analysis, clears the ones the new offer lacks and keeps the edited one", async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    mockFetch({
+      "POST /api/offers/extract": () => {
+        calls += 1;
+        return jsonResponse(
+          calls === 1
+            ? PARTIAL
+            : { ...NO_DATA, title: "Backend Developer", seniority: "mid" },
+        );
+      },
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado 3 campos/);
+    await user.type(screen.getByLabelText("Empresa *"), "x");
+
+    await user.click(analyzeButton());
+    await screen.findByText(
+      "Hemos rellenado 2 campos. Revísalos. Te falta completar: Modalidad.",
+    );
+
+    expect(screen.getByLabelText("Puesto *")).toHaveValue("Backend Developer");
+    expect(document.getElementById("field-title-ai")).not.toBeNull();
+    expect(screen.getByLabelText("Empresa *")).toHaveValue("Lumen Analyticsx");
+    expect(document.getElementById("field-company-ai")).toBeNull();
+    const workMode = screen.getByLabelText("Modalidad");
+    expect(workMode).toHaveValue("");
+    expect(document.getElementById("field-workMode-ai")).toBeNull();
+    expect(describedBy(workMode)).toContain("field-workMode-missing");
+    expect(screen.getByLabelText("Seniority")).toHaveValue("mid");
+    expect(document.getElementById("field-seniority-ai")).not.toBeNull();
+    expect(screen.getAllByText(BADGE)).toHaveLength(2);
+  });
+
+  it("replaces the AI salary range and currency on a second analysis and resets them when the next offer has none", async () => {
+    const user = userEvent.setup();
+    const answers = [
+      { ...NO_DATA, salaryMin: 45000, salaryMax: 55000, currency: "USD" },
+      { ...NO_DATA, salaryMin: 50000, salaryMax: 60000, currency: "GBP" },
+      NO_DATA,
+    ];
+    let calls = 0;
+    mockFetch({
+      "POST /api/offers/extract": () => {
+        const answer = answers[Math.min(calls, answers.length - 1)];
+        calls += 1;
+        return jsonResponse(answer);
+      },
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await waitFor(() =>
+      expect(screen.getByLabelText("Moneda")).toHaveValue("USD"),
+    );
+
+    await user.click(analyzeButton());
+    await waitFor(() =>
+      expect(screen.getByLabelText("Moneda")).toHaveValue("GBP"),
+    );
+    expect(screen.getByLabelText("Salario mínimo")).toHaveValue(50000);
+    expect(screen.getByLabelText("Salario máximo")).toHaveValue(60000);
+    expect(screen.getAllByText(BADGE)).toHaveLength(3);
+
+    await user.click(analyzeButton());
+    await waitFor(() =>
+      expect(screen.getByLabelText("Moneda")).toHaveValue("EUR"),
+    );
+    expect(screen.getByLabelText("Salario mínimo")).toHaveValue(null);
+    expect(screen.getByLabelText("Salario máximo")).toHaveValue(null);
+    expect(screen.queryByText(BADGE)).toBeNull();
+  });
+
+  it("keeps a field the user edits while a second analysis runs (D-20)", async () => {
+    const user = userEvent.setup();
+    const pending = deferred();
+    let calls = 0;
+    mockFetch({
+      "POST /api/offers/extract": () => {
+        calls += 1;
+        return calls === 1 ? jsonResponse(PARTIAL) : pending.promise;
+      },
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado 3 campos/);
+
+    await user.click(analyzeButton());
+    await screen.findByText("Analizando la oferta…");
+    await user.type(screen.getByLabelText("Empresa *"), "x");
+    pending.release(jsonResponse({ ...PARTIAL, company: "Otra Empresa" }));
+
+    await screen.findByText(/Hemos rellenado 2 campos/);
+    expect(screen.getByLabelText("Empresa *")).toHaveValue("Lumen Analyticsx");
+    expect(document.getElementById("field-company-ai")).toBeNull();
+    expect(document.getElementById("field-title-ai")).not.toBeNull();
   });
 
   it("lets the validation error win over «Complétalo tú» on a missing required field", async () => {

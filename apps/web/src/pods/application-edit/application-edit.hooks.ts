@@ -186,30 +186,46 @@ const keepPresentTags = (
 
 export interface AiMarksControl {
   marks: AiMarks;
-  addFromMerge: (merge: ExtractionMerge) => void;
+  getMarks: () => AiMarks;
+  setFromMerge: (merge: ExtractionMerge) => void;
   onUserChange: (name: FormFieldName, value: unknown) => void;
   clear: () => void;
 }
 
 // Session state of the «IA» and «Complétalo tú» marks (D-17): never persisted, never set on load.
-// A merge adds its filled fields to the earlier ones and replaces the missing list (D-11). Any
-// user change drops the field's «IA» mark, even when the value ends up the same (D-13); the
-// «Complétalo tú» mark goes only when the field gets a non-blank value and is not restored by
-// clearing it again (D-16). The callbacks are stable, so a listener holding the first reference
-// stays correct.
+// A merge replaces the field marks with the fields it filled (each earlier mark was filled again or
+// cleared) and replaces the missing list (D-11, amended 2026-11-01). Any user change drops the
+// field's «IA» mark, even when the value ends up the same (D-13); the «Complétalo tú» mark goes
+// only when the field gets a non-blank value and is not restored by clearing it again (D-16).
+// A ref is the source of truth, written synchronously, so `getMarks` returns the marks as they are
+// at response time, edits made while a request is in flight included (D-20). The state only feeds
+// the render. The callbacks are stable, so a listener holding the first reference stays correct.
 export function useAiMarks(): AiMarksControl {
   const [marks, setMarks] = useState<AiMarks>(EMPTY_MARKS);
+  const marksRef = useRef<AiMarks>(EMPTY_MARKS);
 
-  const addFromMerge = useCallback((merge: ExtractionMerge) => {
-    setMarks((current) => ({
-      aiFields: new Set([...current.aiFields, ...merge.aiFields]),
-      aiTags: new Set([...current.aiTags, ...merge.aiTags]),
-      missingFields: new Set(merge.missingFields),
-    }));
+  const commit = useCallback((next: AiMarks) => {
+    if (next === marksRef.current) return;
+    marksRef.current = next;
+    setMarks(next);
   }, []);
 
-  const onUserChange = useCallback((name: FormFieldName, value: unknown) => {
-    setMarks((current) => {
+  const getMarks = useCallback(() => marksRef.current, []);
+
+  const setFromMerge = useCallback(
+    (merge: ExtractionMerge) => {
+      commit({
+        aiFields: new Set(merge.aiFields),
+        aiTags: new Set([...marksRef.current.aiTags, ...merge.aiTags]),
+        missingFields: new Set(merge.missingFields),
+      });
+    },
+    [commit],
+  );
+
+  const onUserChange = useCallback(
+    (name: FormFieldName, value: unknown) => {
+      const current = marksRef.current;
       const filled = typeof value === "string" && value.trim() !== "";
       const aiFields = isAiFillable(name)
         ? without(current.aiFields, name)
@@ -227,15 +243,16 @@ export function useAiMarks(): AiMarksControl {
         aiTags === current.aiTags &&
         missingFields === current.missingFields
       ) {
-        return current;
+        return;
       }
-      return { aiFields, aiTags, missingFields };
-    });
-  }, []);
+      commit({ aiFields, aiTags, missingFields });
+    },
+    [commit],
+  );
 
-  const clear = useCallback(() => setMarks(EMPTY_MARKS), []);
+  const clear = useCallback(() => commit(EMPTY_MARKS), [commit]);
 
-  return { marks, addFromMerge, onUserChange, clear };
+  return { marks, getMarks, setFromMerge, onUserChange, clear };
 }
 
 const errorReasonOf = (error: unknown): OfferErrorReason => {
@@ -250,16 +267,18 @@ const errorReasonOf = (error: unknown): OfferErrorReason => {
 interface OfferExtractionOptions {
   form: ApplicationFormApi;
   initialDraft: string;
+  getMarks: () => AiMarks;
   onMerged?: (merge: ExtractionMerge) => void;
 }
 
 // State of the «Pegar oferta» panel. The draft text lives here, not in the textarea, so closing
-// and re-opening the panel keeps it. The merge reads the form values when the response arrives
-// (not when the request left), so what the user typed during the wait is kept (D-20). Fields are
-// written without running their listeners: an AI fill is not a user edit.
+// and re-opening the panel keeps it. The merge reads the form values and the «IA» marks when the
+// response arrives (not when the request left), so what the user typed during the wait is kept
+// (D-20). Fields are written without running their listeners: an AI fill is not a user edit.
 export function useOfferExtraction({
   form,
   initialDraft,
+  getMarks,
   onMerged,
 }: OfferExtractionOptions) {
   const [draft, setDraft] = useState(initialDraft);
@@ -323,12 +342,16 @@ export function useOfferExtraction({
     extractOffer(analyzedText, controller.signal)
       .then((extraction) => {
         if (controller.signal.aborted) return;
+        const previous = getMarks();
         const merge = mergeExtractionIntoForm(
           form.state.values,
           extraction,
           analyzedText,
+          previous,
         );
-        for (const field of merge.aiFields) applyField(field, merge.values);
+        // A previously marked field was either filled again or reset, so it is written either way.
+        const written = new Set([...previous.aiFields, ...merge.aiFields]);
+        for (const field of written) applyField(field, merge.values);
         // The analyzed offer is stored with the application (D-10). It has no mounted field, and
         // typing in the textarea never reaches it: only a successful analysis writes it.
         form.setFieldValue("offerText", merge.values.offerText, {

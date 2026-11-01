@@ -11,6 +11,7 @@ import {
   EMPTY_FORM_VALUES,
   RELEVANT_FIELDS,
   type AiFillableField,
+  type AiMarks,
   type ApplicationFormValues,
   type ExtractionMerge,
   type FormFieldName,
@@ -143,27 +144,46 @@ type MergedTextField =
 
 const isBlank = (text: string): boolean => text.trim() === "";
 
-// Fills only what is empty (a whitespace-only value counts as empty) and only with a value the
-// extraction found: a value the user typed is never overwritten (AI-06, D-04). Two refinements
-// guard the salary: a fill never leaves the minimum above a maximum the user kept (Pitfall 9), and
-// the currency is filled only together with a salary the analysis filled (Pitfall 10). Reports
-// the relevant fields still empty after the merge (AI-08). Pure: `current` is not mutated.
+// No marks: the first analysis of a form, or any analysis right after loading (D-17).
+const NO_PREVIOUS_MARKS: Pick<AiMarks, "aiFields" | "aiTags"> = {
+  aiFields: new Set(),
+  aiTags: new Set(),
+};
+
+// A field counts as empty when it is blank (a whitespace-only value is blank) or still marked «IA»:
+// an earlier analysis wrote it and the user has not touched it. Such a field takes the new value,
+// or is reset to its empty value when the extraction has none, so nothing of the earlier offer
+// survives. A value the user typed or edited (no mark) is never overwritten (AI-06 as read after
+// the 2026-11-01 decision, D-04, D-11). Two refinements guard the salary: a fill never leaves the
+// minimum above a maximum the user kept (Pitfall 9), and the currency is filled only when no
+// salary side is the user's, the analysis filled one, and the currency is still marked «IA» or both
+// salary sides were blank (Pitfall 10). Reports the relevant fields still empty after the merge
+// (AI-08). Pure: neither `current` nor `previous` is mutated. Without `previous` (first analysis,
+// edit mode right after load) only blank fields are filled.
 export function mergeExtractionIntoForm(
   current: ApplicationFormValues,
   extraction: OfferExtraction,
   text: string,
+  previous: Pick<AiMarks, "aiFields" | "aiTags"> = NO_PREVIOUS_MARKS,
 ): ExtractionMerge {
   // The analyzed offer is stored as sent, whatever was stored before; it is not an AI-filled field.
   const values: ApplicationFormValues = { ...current, offerText: text };
   const aiFields: AiFillableField[] = [];
 
+  const isMarked = (field: AiFillableField): boolean =>
+    previous.aiFields.has(field);
+  const isFree = (field: AiFillableField): boolean =>
+    isBlank(current[field]) || isMarked(field);
+
   const fill = <F extends MergedTextField>(
     field: F,
     extracted: ApplicationFormValues[F] | null,
   ): void => {
-    if (extracted === null || extracted.trim() === "") return;
-    const existing: string = current[field];
-    if (existing.trim() !== "") return;
+    if (!isFree(field)) return;
+    if (extracted === null || extracted.trim() === "") {
+      if (isMarked(field)) values[field] = EMPTY_FORM_VALUES[field];
+      return;
+    }
     values[field] = extracted;
     aiFields.push(field);
   };
@@ -175,20 +195,23 @@ export function mergeExtractionIntoForm(
   fill("seniority", extraction.seniority);
   fill("contractType", extraction.contractType);
 
-  const keptMin = isBlank(current.salaryMin) ? null : Number(current.salaryMin);
-  const keptMax = isBlank(current.salaryMax) ? null : Number(current.salaryMax);
+  const minFree = isFree("salaryMin");
+  const maxFree = isFree("salaryMax");
+  // Only a salary side that is not free (the user's) bounds the other one.
+  const keptMin = minFree ? null : Number(current.salaryMin);
+  const keptMax = maxFree ? null : Number(current.salaryMax);
 
   // A fill that would leave the minimum above a maximum the user kept (or the maximum below a
   // minimum the user kept) is skipped: the AI never overwrites and never inverts the range.
   const minToFill =
     extraction.salaryMin !== null &&
-    isBlank(current.salaryMin) &&
+    minFree &&
     !(keptMax !== null && extraction.salaryMin > keptMax)
       ? extraction.salaryMin
       : null;
   const maxToFill =
     extraction.salaryMax !== null &&
-    isBlank(current.salaryMax) &&
+    maxFree &&
     !(keptMin !== null && extraction.salaryMax < keptMin)
       ? extraction.salaryMax
       : null;
@@ -196,21 +219,29 @@ export function mergeExtractionIntoForm(
   if (minToFill !== null) {
     values.salaryMin = String(minToFill);
     aiFields.push("salaryMin");
+  } else if (isMarked("salaryMin")) {
+    values.salaryMin = EMPTY_FORM_VALUES.salaryMin;
   }
   if (maxToFill !== null) {
     values.salaryMax = String(maxToFill);
     aiFields.push("salaryMax");
+  } else if (isMarked("salaryMax")) {
+    values.salaryMax = EMPTY_FORM_VALUES.salaryMax;
   }
 
-  const salaryWasEmpty =
+  const salaryWasBlank =
     isBlank(current.salaryMin) && isBlank(current.salaryMax);
   if (
-    salaryWasEmpty &&
+    minFree &&
+    maxFree &&
     (minToFill !== null || maxToFill !== null) &&
-    extraction.currency !== null
+    extraction.currency !== null &&
+    (isMarked("currency") || salaryWasBlank)
   ) {
     values.currency = extraction.currency;
     aiFields.push("currency");
+  } else if (isMarked("currency")) {
+    values.currency = EMPTY_FORM_VALUES.currency;
   }
 
   // The user's tags come first and win on a repeated key (any group); the new ones follow in model
