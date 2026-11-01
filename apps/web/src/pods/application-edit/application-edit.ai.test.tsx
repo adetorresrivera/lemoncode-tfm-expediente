@@ -498,3 +498,269 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     consoleError.mockRestore();
   });
 });
+
+const BADGE = "Rellenado por la IA";
+const MISSING = "Complétalo tú";
+
+const GOLD = ["border-brand-gold", "bg-ai-missing-bg"];
+
+const describedBy = (control: HTMLElement): string[] =>
+  (control.getAttribute("aria-describedby") ?? "").split(" ").filter(Boolean);
+
+// Title, company and work mode found; seniority and everything else left empty.
+const PARTIAL = {
+  ...NO_DATA,
+  title: "Desarrollador/a Frontend",
+  company: "Lumen Analytics",
+  workMode: "remoto",
+};
+
+describe("ApplicationEditContainer AI marks", () => {
+  it("marks the filled fields with «IA» and highlights the relevant one still empty", async () => {
+    const user = userEvent.setup();
+    mockFetch({ "POST /api/offers/extract": () => jsonResponse(PARTIAL) });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado 3 campos/);
+
+    expect(screen.getAllByText(BADGE)).toHaveLength(3);
+    expect(describedBy(screen.getByLabelText("Puesto *"))).toContain(
+      "field-title-ai",
+    );
+    const seniority = screen.getByLabelText("Seniority");
+    expect(seniority).toHaveClass(...GOLD);
+    expect(describedBy(seniority)).toContain("field-seniority-missing");
+    expect(screen.getAllByText(MISSING)).toHaveLength(1);
+    expect(
+      document.getElementById("field-seniority-missing"),
+    ).toHaveTextContent(MISSING);
+  });
+
+  it("does not highlight empty location, contract or salary fields", async () => {
+    const user = userEvent.setup();
+    mockFetch({ "POST /api/offers/extract": () => jsonResponse(PARTIAL) });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado 3 campos/);
+
+    for (const label of [
+      "Ubicación",
+      "Tipo de contrato",
+      "Salario mínimo",
+      "Salario máximo",
+    ]) {
+      const control = screen.getByLabelText(label);
+      expect(control).not.toHaveClass(...GOLD);
+      expect(describedBy(control).join(" ")).not.toMatch(/-missing|-ai/);
+    }
+  });
+
+  it("removes a badge on the first edit and does not bring it back when the value is restored", async () => {
+    const user = userEvent.setup();
+    mockFetch({ "POST /api/offers/extract": () => jsonResponse(PARTIAL) });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado 3 campos/);
+    expect(document.getElementById("field-company-ai")).not.toBeNull();
+
+    await user.type(screen.getByLabelText("Empresa *"), "x");
+    expect(document.getElementById("field-company-ai")).toBeNull();
+    expect(document.getElementById("field-title-ai")).not.toBeNull();
+
+    await user.type(screen.getByLabelText("Empresa *"), "{Backspace}");
+    expect(screen.getByLabelText("Empresa *")).toHaveValue("Lumen Analytics");
+    expect(document.getElementById("field-company-ai")).toBeNull();
+    expect(screen.getAllByText(BADGE)).toHaveLength(2);
+  });
+
+  it("removes «Complétalo tú» once the field has a value and does not restore it when cleared", async () => {
+    const user = userEvent.setup();
+    mockFetch({ "POST /api/offers/extract": () => jsonResponse(PARTIAL) });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado 3 campos/);
+    const seniority = screen.getByLabelText("Seniority");
+    expect(screen.getByText(MISSING)).toBeInTheDocument();
+
+    await user.selectOptions(seniority, "mid");
+    expect(screen.queryByText(MISSING)).toBeNull();
+    expect(seniority).not.toHaveClass(...GOLD);
+
+    await user.selectOptions(seniority, "");
+    expect(screen.queryByText(MISSING)).toBeNull();
+    expect(seniority).not.toHaveClass(...GOLD);
+  });
+
+  it("keeps earlier badges on a second analysis, adds the new ones and recalculates the missing list", async () => {
+    const user = userEvent.setup();
+    let calls = 0;
+    mockFetch({
+      "POST /api/offers/extract": () => {
+        calls += 1;
+        return jsonResponse(
+          calls === 1 ? PARTIAL : { ...PARTIAL, seniority: "senior" },
+        );
+      },
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado 3 campos/);
+    await user.type(screen.getByLabelText("Empresa *"), "x");
+    expect(screen.getAllByText(BADGE)).toHaveLength(2);
+
+    await user.click(analyzeButton());
+    await waitFor(() =>
+      expect(screen.getByLabelText("Seniority")).toHaveValue("senior"),
+    );
+
+    // Title and work mode keep their badge, the edited company stays unmarked, seniority is new.
+    expect(document.getElementById("field-title-ai")).not.toBeNull();
+    expect(document.getElementById("field-workMode-ai")).not.toBeNull();
+    expect(document.getElementById("field-seniority-ai")).not.toBeNull();
+    expect(document.getElementById("field-company-ai")).toBeNull();
+    expect(screen.queryByText(MISSING)).toBeNull();
+  });
+
+  it("brings «Complétalo tú» back only when a later analysis leaves the field empty", async () => {
+    const user = userEvent.setup();
+    mockFetch({ "POST /api/offers/extract": () => jsonResponse(PARTIAL) });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado 3 campos/);
+    const seniority = screen.getByLabelText("Seniority");
+    await user.selectOptions(seniority, "mid");
+    await user.selectOptions(seniority, "");
+    expect(screen.queryByText(MISSING)).toBeNull();
+
+    await user.click(analyzeButton());
+    await screen.findByText(/No hemos encontrado datos nuevos/);
+
+    expect(screen.getByText(MISSING)).toBeInTheDocument();
+    expect(seniority).toHaveClass(...GOLD);
+  });
+
+  it("lets the validation error win over «Complétalo tú» on a missing required field", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () =>
+        jsonResponse({ ...PARTIAL, company: null }),
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado 2 campos/);
+    expect(screen.getAllByText(MISSING)).toHaveLength(2);
+    const company = screen.getByLabelText("Empresa *");
+    expect(company).toHaveClass(...GOLD);
+
+    await user.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    expect(await screen.findByText("Escribe la empresa.")).toBeInTheDocument();
+    expect(document.getElementById("field-company-missing")).toBeNull();
+    expect(company).not.toHaveClass(...GOLD);
+    expect(describedBy(company)).toStrictEqual(["field-company-error"]);
+  });
+
+  it("keeps the marks after a failed save", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () => jsonResponse(EXTRACTION),
+      "POST /api/applications": () =>
+        jsonResponse(errorBody("INTERNAL_ERROR"), 500),
+    });
+    renderCreate();
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado 9 campos/);
+    await user.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    expect(
+      await screen.findByText(
+        "No se pudo guardar la candidatura. Inténtalo de nuevo.",
+      ),
+    ).toBeInTheDocument();
+    expect(screen.getAllByText(BADGE)).toHaveLength(9);
+    expect(screen.getByText(/Hemos rellenado 9 campos/)).toBeInTheDocument();
+  });
+
+  it("clears every badge and the summary line after a successful save, before navigating", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/offers/extract": () => jsonResponse(EXTRACTION),
+      "POST /api/applications": () => jsonResponse(created, 201),
+    });
+    const onSaved = vi.fn();
+    render(
+      <ApplicationEditContainer
+        onSaved={onSaved}
+        renderCancelLink={link("/applications")}
+        renderListLink={link("/applications-list-stub")}
+      />,
+    );
+
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/Hemos rellenado 9 campos/);
+    expect(screen.getAllByText(BADGE)).toHaveLength(9);
+
+    await user.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith("new1"));
+    expect(screen.queryByText(BADGE)).toBeNull();
+    expect(screen.queryByText(/Hemos rellenado/)).toBeNull();
+  });
+
+  it("shows no mark right after loading an application in edit mode", async () => {
+    mockFetch({
+      "GET /api/applications/a1": () =>
+        jsonResponse(
+          applicationSchema.parse({
+            id: "a1",
+            title: "Frontend Developer",
+            company: "Acme",
+            status: "enviada",
+            statusHistory: [
+              { status: "guardada", at: "2026-10-12T10:00:00.000Z" },
+            ],
+            interviews: [],
+            createdAt: "2026-10-12T10:00:00.000Z",
+            updatedAt: "2026-10-30T08:15:00.000Z",
+            ownerId: null,
+          }),
+        ),
+    });
+    render(
+      <ApplicationEditContainer
+        applicationId="a1"
+        onSaved={() => {}}
+        renderCancelLink={link("/applications")}
+        renderListLink={link("/applications-list-stub")}
+      />,
+    );
+
+    await screen.findByDisplayValue("Frontend Developer");
+
+    expect(screen.queryByText(BADGE)).toBeNull();
+    expect(screen.queryByText(MISSING)).toBeNull();
+  });
+});
