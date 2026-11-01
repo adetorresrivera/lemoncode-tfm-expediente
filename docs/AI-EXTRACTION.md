@@ -30,7 +30,7 @@ export const offerExtractionSchema = z.object({
   tags: z.array(tagSchema).max(20),   // { label, group: "stack" | "nice_to_have" | "language" }
 });
 ```
-El JSON Schema que se envía al modelo se obtiene con `z.toJSONSchema(offerExtractionSchema)` (Zod 4).
+El JSON Schema que se envía al modelo se obtiene con `z.toJSONSchema(modelOfferExtractionSchema)` (Zod 4): el esquema del contrato con el grupo de etiqueta `idioma` en lugar de `language` (ver LlmClient). El contrato conserva `language`.
 
 ## LlmClient (`apps/api/src/llm/`)
 ```ts
@@ -54,7 +54,7 @@ export function createLlmClient(config: LlmConfig): LlmClient; // según LLM_PRO
 | `mock` | sin red | devuelve un `OfferExtraction` fijo y realista tras 300 ms |
 
 - Timeout `LLM_TIMEOUT_MS` (90 s por defecto) con `AbortSignal.timeout` → 504 `LLM_TIMEOUT`.
-- Al modelo se le muestra siempre el JSON Schema de `offerExtractionSchema` (contracts). La respuesta cruda se valida con un esquema más permisivo (`rawOfferExtractionSchema`, en `offers/extract.service.ts`: etiquetas de cualquier longitud y número, `currency` libre, salarios sin signo exigido) para poder normalizarla; el resultado normalizado se vuelve a validar con `offerExtractionSchema`.
+- Al modelo se le muestra siempre el JSON Schema de `modelOfferExtractionSchema` (en `offers/extract.service.ts`). La respuesta cruda se valida con un esquema más permisivo (`rawOfferExtractionSchema`, en el mismo archivo: etiquetas de cualquier longitud y número, `currency` libre, salarios sin signo exigido) que además acepta `idioma` y lo convierte en `language` antes de normalizar; el resultado normalizado se vuelve a validar con `offerExtractionSchema`.
 - Respuesta no parseable o que no cumple ni siquiera el esquema permisivo → un reintento; si vuelve a fallar → 502 `LLM_ERROR`.
 - Si el modelo es de razonamiento (p. ej. qwen3), desactivar el modo «thinking».
 - Nunca loguear el texto completo de la oferta; solo longitud y duración.
@@ -76,7 +76,7 @@ Devuelve solo los campos del esquema. Reglas:
 - tags:
   - stack: tecnologías, lenguajes, frameworks, cloud y herramientas requeridas.
   - nice_to_have: lo que la oferta marca como "se valora", "plus", "deseable".
-  - language: idiomas con nivel si aparece ("Inglés B2").
+  - idioma: idiomas con nivel si aparece ("Inglés B2").
   - label es el nombre de la tecnología o idioma (p. ej. "React", "Inglés B2"), nunca el nombre del grupo.
   - Grafía canónica (React, TypeScript, C#, .NET 8, AWS). Sin duplicados. Máximo 20.
 ```

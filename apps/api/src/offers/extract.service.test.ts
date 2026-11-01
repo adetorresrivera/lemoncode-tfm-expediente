@@ -1,4 +1,4 @@
-import { offerExtractionSchema, type OfferExtraction } from "@tfm/contracts";
+import { type OfferExtraction } from "@tfm/contracts";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ApiError } from "../errors.js";
 import type { LlmClient } from "../llm/llm.client.js";
@@ -6,6 +6,7 @@ import {
   createExtractService,
   EXTRACTION_SYSTEM_PROMPT,
   isSpokenLanguageLabel,
+  modelOfferExtractionSchema,
   normalizeExtraction,
   rawOfferExtractionSchema,
   type RawOfferExtraction,
@@ -376,7 +377,10 @@ describe("createExtractService", () => {
       EXTRACTION_SYSTEM_PROMPT,
       TEXT,
       rawOfferExtractionSchema,
-      { signal: controller.signal, responseSchema: offerExtractionSchema },
+      {
+        signal: controller.signal,
+        responseSchema: modelOfferExtractionSchema,
+      },
     );
   });
 
