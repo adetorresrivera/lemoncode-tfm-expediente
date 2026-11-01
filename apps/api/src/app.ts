@@ -101,9 +101,15 @@ export function createApp(deps: AppDeps): Hono {
 
   // Single error handler. Mapping order matters: ApiError, ZodError, SyntaxError (Hono's
   // c.req.json() throws a plain SyntaxError on a malformed body), HTTPException, anything else.
-  // Only err.message is logged: never the stack, the request body or the offer text.
+  // Only err.message is logged: never the stack, the request body or the offer text. A JSON
+  // SyntaxError is the exception to the exception: V8 quotes a snippet of the body in its
+  // message, so it is logged as a fixed string instead.
   app.onError((err, c) => {
-    console.error(err.message);
+    console.error(
+      err instanceof SyntaxError
+        ? "SyntaxError (malformed JSON body)"
+        : err.message,
+    );
 
     if (err instanceof ApiError) {
       const body: ErrorResponse = {

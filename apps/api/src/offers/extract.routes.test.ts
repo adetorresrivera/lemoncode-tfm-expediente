@@ -179,6 +179,25 @@ describe("POST /api/offers/extract", () => {
     expect(parsed.error.code).toBe("VALIDATION_ERROR");
   });
 
+  it("never logs any part of a malformed body", async () => {
+    const { llm } = fakeLlm();
+    // V8 quotes only ~20 characters around the error, so the marker must sit right there.
+    const marker = "QZXW";
+    const res = await postExtract(
+      createApp({ ...allUp, llm }),
+      `{"text": ${marker}-oferta confidencial`,
+    );
+
+    expect(res.status).toBe(400);
+    const parsed = errorResponseSchema.parse(await res.json());
+    expect(parsed.error.code).toBe("VALIDATION_ERROR");
+    expect(parsed.error.message).not.toContain(marker);
+    expect(consoleSpies.error).toHaveBeenCalled();
+    for (const spy of Object.values(consoleSpies)) {
+      expect(JSON.stringify(spy.mock.calls)).not.toContain(marker);
+    }
+  });
+
   it.each([
     ["50", "a".repeat(50)],
     ["20,000", "a".repeat(20000)],
