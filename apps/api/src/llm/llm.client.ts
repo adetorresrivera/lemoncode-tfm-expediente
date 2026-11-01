@@ -4,11 +4,17 @@ import { createMockProvider } from "./mock.provider.js";
 import { createOllamaProvider } from "./ollama.provider.js";
 import { createOpenAiProvider } from "./openai.provider.js";
 
+export interface LlmCallOptions {
+  /** Aborts the upstream call, e.g. when the HTTP client goes away. */
+  signal?: AbortSignal;
+}
+
 export interface LlmClient {
   extractStructured<T>(
     system: string,
     input: string,
     schema: z.ZodType<T>,
+    options?: LlmCallOptions,
   ): Promise<T>;
   ping(): Promise<boolean>; // used by /api/health
 }
