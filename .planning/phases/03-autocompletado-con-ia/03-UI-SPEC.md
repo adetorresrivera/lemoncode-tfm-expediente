@@ -167,7 +167,7 @@ Voice: tuteo, short sentences, no exclamations, no emojis, sentence case.
 | «IA» badge screen-reader text | Rellenado por la IA |
 | Missing-field help line | Complétalo tú |
 | AI tag chip screen-reader text | (propuesta por IA) |
-| Destructive confirmation | none in this phase. Re-analysing never overwrites user values (merge fills only empty fields), so no confirmation exists or is needed. «Cancelar análisis» aborts a request and discards nothing |
+| Destructive confirmation | none in this phase. Re-analysing never overwrites user values: it fills empty fields and replaces, or clears when the new offer lacks them, the fields and chips still marked «IA», which the user has not touched (user decision 2026-11-01, quick 261101-gpz), so no confirmation exists or is needed. «Cancelar análisis» aborts a request and discards nothing |
 
 Rules for the three result cases: exactly one message at a time in the status region; a new action (starting an analysis, cancelling) replaces the previous message. Pluralise by the count, never with «(s)».
 
@@ -281,7 +281,7 @@ Probe run 2026-10-31 over 3 surfaces (OfferPanel, merged form fields, AI tag chi
 | loading | Analysis in flight | ✅ covered | «Analizando la oferta…» in a polite live region, textarea `readOnly`, Cancel visible, rest of the form editable; merge reads form values at response time (D-20). |
 | error | Timeout, LLM error, network, validation | ✅ covered | One message per code in the live region (see Copywriting rows); AI button stays enabled to retry; form never blocked. |
 | partial | Extraction fills some fields and leaves others empty | ✅ covered | Filled fields show «IA»; empty relevant ones (Puesto, Empresa, Modalidad, Seniority) show gold border + «Complétalo tú»; empty irrelevant ones (Ubicación, contrato, salary) get no highlight. |
-| populated | Re-analysis on a partly filled form | ✅ covered | Only still-empty fields are filled; marks accumulate; `missingFields` recalculated; user-typed values untouched (D-11). |
+| populated | Re-analysis on a partly filled form | ✅ covered | Empty fields are filled; fields and chips still marked «IA» are replaced or cleared; marks are recomputed from the new result; `missingFields` recalculated; user-typed or edited values and user tags untouched (D-11 as amended 2026-11-01). |
 | overflow | Offer text of 20.000 characters / paste beyond the limit | ✅ covered | `maxLength` truncates silently; at the limit the hint «Has llegado al límite de 20.000 caracteres.» appears and the counter reads «20.000 / 20.000»; textarea scrolls internally, `resize-y`. |
 | long-text | Long tag labels or long extracted title | ✅ covered | Chips keep `truncate` + `title`; the sr-only «(propuesta por IA)» sits outside the truncated span; inputs scroll their text. |
 | zero-one-many | Pluralisation of the success summary | ✅ covered | Singular/plural copy rows above (1 campo / N campos, 1 etiqueta / M etiquetas). |
