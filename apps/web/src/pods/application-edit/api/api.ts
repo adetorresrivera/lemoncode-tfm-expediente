@@ -1,7 +1,9 @@
 import {
   applicationSchema,
+  offerExtractionSchema,
   type Application,
   type ApplicationInput,
+  type OfferExtraction,
 } from "@tfm/contracts";
 import { request } from "@/core/http/http-client";
 
@@ -22,6 +24,18 @@ export const getApplication = (
   signal?: AbortSignal,
 ): Promise<Application> =>
   request(`/api/applications/${encodeURIComponent(id)}`, applicationSchema, {
+    signal,
+  });
+
+// Sends the pasted offer to the extraction endpoint. Nothing is stored server side: the draft is
+// saved only through the form (AI-06). Own copy: a pod never imports another pod.
+export const extractOffer = (
+  text: string,
+  signal?: AbortSignal,
+): Promise<OfferExtraction> =>
+  request("/api/offers/extract", offerExtractionSchema, {
+    method: "POST",
+    body: { text },
     signal,
   });
 

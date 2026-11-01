@@ -11,6 +11,9 @@ import { createApplicationsRepository } from "./applications/applications.reposi
 import { applicationsRoutes } from "./applications/applications.routes.js";
 import { createApplicationsService } from "./applications/applications.service.js";
 import { ApiError } from "./errors.js";
+import type { LlmClient } from "./llm/llm.client.js";
+import { offersRoutes } from "./offers/extract.routes.js";
+import { createExtractService } from "./offers/extract.service.js";
 import { tagsRoutes } from "./tags/tags.routes.js";
 
 export type AppDeps = {
@@ -19,6 +22,7 @@ export type AppDeps = {
   pingLlm: () => Promise<boolean>;
   webDistDir?: string;
   db?: Db;
+  llm?: LlmClient;
   now?: () => Date;
 };
 
@@ -73,6 +77,11 @@ export function createApp(deps: AppDeps): Hono {
     );
     app.route("/api/applications", applicationsRoutes(service));
     app.route("/api/tags", tagsRoutes(service));
+  }
+
+  // The extraction endpoint needs the LLM client only: it reads and writes no database.
+  if (deps.llm) {
+    app.route("/api/offers", offersRoutes(createExtractService(deps.llm)));
   }
 
   if (deps.webDistDir) {

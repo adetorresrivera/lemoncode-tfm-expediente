@@ -507,6 +507,7 @@ describe("ApplicationEditContainer conditions and tracking", () => {
       .getAllByRole("heading", { level: 2 })
       .map((heading) => heading.textContent);
     expect(headings).toStrictEqual([
+      "Pegar oferta",
       "Puesto y empresa",
       "Condiciones",
       "Etiquetas",

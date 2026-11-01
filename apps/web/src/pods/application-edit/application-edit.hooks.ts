@@ -6,17 +6,22 @@ import {
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useEffect, useRef, useState } from "react";
 import { HttpError, type HttpErrorCode } from "@/core/http/http-client";
-import { getApplication } from "./api/api";
+import { extractOffer, getApplication } from "./api/api";
 import {
   mapApplicationFromApiToFormValues,
   mapFormValuesToApiInput,
   mapServerErrorToFields,
+  mergeExtractionIntoForm,
   validateApplicationForm,
 } from "./application-edit.mapper";
 import type {
+  AiFillableField,
   ApplicationEditSummary,
   ApplicationFormValues,
+  ExtractionMerge,
   FormMessage,
+  OfferAnalysisStatus,
+  OfferErrorReason,
 } from "./application-edit.vm";
 
 const INVALID_SUBMIT_MESSAGE = "Revisa los campos marcados.";
@@ -101,6 +106,105 @@ export function useApplicationForm({ initialValues, save, onSaved }: Options) {
 }
 
 export type ApplicationFormApi = ReturnType<typeof useApplicationForm>["form"];
+
+const errorReasonOf = (error: unknown): OfferErrorReason => {
+  if (error instanceof HttpError) {
+    if (error.code === "LLM_TIMEOUT") return "timeout";
+    if (error.code === "LLM_ERROR") return "model";
+  }
+  return "network";
+};
+
+interface OfferExtractionOptions {
+  form: ApplicationFormApi;
+  initialDraft: string;
+  onMerged?: (merge: ExtractionMerge) => void;
+}
+
+// State of the «Pegar oferta» panel. The draft text lives here, not in the textarea, so closing
+// and re-opening the panel keeps it. The merge reads the form values when the response arrives
+// (not when the request left), so what the user typed during the wait is kept (D-20). Fields are
+// written without running their listeners: an AI fill is not a user edit.
+export function useOfferExtraction({
+  form,
+  initialDraft,
+  onMerged,
+}: OfferExtractionOptions) {
+  const [draft, setDraft] = useState(initialDraft);
+  const [status, setStatus] = useState<OfferAnalysisStatus>({ kind: "idle" });
+  const controllerRef = useRef<AbortController | null>(null);
+
+  // Leaving the page aborts the request silently: no state is written afterwards.
+  useEffect(
+    () => () => {
+      controllerRef.current?.abort();
+      controllerRef.current = null;
+    },
+    [],
+  );
+
+  // One explicit call per field: TypeScript cannot correlate a union key with its value type.
+  const applyField = (
+    field: AiFillableField,
+    values: ApplicationFormValues,
+  ): void => {
+    const options = { dontRunListeners: true };
+    switch (field) {
+      case "title":
+        form.setFieldValue("title", values.title, options);
+        break;
+      case "company":
+        form.setFieldValue("company", values.company, options);
+        break;
+      case "location":
+        form.setFieldValue("location", values.location, options);
+        break;
+      case "workMode":
+        form.setFieldValue("workMode", values.workMode, options);
+        break;
+      case "seniority":
+        form.setFieldValue("seniority", values.seniority, options);
+        break;
+      case "contractType":
+        form.setFieldValue("contractType", values.contractType, options);
+        break;
+      case "salaryMin":
+        form.setFieldValue("salaryMin", values.salaryMin, options);
+        break;
+      case "salaryMax":
+        form.setFieldValue("salaryMax", values.salaryMax, options);
+        break;
+      case "currency":
+        form.setFieldValue("currency", values.currency, options);
+        break;
+    }
+  };
+
+  const analyze = (): void => {
+    if (controllerRef.current !== null) return;
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setStatus({ kind: "analysing" });
+
+    extractOffer(draft.trim(), controller.signal)
+      .then((extraction) => {
+        if (controller.signal.aborted) return;
+        const merge = mergeExtractionIntoForm(form.state.values, extraction);
+        for (const field of merge.aiFields) applyField(field, merge.values);
+        onMerged?.(merge);
+        setStatus({ kind: "success", filled: merge.aiFields.length });
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setStatus({ kind: "error", reason: errorReasonOf(error) });
+      })
+      .finally(() => {
+        if (controllerRef.current === controller) controllerRef.current = null;
+      });
+  };
+
+  return { draft, setDraft, status, analyze };
+}
 
 type LoadOk = {
   key: string;
