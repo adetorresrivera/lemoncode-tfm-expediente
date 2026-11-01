@@ -1,3 +1,4 @@
+import { OFFER_TEXT_MAX, OFFER_TEXT_MIN } from "@tfm/contracts";
 import { ChevronDown, Sparkles } from "lucide-react";
 import { useId } from "react";
 import { RequestStatus } from "@/common/components/request-status";
@@ -16,7 +17,14 @@ import type {
   RelevantField,
 } from "../application-edit.vm";
 
+// Every number shown comes from the contracts constants and is formatted the same way: es-ES
+// groups four-digit numbers only when asked to («1.234»).
+const numberFormat = new Intl.NumberFormat("es-ES", { useGrouping: "always" });
+const MIN_TEXT = numberFormat.format(OFFER_TEXT_MIN);
+const MAX_TEXT = numberFormat.format(OFFER_TEXT_MAX);
+
 const ERROR_MESSAGES: Record<OfferErrorReason, string> = {
+  length: `La oferta debe tener entre ${MIN_TEXT} y ${MAX_TEXT} caracteres.`,
   timeout:
     "La IA ha tardado demasiado. Inténtalo otra vez o rellena el formulario a mano.",
   model:
@@ -104,7 +112,18 @@ export function OfferPanel({
 }: OfferPanelModel) {
   const headingId = useId();
   const textareaId = useId();
+  const hintId = useId();
+  const counterId = useId();
   const analysing = status.kind === "analysing";
+  // The gate counts what the API validates (trimmed), the counter and the limit what maxLength
+  // caps (the raw draft): both are UTF-16 code units, the unit of String.length and of Zod.
+  const tooShort = draft.trim().length < OFFER_TEXT_MIN;
+  const atLimit = draft.length >= OFFER_TEXT_MAX;
+  const hint = tooShort
+    ? `Pega al menos ${MIN_TEXT} caracteres`
+    : atLimit
+      ? `Has llegado al límite de ${MAX_TEXT} caracteres.`
+      : null;
 
   return (
     <section
@@ -136,17 +155,35 @@ export function OfferPanel({
               className="min-h-40 resize-y"
               placeholder="Pega aquí la descripción completa de la oferta"
               value={draft}
+              maxLength={OFFER_TEXT_MAX}
+              aria-describedby={
+                hint === null ? counterId : `${hintId} ${counterId}`
+              }
               onChange={(event) => onDraftChange(event.target.value)}
             />
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              {hint !== null && (
+                <p id={hintId} className="text-sm text-muted-foreground">
+                  {hint}
+                </p>
+              )}
+              <p
+                id={counterId}
+                className="ml-auto shrink-0 font-mono tabular text-sm text-muted-foreground"
+              >
+                {numberFormat.format(draft.length)} / {MAX_TEXT}
+              </p>
+            </div>
           </div>
           <div className="flex flex-col gap-2 sm:flex-row">
             <Button
               type="button"
               variant="default"
-              aria-disabled={analysing}
-              className="h-11 w-full sm:w-auto"
+              aria-disabled={tooShort || analysing}
+              aria-describedby={tooShort ? hintId : undefined}
+              className="h-11 w-full sm:w-auto aria-disabled:opacity-50"
               onClick={() => {
-                if (analysing) return;
+                if (tooShort || analysing) return;
                 onAnalyze();
               }}
             >

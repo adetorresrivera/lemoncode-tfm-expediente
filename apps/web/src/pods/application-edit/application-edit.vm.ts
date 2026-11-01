@@ -123,7 +123,7 @@ export interface AiMarks {
   missingFields: ReadonlySet<RelevantField>;
 }
 
-export type OfferErrorReason = "timeout" | "model" | "network";
+export type OfferErrorReason = "timeout" | "model" | "network" | "length";
 
 export type OfferAnalysisStatus =
   | { kind: "idle" }
