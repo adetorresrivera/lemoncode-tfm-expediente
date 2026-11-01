@@ -548,3 +548,102 @@ describe("mergeExtractionIntoForm: re-analysis of fields", () => {
     expect(previous.aiTags.size).toBe(1);
   });
 });
+
+describe("mergeExtractionIntoForm: re-analysis of tags", () => {
+  const withTags = (tags: ApplicationFormValues["tags"]) =>
+    form({ tags: tags.map((tag) => ({ ...tag })) });
+
+  it("replaces the marked chips and keeps the user's first", () => {
+    const merge = mergeExtractionIntoForm(
+      withTags([
+        { label: "React", group: "stack" },
+        { label: "Vue", group: "stack" },
+      ]),
+      extraction({ tags: [{ label: "Angular", group: "stack" }] }),
+      ANALYZED_TEXT,
+      marked([], ["vue"]),
+    );
+    expect(merge.values.tags).toStrictEqual([
+      { label: "React", group: "stack" },
+      { label: "Angular", group: "stack" },
+    ]);
+    expect(merge.aiTags).toStrictEqual(["angular"]);
+  });
+
+  it("brings a re-proposed marked chip back in the new spelling and group, still marked", () => {
+    const merge = mergeExtractionIntoForm(
+      withTags([{ label: "React", group: "stack" }]),
+      extraction({ tags: [{ label: "react", group: "nice_to_have" }] }),
+      ANALYZED_TEXT,
+      marked([], ["react"]),
+    );
+    expect(merge.values.tags).toStrictEqual([
+      { label: "react", group: "nice_to_have" },
+    ]);
+    expect(merge.aiTags).toStrictEqual(["react"]);
+  });
+
+  it("removes the marked chips when the new extraction has none", () => {
+    const merge = mergeExtractionIntoForm(
+      withTags([
+        { label: "Node", group: "stack" },
+        { label: "Vue", group: "stack" },
+      ]),
+      NOTHING,
+      ANALYZED_TEXT,
+      marked([], ["vue"]),
+    );
+    expect(merge.values.tags).toStrictEqual([
+      { label: "Node", group: "stack" },
+    ]);
+    expect(merge.aiTags).toStrictEqual([]);
+  });
+
+  it("lets the user's chip win on a duplicate key", () => {
+    const merge = mergeExtractionIntoForm(
+      withTags([
+        { label: "Docker", group: "nice_to_have" },
+        { label: "Vue", group: "stack" },
+      ]),
+      extraction({
+        tags: [
+          { label: "docker", group: "stack" },
+          { label: "Go", group: "stack" },
+        ],
+      }),
+      ANALYZED_TEXT,
+      marked([], ["vue"]),
+    );
+    expect(merge.values.tags).toStrictEqual([
+      { label: "Docker", group: "nice_to_have" },
+      { label: "Go", group: "stack" },
+    ]);
+    expect(merge.aiTags).toStrictEqual(["go"]);
+  });
+
+  it("frees the slots of the dropped AI chips under the cap", () => {
+    const user = Array.from({ length: 19 }, (_, index) => ({
+      label: `Tag${index}`,
+      group: "stack" as const,
+    }));
+    const merge = mergeExtractionIntoForm(
+      withTags([...user, { label: "Vue", group: "stack" }]),
+      extraction({
+        tags: [
+          { label: "Uno", group: "stack" },
+          { label: "Dos", group: "stack" },
+          { label: "Tres", group: "stack" },
+        ],
+      }),
+      ANALYZED_TEXT,
+      marked([], ["vue"]),
+    );
+    expect(merge.values.tags).toHaveLength(20);
+    expect(merge.values.tags.slice(0, 19)).toStrictEqual(user);
+    expect(merge.values.tags[19]).toStrictEqual({
+      label: "Uno",
+      group: "stack",
+    });
+    expect(merge.aiTags).toStrictEqual(["uno"]);
+  });
+});

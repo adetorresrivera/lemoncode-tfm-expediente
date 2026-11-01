@@ -244,13 +244,17 @@ export function mergeExtractionIntoForm(
     values.currency = EMPTY_FORM_VALUES.currency;
   }
 
-  // The user's tags come first and win on a repeated key (any group); the new ones follow in model
-  // order and the cap keeps the user's tags (AI-06, D-04). The shared normalizer does the work.
-  const mergedTags = normalizeTags([...current.tags, ...extraction.tags]);
-  const currentKeys = new Set(current.tags.map((tag) => tagKey(tag.label)));
+  // Chips still marked «IA» are replaced by the new proposal; the user's chips come first and win on
+  // a repeated key (any group), the new ones follow in model order and the cap keeps the user's
+  // chips (AI-06, D-04, D-15). The shared normalizer does the work.
+  const userTags = current.tags.filter(
+    (tag) => !previous.aiTags.has(tagKey(tag.label)),
+  );
+  const mergedTags = normalizeTags([...userTags, ...extraction.tags]);
+  const userKeys = new Set(userTags.map((tag) => tagKey(tag.label)));
   const aiTags = mergedTags
     .map((tag) => tagKey(tag.label))
-    .filter((key) => !currentKeys.has(key));
+    .filter((key) => !userKeys.has(key));
   values.tags = mergedTags.map((tag) => ({
     label: tag.label,
     group: tag.group,

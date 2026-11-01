@@ -1033,7 +1033,51 @@ describe("ApplicationEditContainer AI tags", () => {
     expect(chipOf("Inglés B2")).toHaveTextContent(AI_NOTE);
   });
 
-  it("keeps the marks of the chips still present when a second analysis adds only new tags", async () => {
+  it("replaces the AI chips on a second analysis, keeps the user's tag and removes the AI chips when the next offer has none", async () => {
+    const user = userEvent.setup();
+    const answers = [
+      TAGGED,
+      withTags([
+        { label: "node", group: "stack" },
+        { label: "Vue", group: "stack" },
+      ]),
+      NO_DATA,
+    ];
+    let calls = 0;
+    mockFetch({
+      "POST /api/offers/extract": () => {
+        const answer = answers[Math.min(calls, answers.length - 1)];
+        calls += 1;
+        return jsonResponse(answer);
+      },
+    });
+    renderCreate();
+
+    await typeTag(user, STACK, "Node");
+    pasteOffer();
+    await user.click(analyzeButton());
+    await screen.findByText(/añadido 3 etiquetas/);
+
+    await user.click(analyzeButton());
+    await screen.findByText(
+      "Hemos añadido 1 etiqueta. Revísala. Te falta completar: Puesto, Empresa, Modalidad y Seniority.",
+    );
+    expect(chipOf("Node")).not.toHaveTextContent(AI_NOTE);
+    expect(chipOf("Vue")).toHaveTextContent(AI_NOTE);
+    expect(chip("React")).toBeNull();
+    expect(chip("TypeScript")).toBeNull();
+    expect(chip("Inglés B2")).toBeNull();
+    expect(screen.getByText("2 de 20")).toBeInTheDocument();
+
+    await user.click(analyzeButton());
+    await waitFor(() => expect(chip("Vue")).toBeNull());
+    expect(chipOf("Node")).toBeInTheDocument();
+    expect(screen.getByText("1 de 20")).toBeInTheDocument();
+    expect(screen.queryByText(AI_NOTE)).toBeNull();
+    expect(document.body).not.toHaveTextContent(AI_NOTE);
+  });
+
+  it("replaces the AI chips still present when a second analysis proposes other tags", async () => {
     const user = userEvent.setup();
     let calls = 0;
     mockFetch({
@@ -1058,7 +1102,9 @@ describe("ApplicationEditContainer AI tags", () => {
     await waitFor(() => expect(chip("Docker")).not.toBeNull());
 
     expect(screen.getByText("2 de 20")).toBeInTheDocument();
-    expect(chipOf("React")).toHaveTextContent(AI_NOTE);
+    // The earlier AI chip is replaced: it comes back in the new spelling and stays marked.
+    expect(chip("React")).toBeNull();
+    expect(chipOf("react")).toHaveTextContent(AI_NOTE);
     expect(chipOf("Docker")).toHaveTextContent(AI_NOTE);
     expect(within(groupOf(NICE)).getAllByRole("listitem")).toHaveLength(1);
   });

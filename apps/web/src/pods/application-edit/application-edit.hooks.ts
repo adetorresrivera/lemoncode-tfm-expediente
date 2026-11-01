@@ -193,13 +193,15 @@ export interface AiMarksControl {
 }
 
 // Session state of the «IA» and «Complétalo tú» marks (D-17): never persisted, never set on load.
-// A merge replaces the field marks with the fields it filled (each earlier mark was filled again or
-// cleared) and replaces the missing list (D-11, amended 2026-11-01). Any user change drops the
-// field's «IA» mark, even when the value ends up the same (D-13); the «Complétalo tú» mark goes
-// only when the field gets a non-blank value and is not restored by clearing it again (D-16).
-// A ref is the source of truth, written synchronously, so `getMarks` returns the marks as they are
-// at response time, edits made while a request is in flight included (D-20). The state only feeds
-// the render. The callbacks are stable, so a listener holding the first reference stays correct.
+// A merge replaces the field marks with the fields it filled and the chip marks with the chips it
+// added (each earlier mark was filled again, replaced or cleared), and replaces the missing list
+// (D-11, amended 2026-11-01). A chip that leaves the list loses its mark for good (D-15). Any user
+// change drops the field's «IA» mark, even when the value ends up the same (D-13); the «Complétalo
+// tú» mark goes only when the field gets a non-blank value and is not restored by clearing it again
+// (D-16). A ref is the source of truth, written synchronously, so `getMarks` returns the marks as
+// they are at response time, edits made while a request is in flight included (D-20). The state
+// only feeds the render. The callbacks are stable, so a listener holding the first reference stays
+// correct.
 export function useAiMarks(): AiMarksControl {
   const [marks, setMarks] = useState<AiMarks>(EMPTY_MARKS);
   const marksRef = useRef<AiMarks>(EMPTY_MARKS);
@@ -216,7 +218,7 @@ export function useAiMarks(): AiMarksControl {
     (merge: ExtractionMerge) => {
       commit({
         aiFields: new Set(merge.aiFields),
-        aiTags: new Set([...marksRef.current.aiTags, ...merge.aiTags]),
+        aiTags: new Set(merge.aiTags),
         missingFields: new Set(merge.missingFields),
       });
     },
@@ -357,8 +359,9 @@ export function useOfferExtraction({
         form.setFieldValue("offerText", merge.values.offerText, {
           dontRunListeners: true,
         });
-        // Only when the AI added chips: the tag list stays untouched otherwise.
-        if (merge.aiTags.length > 0) {
+        // When the AI added chips or an earlier AI chip was replaced or removed; the tag list stays
+        // untouched otherwise.
+        if (merge.aiTags.length > 0 || previous.aiTags.size > 0) {
           form.setFieldValue("tags", merge.values.tags, {
             dontRunListeners: true,
           });
