@@ -123,7 +123,7 @@ export interface AiMarks {
   missingFields: ReadonlySet<RelevantField>;
 }
 
-export type OfferErrorReason = "timeout" | "model" | "network";
+export type OfferErrorReason = "timeout" | "model" | "network" | "length";
 
 export type OfferAnalysisStatus =
   | { kind: "idle" }
@@ -134,7 +134,8 @@ export type OfferAnalysisStatus =
       tagsAdded: number;
       missing: RelevantField[];
     }
-  | { kind: "error"; reason: OfferErrorReason };
+  | { kind: "error"; reason: OfferErrorReason }
+  | { kind: "cancelled" };
 
 // What the «Pegar oferta» panel needs: the container owns the draft and the analysis state.
 export interface OfferPanelModel {
@@ -143,4 +144,5 @@ export interface OfferPanelModel {
   status: OfferAnalysisStatus;
   onDraftChange: (draft: string) => void;
   onAnalyze: () => void;
+  onCancel: () => void;
 }

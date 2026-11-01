@@ -47,11 +47,12 @@ function ApplicationCreate({ onSaved, renderCancelLink }: CreateProps) {
       onSaved(application.id);
     },
   });
-  const { draft, setDraft, status, analyze, clearStatus } = useOfferExtraction({
-    form,
-    initialDraft: "",
-    onMerged: marks.addFromMerge,
-  });
+  const { draft, setDraft, status, analyze, cancel, clearStatus } =
+    useOfferExtraction({
+      form,
+      initialDraft: "",
+      onMerged: marks.addFromMerge,
+    });
 
   return (
     <ApplicationEditComponent
@@ -65,6 +66,7 @@ function ApplicationCreate({ onSaved, renderCancelLink }: CreateProps) {
         status,
         onDraftChange: setDraft,
         onAnalyze: analyze,
+        onCancel: cancel,
       }}
       renderCancelLink={renderCancelLink}
     />
@@ -101,11 +103,12 @@ function ApplicationEditForm({
       onSaved(application.id);
     },
   });
-  const { draft, setDraft, status, analyze, clearStatus } = useOfferExtraction({
-    form,
-    initialDraft: values.offerText,
-    onMerged: marks.addFromMerge,
-  });
+  const { draft, setDraft, status, analyze, cancel, clearStatus } =
+    useOfferExtraction({
+      form,
+      initialDraft: values.offerText,
+      onMerged: marks.addFromMerge,
+    });
 
   return (
     <ApplicationEditComponent
@@ -120,6 +123,7 @@ function ApplicationEditForm({
         status,
         onDraftChange: setDraft,
         onAnalyze: analyze,
+        onCancel: cancel,
       }}
       renderCancelLink={renderCancelLink}
     />

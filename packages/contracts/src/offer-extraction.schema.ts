@@ -20,9 +20,13 @@ export const offerExtractionSchema = z.object({
   tags: z.array(tagSchema).max(MAX_TAGS),
 });
 
+/** Bounds of the offer text, in JavaScript string length (UTF-16 code units): API and web share them. */
+export const OFFER_TEXT_MIN = 50;
+export const OFFER_TEXT_MAX = 20000;
+
 /** Body of POST /api/offers/extract (AI-01). */
 export const offerExtractRequestSchema = z.object({
-  text: z.string().trim().min(50).max(20000),
+  text: z.string().trim().min(OFFER_TEXT_MIN).max(OFFER_TEXT_MAX),
 });
 
 export type OfferExtraction = z.infer<typeof offerExtractionSchema>;
