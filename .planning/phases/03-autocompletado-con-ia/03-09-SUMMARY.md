@@ -170,6 +170,102 @@ Decision (user, 2026-11-01): **«prompt»**. The user approves adding the two Pi
 2. Update the approved fingerprint (previous value `7b74659be41dcee556f8e566e2d5dc6b9fd58641bdf11d0e18003a2c7ea098c3`) to the sha256 of the new block, in the test and in the plan/summary references.
 3. Rerun `LLM_PROVIDER=ollama npm run try-extract -w @tfm/api` and compare tag labels and times against the table above, ideally on a quieter machine (the CPU timeouts are a separate concern, see Known deviations).
 
+### Applied (quick 261101-gfe)
+
+- Applied on 2026-11-01 by quick task 261101-gfe, commit `63be8d8` (`feat(quick-261101-gfe): add Pitfall 7 rules to extraction prompt (D-25)`).
+- Placement: the company rule sits right after the title rule. The label rule is an item of the tags sub-list, after the language item and before «Grafía canónica», indented like its siblings; its bullet text is verbatim as approved.
+- New approved fingerprint of the «Prompt de sistema» block (without its trailing newline): `8daeb5a2e47707e34c2149aa4810ea090ee8de6c859a63039614baa75661cf8a`, as printed by the fingerprint command after the change. Previous value: `7b74659be41dcee556f8e566e2d5dc6b9fd58641bdf11d0e18003a2c7ea098c3`. From 2026-11-01 the new value is the approved one; the «Prompt fingerprint (D-25)» section above records the prompt used by the D-24 runs and stays as written.
+- The verbatim-prompt test in `apps/api/src/offers/extract.routes.test.ts` passes, so `EXTRACTION_SYSTEM_PROMPT` hashes to the same value.
+- Follow-up step 2 needed no test change: no test pins a hash (the route test compares the text byte for byte), and the only other files that hold the old hash are historical records (03-09-PLAN.md and this SUMMARY), left unchanged.
+- `LLM_MODEL` stays `gemma4:e2b`; `.env.example` and `compose.yml` are unchanged.
+
+### Model rerun with the D-25 prompt
+
+2026-11-01, provider ollama, model gemma4:e2b, target in-process (script header: `provider: ollama, model: gemma4:e2b, target: in-process`). Machine state before the run: `free -m` available 7867 MB; no other try-extract running, only the orchestrator's idle `npm run dev` (no model call in flight); Ollama listed `gemma4:e2b`. Prompt fingerprint used: `8daeb5a2e47707e34c2149aa4810ea090ee8de6c859a63039614baa75661cf8a`. No row was a 504, so no second rerun was needed (exit code 0).
+
+Rerun 1:
+
+| fixture | time (s) | correct / total | notes |
+| --- | --- | --- | --- |
+| remote-senior | 21.3 | 11 / 12 | tag:Inglés B2 |
+| onsite-junior | 10.0 | 9 / 10 | tag:Java |
+| english-nice-to-have | 11.1 | 10 / 13 | location, tag:GraphQL, tag:Kubernetes |
+
+Returned extractions (rerun 1, copied from the script output):
+
+```json
+{
+  "title": "Desarrollador/a Frontend Senior",
+  "company": "Nimbo Software",
+  "location": null,
+  "workMode": "remoto",
+  "seniority": "senior",
+  "contractType": "indefinido",
+  "salaryMin": 45000,
+  "salaryMax": 55000,
+  "currency": "EUR",
+  "tags": [
+    { "label": "React", "group": "stack" },
+    { "label": "TypeScript", "group": "stack" },
+    { "label": "Vite", "group": "stack" },
+    { "label": "Vitest", "group": "stack" },
+    { "label": "Testing Library", "group": "stack" },
+    { "label": "AWS", "group": "stack" },
+    { "label": "GraphQL", "group": "nice_to_have" },
+    { "label": "Storybook", "group": "nice_to_have" },
+    { "label": "Inglés", "group": "language" }
+  ]
+}
+```
+
+```json
+{
+  "title": "Programador/a Backend Junior",
+  "company": "Talleres Digitales del Sur",
+  "location": "Sevilla",
+  "workMode": "presencial",
+  "seniority": "junior",
+  "contractType": "temporal",
+  "salaryMin": null,
+  "salaryMax": null,
+  "currency": null,
+  "tags": [
+    { "label": "Java", "group": "language" },
+    { "label": "Spring Boot", "group": "stack" },
+    { "label": "SQL", "group": "stack" },
+    { "label": "bases de datos relacionales", "group": "stack" }
+  ]
+}
+```
+
+```json
+{
+  "title": "Full Stack Engineer",
+  "company": "Northwind Labs",
+  "location": "London, UK",
+  "workMode": "hibrido",
+  "seniority": "mid",
+  "contractType": "indefinido",
+  "salaryMin": 50000,
+  "salaryMax": 60000,
+  "currency": "GBP",
+  "tags": [
+    { "label": "Node.js", "group": "stack" },
+    { "label": "TypeScript", "group": "stack" },
+    { "label": "React", "group": "stack" },
+    { "label": "PostgreSQL", "group": "stack" }
+  ]
+}
+```
+
+Pitfall 7 comparison against run 2 of the D-24 test:
+
+- **remote-senior:** answered (D-24: 504 twice). Tag labels equal to group names: no. Expected labels present except `Inglés B2` (returned as `Inglés`, group `language`). Company null although named: no (`Nimbo Software`). Time 21.3 s, under 60 s. No 502 `LLM_ERROR`.
+- **onsite-junior:** tag labels equal to group names: no (D-24: yes, both tags). `Spring Boot` now present; `Java` is returned with group `language` and the script scores `tag:Java` as the one miss (probably the group). Company null although named: no. Time 10.0 s (D-24: 48.9 s), under 60 s. No 502.
+- **english-nice-to-have:** tag labels equal to group names: no (D-24: yes). `Node.js` and `TypeScript` now present; `GraphQL` and `Kubernetes` still missing; `location` still scored wrong (`London, UK` returned). Company null although named: no. Time 11.1 s (D-24: 16.7 s), under 60 s. No 502.
+
+Outcome for the user: on the three fixtures the label problem is gone (no label equals its group name, and the company is filled on all three). Remaining misses are a few absent or mis-grouped tags and the `location` score on english-nice-to-have. No CPU timeouts appeared in this run (all rows 10 to 21 s), but the machine had about 7.9 GB available, unlike the loaded machine of D-24, so the timeout concern stays open for a loaded machine (see Known deviations). No further prompt or model change was made.
+
 ## UI review (Task 3)
 
 The user ran one UI pass against the dev stack (web 5173, API 3000, `LLM_PROVIDER=ollama`).

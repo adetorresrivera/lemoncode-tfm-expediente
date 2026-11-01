@@ -14,6 +14,7 @@ export const EXTRACTION_SYSTEM_PROMPT = [
   "Devuelve solo los campos del esquema. Reglas:",
   "- Si un dato no aparece explícitamente en el texto, usa null. No inventes ni deduzcas empresa ni salario.",
   "- title: el nombre del puesto tal como aparece, sin la empresa.",
+  "- company: la empresa que publica la oferta.",
   '- salaryMin/salaryMax: salario anual bruto como número sin símbolos ni separadores. Si se da un único valor, ponlo en ambos. Si es mensual, multiplícalo por 12. "45-55k" → 45000 y 55000.',
   '- currency: código ISO 4217 (EUR, USD, GBP). Si hay "€", EUR.',
   '- workMode: remoto, hibrido o presencial. "Teletrabajo 100%" → remoto.',
@@ -23,6 +24,7 @@ export const EXTRACTION_SYSTEM_PROMPT = [
   "  - stack: tecnologías, lenguajes, frameworks, cloud y herramientas requeridas.",
   '  - nice_to_have: lo que la oferta marca como "se valora", "plus", "deseable".',
   '  - language: idiomas con nivel si aparece ("Inglés B2").',
+  '  - label es el nombre de la tecnología o idioma (p. ej. "React", "Inglés B2"), nunca el nombre del grupo.',
   "  - Grafía canónica (React, TypeScript, C#, .NET 8, AWS). Sin duplicados. Máximo 20.",
 ].join("\n");
 
