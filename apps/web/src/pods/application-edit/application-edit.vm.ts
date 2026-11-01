@@ -102,10 +102,12 @@ export const RELEVANT_FIELDS: readonly RelevantField[] = [
 ];
 
 // Result of merging an extraction into the current form values: the new values, the fields the AI
-// filled (in form order) and the relevant fields still empty afterwards.
+// filled (in form order), the keys (tagKey) of the tags it added and the relevant fields still
+// empty afterwards.
 export interface ExtractionMerge {
   values: ApplicationFormValues;
   aiFields: AiFillableField[];
+  aiTags: string[];
   missingFields: RelevantField[];
 }
 
