@@ -5,11 +5,11 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Normalization of over-long labels and surplus tags is unreachable; one off-spec field fails the whole analysis"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The global error handler logs a fragment of the pasted offer on malformed JSON"
   - id: IN-01
     severity: info
@@ -31,17 +31,17 @@ findings:
     severity: info
     disposition: open
     title: "Trailing-slash normalization of `LLM_BASE_URL` is done three times"
-open: 7
+open: 5
 total: 7
-recorded: 2026-11-01T12:32:50.774Z
+recorded: 2026-11-01T12:47:44.354Z
 ---
 
 # Phase 03: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
+| WR-01 | warning | fixed | 03-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 03-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
