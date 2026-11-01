@@ -90,11 +90,29 @@ export type AiFillableField =
   | "salaryMax"
   | "currency";
 
-// Result of merging an extraction into the current form values: the new values and the fields
-// the AI filled (in form order).
+// The four fields that matter to find and compare an application, in form order. The merge reports
+// the ones that are still empty so the user knows what to complete (AI-08).
+export type RelevantField = "title" | "company" | "workMode" | "seniority";
+
+export const RELEVANT_FIELDS: readonly RelevantField[] = [
+  "title",
+  "company",
+  "workMode",
+  "seniority",
+];
+
+// Result of merging an extraction into the current form values: the new values, the fields the AI
+// filled (in form order) and the relevant fields still empty afterwards.
 export interface ExtractionMerge {
   values: ApplicationFormValues;
   aiFields: AiFillableField[];
+  missingFields: RelevantField[];
+}
+
+// The session view of a merge's two lists, what the form marks next to the fields.
+export interface AiMarks {
+  aiFields: ReadonlySet<AiFillableField>;
+  missingFields: ReadonlySet<RelevantField>;
 }
 
 export type OfferErrorReason = "timeout" | "model" | "network";
@@ -102,7 +120,7 @@ export type OfferErrorReason = "timeout" | "model" | "network";
 export type OfferAnalysisStatus =
   | { kind: "idle" }
   | { kind: "analysing" }
-  | { kind: "success"; filled: number }
+  | { kind: "success"; filled: number; missing: RelevantField[] }
   | { kind: "error"; reason: OfferErrorReason };
 
 // What the «Pegar oferta» panel needs: the container owns the draft and the analysis state.

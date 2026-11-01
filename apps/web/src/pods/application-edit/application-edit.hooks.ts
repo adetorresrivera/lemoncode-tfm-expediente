@@ -192,7 +192,11 @@ export function useOfferExtraction({
         const merge = mergeExtractionIntoForm(form.state.values, extraction);
         for (const field of merge.aiFields) applyField(field, merge.values);
         onMerged?.(merge);
-        setStatus({ kind: "success", filled: merge.aiFields.length });
+        setStatus({
+          kind: "success",
+          filled: merge.aiFields.length,
+          missing: merge.missingFields,
+        });
       })
       .catch((error: unknown) => {
         if (controller.signal.aborted) return;
