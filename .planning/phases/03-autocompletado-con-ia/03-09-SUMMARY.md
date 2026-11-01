@@ -179,6 +179,93 @@ Decision (user, 2026-11-01): **«prompt»**. The user approves adding the two Pi
 - Follow-up step 2 needed no test change: no test pins a hash (the route test compares the text byte for byte), and the only other files that hold the old hash are historical records (03-09-PLAN.md and this SUMMARY), left unchanged.
 - `LLM_MODEL` stays `gemma4:e2b`; `.env.example` and `compose.yml` are unchanged.
 
+### Model rerun with the D-25 prompt
+
+2026-11-01, provider ollama, model gemma4:e2b, target in-process (script header: `provider: ollama, model: gemma4:e2b, target: in-process`). Machine state before the run: `free -m` available 7867 MB; no other try-extract running, only the orchestrator's idle `npm run dev` (no model call in flight); Ollama listed `gemma4:e2b`. Prompt fingerprint used: `8daeb5a2e47707e34c2149aa4810ea090ee8de6c859a63039614baa75661cf8a`. No row was a 504, so no second rerun was needed (exit code 0).
+
+Rerun 1:
+
+| fixture | time (s) | correct / total | notes |
+| --- | --- | --- | --- |
+| remote-senior | 21.3 | 11 / 12 | tag:Inglés B2 |
+| onsite-junior | 10.0 | 9 / 10 | tag:Java |
+| english-nice-to-have | 11.1 | 10 / 13 | location, tag:GraphQL, tag:Kubernetes |
+
+Returned extractions (rerun 1, copied from the script output):
+
+```json
+{
+  "title": "Desarrollador/a Frontend Senior",
+  "company": "Nimbo Software",
+  "location": null,
+  "workMode": "remoto",
+  "seniority": "senior",
+  "contractType": "indefinido",
+  "salaryMin": 45000,
+  "salaryMax": 55000,
+  "currency": "EUR",
+  "tags": [
+    { "label": "React", "group": "stack" },
+    { "label": "TypeScript", "group": "stack" },
+    { "label": "Vite", "group": "stack" },
+    { "label": "Vitest", "group": "stack" },
+    { "label": "Testing Library", "group": "stack" },
+    { "label": "AWS", "group": "stack" },
+    { "label": "GraphQL", "group": "nice_to_have" },
+    { "label": "Storybook", "group": "nice_to_have" },
+    { "label": "Inglés", "group": "language" }
+  ]
+}
+```
+
+```json
+{
+  "title": "Programador/a Backend Junior",
+  "company": "Talleres Digitales del Sur",
+  "location": "Sevilla",
+  "workMode": "presencial",
+  "seniority": "junior",
+  "contractType": "temporal",
+  "salaryMin": null,
+  "salaryMax": null,
+  "currency": null,
+  "tags": [
+    { "label": "Java", "group": "language" },
+    { "label": "Spring Boot", "group": "stack" },
+    { "label": "SQL", "group": "stack" },
+    { "label": "bases de datos relacionales", "group": "stack" }
+  ]
+}
+```
+
+```json
+{
+  "title": "Full Stack Engineer",
+  "company": "Northwind Labs",
+  "location": "London, UK",
+  "workMode": "hibrido",
+  "seniority": "mid",
+  "contractType": "indefinido",
+  "salaryMin": 50000,
+  "salaryMax": 60000,
+  "currency": "GBP",
+  "tags": [
+    { "label": "Node.js", "group": "stack" },
+    { "label": "TypeScript", "group": "stack" },
+    { "label": "React", "group": "stack" },
+    { "label": "PostgreSQL", "group": "stack" }
+  ]
+}
+```
+
+Pitfall 7 comparison against run 2 of the D-24 test:
+
+- **remote-senior:** answered (D-24: 504 twice). Tag labels equal to group names: no. Expected labels present except `Inglés B2` (returned as `Inglés`, group `language`). Company null although named: no (`Nimbo Software`). Time 21.3 s, under 60 s. No 502 `LLM_ERROR`.
+- **onsite-junior:** tag labels equal to group names: no (D-24: yes, both tags). `Spring Boot` now present; `Java` is returned with group `language` and the script scores `tag:Java` as the one miss (probably the group). Company null although named: no. Time 10.0 s (D-24: 48.9 s), under 60 s. No 502.
+- **english-nice-to-have:** tag labels equal to group names: no (D-24: yes). `Node.js` and `TypeScript` now present; `GraphQL` and `Kubernetes` still missing; `location` still scored wrong (`London, UK` returned). Company null although named: no. Time 11.1 s (D-24: 16.7 s), under 60 s. No 502.
+
+Outcome for the user: on the three fixtures the label problem is gone (no label equals its group name, and the company is filled on all three). Remaining misses are a few absent or mis-grouped tags and the `location` score on english-nice-to-have. No CPU timeouts appeared in this run (all rows 10 to 21 s), but the machine had about 7.9 GB available, unlike the loaded machine of D-24, so the timeout concern stays open for a loaded machine (see Known deviations). No further prompt or model change was made.
+
 ## UI review (Task 3)
 
 The user ran one UI pass against the dev stack (web 5173, API 3000, `LLM_PROVIDER=ollama`).
