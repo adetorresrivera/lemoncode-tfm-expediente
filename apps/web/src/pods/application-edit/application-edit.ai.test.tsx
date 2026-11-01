@@ -265,7 +265,7 @@ describe("ApplicationEditContainer AI autocomplete", () => {
     [
       "VALIDATION_ERROR",
       400,
-      "No hay conexión con el servidor. Inténtalo otra vez.",
+      "La oferta debe tener entre 50 y 20.000 caracteres.",
     ],
   ])(
     "shows the message for a %s answer and lets the user retry",
@@ -1212,5 +1212,102 @@ describe("ApplicationEditContainer stored offer text", () => {
       await screen.findByRole("button", { name: "Pegar oferta" }),
     );
     expect(screen.getByLabelText("Texto de la oferta")).toHaveValue("");
+  });
+});
+
+const HINT_MIN = "Pega al menos 50 caracteres";
+const HINT_MAX = "Has llegado al límite de 20.000 caracteres.";
+
+const idsOf = (control: HTMLElement): string[] =>
+  (control.getAttribute("aria-describedby") ?? "").split(" ").filter(Boolean);
+
+describe("ApplicationEditContainer offer limits", () => {
+  it("starts empty with the counter, the hint and a focusable but disabled trigger", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "POST /api/offers/extract": () => jsonResponse(EXTRACTION),
+    });
+    renderCreate();
+
+    expect(screen.getByText("0 / 20.000")).toBeInTheDocument();
+    const hint = screen.getByText(HINT_MIN);
+    const button = analyzeButton();
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    expect(button).not.toBeDisabled();
+    expect(idsOf(button)).toStrictEqual([hint.id]);
+
+    button.focus();
+    expect(button).toHaveFocus();
+    await user.click(button);
+
+    expect(callsTo(fetchMock, "POST", "/api/offers/extract")).toHaveLength(0);
+    expect(button).toHaveFocus();
+  });
+
+  it("keeps the trigger disabled at 49 trimmed characters and enables it at 50", () => {
+    renderCreate();
+
+    pasteOffer(`   ${"a".repeat(49)}   `);
+    expect(analyzeButton()).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText(HINT_MIN)).toBeInTheDocument();
+
+    pasteOffer("a".repeat(50));
+    expect(analyzeButton()).not.toHaveAttribute("aria-disabled", "true");
+    expect(analyzeButton()).not.toHaveAttribute("aria-describedby");
+    expect(screen.queryByText(HINT_MIN)).toBeNull();
+  });
+
+  it("formats the counter with the es-ES thousands separator", () => {
+    renderCreate();
+
+    pasteOffer("a".repeat(1234));
+
+    expect(screen.getByText("1.234 / 20.000")).toBeInTheDocument();
+  });
+
+  it("does not put the counter in a live region", () => {
+    renderCreate();
+
+    pasteOffer("a".repeat(60));
+
+    expect(screen.getByText("60 / 20.000").closest("[aria-live]")).toBeNull();
+  });
+
+  it("shows the limit hint at exactly 20,000 characters and caps the textarea", () => {
+    renderCreate();
+
+    pasteOffer("a".repeat(20000));
+
+    expect(screen.getByText("20.000 / 20.000")).toBeInTheDocument();
+    expect(screen.getByText(HINT_MAX)).toBeInTheDocument();
+    expect(screen.queryByText(HINT_MIN)).toBeNull();
+    expect(screen.getByLabelText("Texto de la oferta")).toHaveAttribute(
+      "maxlength",
+      "20000",
+    );
+  });
+
+  it("measures UTF-16 code units, like the API schema", () => {
+    renderCreate();
+
+    // 25 emoji are 50 code units: the gate and the counter agree with Zod's string length.
+    pasteOffer("😀".repeat(25));
+
+    expect(screen.getByText("50 / 20.000")).toBeInTheDocument();
+    expect(analyzeButton()).not.toHaveAttribute("aria-disabled", "true");
+  });
+
+  it("sends nothing from a trimmed draft shorter than the minimum", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "POST /api/offers/extract": () => jsonResponse(EXTRACTION),
+    });
+    renderCreate();
+
+    pasteOffer(`${"a".repeat(49)}          `);
+    await user.click(analyzeButton());
+
+    expect(callsTo(fetchMock, "POST", "/api/offers/extract")).toHaveLength(0);
+    expect(screen.queryByText("Analizando la oferta…")).toBeNull();
   });
 });
