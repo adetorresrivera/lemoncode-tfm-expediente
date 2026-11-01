@@ -40,7 +40,7 @@ Tuteo, frases cortas, verbos de acción («Añadir candidatura», «Autocompleta
 - Columna lateral: Historial de estados (timeline vertical con fechas), Documentos vinculados (descargar).
 
 ### Alta / edición (`/applications/new`, `/applications/$id/edit`)
-- Panel «Pegar oferta» arriba (abierto en alta, plegado en edición): textarea + botón IA + estado (carga «Analizando la oferta…», error amable sin bloquear el formulario).
+- Panel «Pegar oferta» arriba (abierto en alta, plegado en edición; se pliega tras analizar): textarea + botón IA + estado (carga «Analizando la oferta…», error amable sin bloquear el formulario).
 - Formulario en secciones: Puesto y empresa · Condiciones (modalidad, seniority, contrato, ubicación, salario min/max, moneda) · Etiquetas (input por grupo con chips removibles) · Seguimiento (estado inicial, fecha de envío, URL, notas) · Documentos (elegir existente o subir: CV y carta).
 - Acciones: primary «Guardar candidatura», «Descartar cambios». Validación con el esquema de contracts; errores junto al campo.
 
