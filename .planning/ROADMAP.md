@@ -114,7 +114,7 @@ Plans:
   3. A model timeout answers 504 `LLM_TIMEOUT` after `LLM_TIMEOUT_MS`, and unparseable or schema-invalid output is retried once and then answers 502 `LLM_ERROR`; in the form the user sees a non-blocking «Analizando la oferta…» state or a clear error and can keep editing.
   4. The «Pegar oferta» panel is open when creating and collapsed when editing; «Autocompletar con IA» fills only empty fields, merges tags without duplicates, and persists nothing until the user saves.
   5. Fields filled by the AI show the «IA» mark that disappears when the user edits them, relevant fields still empty (title, company, work mode, seniority) are highlighted with «Complétalo tú», and the pasted text is stored as `offerText` on save.
-**Plans**: 8/9 plans executed
+**Plans**: 9/9 plans executed
 Plans:
 **Wave 1**
 - [x] 03-01-PLAN.md — Tracer: «Pegar oferta» panel → POST /api/offers/extract → extract service (literal prompt, verified against the doc) → LlmClient (mock end to end) → fill-only-empty merge of the text/enum fields; then limits, errors, the wait and edit mode on the same path (wave 1)
@@ -137,7 +137,7 @@ Plans:
 - [x] 03-08-PLAN.md — OFFER_TEXT_MIN/MAX in contracts, panel limits, counter and length message, read-only while analysing, «Cancelar análisis» (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 03-09-PLAN.md — Phase gate (compose smoke + full suite), D-24 manual run against gemma4:e2b as manual evidence, blocking human review and D-25 decision (wave 7, not autonomous)
+- [x] 03-09-PLAN.md — Phase gate (compose smoke + full suite), D-24 manual run against gemma4:e2b as manual evidence, blocking human review and D-25 decision (wave 7, not autonomous)
 **UI hint**: yes
 
 ### Phase 4: Rondas de entrevista
@@ -218,7 +218,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Fundaciones y walking skeleton | 6/6 | Complete    | 2026-10-29 |
 | 2. Candidaturas | 12/12 | Complete    | 2026-10-31 |
-| 3. Autocompletado con IA | 8/9 | In Progress | - |
+| 3. Autocompletado con IA | 9/9 | In Progress | - |
 | 4. Rondas de entrevista | 0/TBD | Not started | - |
 | 5. Documentos en S3 | 0/TBD | Not started | - |
 | 6. Pulido de demo | 0/TBD | Not started | - |
