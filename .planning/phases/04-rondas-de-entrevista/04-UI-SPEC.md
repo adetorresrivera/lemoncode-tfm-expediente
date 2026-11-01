@@ -46,7 +46,7 @@ The table is a **non-exhaustive** list of known-good components, not a closed al
 | Input | `@/common/components/ui/input` | «Ronda» (`type="number"`) and «Fecha y hora» (`type="datetime-local"`). |
 | Textarea | `@/common/components/ui/textarea` | «Notas». |
 | Label | `@/common/components/ui/label` | Field labels. |
-| Button | `@/common/components/ui/button` | «Añadir ronda», «Guardar ronda», «Cancelar», icon actions, notes trigger. Always `h-11` (or `size-11` for icon buttons). |
+| Button | `@/common/components/ui/button` | «Añadir ronda», «Guardar ronda», «Descartar cambios», icon actions, notes trigger. Always `h-11` (or `size-11` for icon buttons). |
 | RequestStatus | `@/common/components/request-status` | Section feedback (success) and in-dialog errors. |
 | FormField | pattern in `apps/web/src/pods/application-edit/components/form-field.tsx` | **Copy the pattern** into the detail pod (a pod never imports another pod). Label, control, hint, error with `CircleAlert`, `aria-describedby` wiring. Drop the `aiFilled`/`missing` props: not needed here. |
 
@@ -70,7 +70,7 @@ Add with `npx shadcn add dialog` (official registry), then adapt the generated f
 - Title: `font-serif text-base font-semibold leading-[1.2] text-foreground`. Description: `text-base text-muted-foreground`.
 - Footer: `flex flex-col-reverse gap-2 sm:flex-row sm:justify-end` (primary on top on mobile).
 - Close button (X): `absolute top-2 right-2 size-11` ghost, `X` icon `size-4 strokeWidth={1.5}`, `aria-label="Cerrar"`, focus ring `focus-visible:ring-2 focus-visible:ring-ring`. It is the **last** child in the DOM (after the form) so the first tabbable element, and Radix's initial focus, is the form's first field; visually it is top-right. The title gets `pr-10` so it never runs under the X.
-- Overlay click does **not** close the dialog (`onInteractOutside={(e) => e.preventDefault()}` on the content): a stray click must not discard up to 5.000 characters of notes. Esc, the X and «Cancelar» close it.
+- Overlay click does **not** close the dialog (`onInteractOutside={(e) => e.preventDefault()}` on the content): a stray click must not discard up to 5.000 characters of notes. Esc, the X and «Descartar cambios» close it.
 
 ---
 
@@ -80,7 +80,7 @@ Declared values (multiples of 4). Same section-card rhythm as every other detail
 
 | Token | Value | Usage in this phase |
 |-------|-------|---------------------|
-| xs | 4px | `gap-1` label ↔ control ↔ hint/error inside a field; gap between the two icon buttons of a round |
+| xs | 4px | `py-1` vertical padding of the outcome badge; `gap-1` label ↔ control ↔ hint/error inside a field; gap between the two icon buttons of a round |
 | sm | 8px | `gap-2` between meta items when they wrap; icon ↔ text in badge and buttons; footer button gap; `pt-2` above the feedback line |
 | md | 16px | Section/list `gap-4`; item vertical rhythm (`pt-4` below the divider); dialog `gap-4` between fields; `gap-x-4` between date, mode and badge; dialog padding `p-4` below 640 px |
 | lg | 24px | Section padding from `lg` (1024 px) `lg:p-6`; dialog padding from `sm` (640 px) `sm:p-6`; `gap-6` between sections (inherited) |
@@ -201,7 +201,7 @@ Voice: tuteo, short sentences, no exclamations, no emojis, sentence case. Dates 
 | Notes placeholder | Preguntas, impresiones, próximos pasos… |
 | Notes counter | `{n} / 5.000` (es-ES, thousands separator always) |
 | Primary CTA | Guardar ronda (pending: Guardando…) |
-| Secondary | Cancelar |
+| Secondary (same label as the application form, DESIGN.md; used in add and edit) | Descartar cambios |
 | Close X `aria-label` | Cerrar |
 | Error: no type | Elige un tipo de ronda. |
 | Error: invalid round | La ronda debe ser un número entero de 1 o más. |
@@ -256,7 +256,7 @@ The detail page keeps «Editar» as its single primary action. Inside the sectio
   2. Mode: `<span className="text-base text-muted-foreground">` with the label.
   3. Outcome: `InterviewOutcomeBadge`.
   Each item is preceded by its `sr-only` prefix («Fecha: », «Modalidad: », «Resultado: ») so a screen-reader pass reads «Fecha: 5 nov. 2026, 10:30 Modalidad: Online Resultado: Pendiente».
-- **Outcome badge** (`InterviewOutcomeBadge`): `inline-flex items-center gap-2 rounded-sm bg-muted px-2 py-0.5 text-sm font-semibold text-foreground`, icon first (`Clock` pendiente, `Check` superada, `X` no superada), each `aria-hidden="true" strokeWidth={1.5} className="size-4"`, then the label. Same geometry as `StatusBadge` (`rounded-sm px-2 py-0.5 text-sm font-semibold`) minus the coloured dot, so it reads as a sibling but is clearly not a status.
+- **Outcome badge** (`InterviewOutcomeBadge`): `inline-flex items-center gap-2 rounded-sm bg-muted px-2 py-1 text-sm font-semibold text-foreground`, icon first (`Clock` pendiente, `Check` superada, `X` no superada), each `aria-hidden="true" strokeWidth={1.5} className="size-4"`, then the label. Same shape as `StatusBadge` (`rounded-sm px-2 text-sm font-semibold`) minus the coloured dot, with vertical padding `py-1` (4 px, on the 4-point scale) instead of the status badge's `py-0.5`, so it reads as a sibling but is clearly not a status.
 - **Notes** (only when `notes` is non-null): `Collapsible`, closed by default, trigger identical to `offer-text-section.tsx` (`Button variant="ghost" className="h-11 w-full justify-between px-4"`, `ChevronDown` rotating 180° when open, `motion-reduce:transition-none`). Content `pt-4`: `<p className="whitespace-pre-wrap break-words text-base">`, plain text node, never HTML. Notes stay unmounted until opened (Radix default).
 - **Empty state**: when there are no rounds, render only `<p className="text-muted-foreground">Aún no hay rondas. Añade la primera cuando te convoquen.</p>` below the header; the «Añadir ronda» button stays in the header. No illustration, no second button.
 - **Feedback line**: container `<div role="status" aria-live="polite">` is always mounted, directly under the header, with no padding and no gap of its own (so it takes zero height when empty). When a message exists it renders `<div className="pt-2"><RequestStatus kind="success" message={…} /></div>`. Disappears after `SUCCESS_VISIBLE_MS` (5 s). This is the only announcement of a round mutation; the status-change feedback slot in the header is **not** used for the automatic state change (no double announcement).
@@ -281,7 +281,7 @@ One `InterviewDialog` instance per section, controlled: state is `closed | { mod
 │   Notas                     [ textarea         ]   │
 │                                        0 / 5.000   │
 │   <div role="status" aria-live="polite"> error </div>
-│   [Guardar ronda]  [Cancelar]   (mobile stack)     │
+│   [Guardar ronda]  [Descartar cambios] (mobile stack)│
 │ </form>                                            │
 └────────────────────────────────────────────────────┘
 ```
@@ -300,8 +300,8 @@ Field order and controls (D-18, D-19):
 - On a `sm` (640 px) viewport and up, «Tipo» and «Ronda» share a row (`grid gap-4 sm:grid-cols-2`); below that every field is full width and stacked.
 - **Toggle groups**: single selection is mandatory: Radix reports `""` when the active item is pressed again, and the handler **ignores empty values** so a value is always selected (same guard as `theme-toggle.tsx`). The group is `className="grid w-full grid-cols-3"`; each item `className="h-auto min-h-11 w-full justify-center whitespace-normal px-2 text-center leading-tight"` plus the selected treatment `data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary/90 data-[state=on]:hover:text-primary-foreground`. **No icons** in these items: at 296 px of inner width, three equal columns are 98 px and «No superada» in 14px/600 semibold needs ≈ 80 px plus 16 px padding, so the label may wrap onto two lines instead of overflowing, which is why `whitespace-normal` and `h-auto min-h-11` are mandated. The groups never stack vertically. Arrow keys move between items (Radix roving focus); Space/Enter selects.
 - **Validation**: schema from `@tfm/contracts`. Errors appear under the field using the `FormField` error line (`CircleAlert` + text). Validate on submit, then re-validate on change. On a failed submit, focus moves to the first invalid field (in practice «Tipo»). The empty «Ronda» is **valid** (omitted from the input, D-09).
-- **Buttons**: «Guardar ronda» is `type="submit"` `variant="default"` `h-11`, «Cancelar» is `type="button"` `variant="outline"` `h-11`; both `w-full sm:w-auto`. Enter inside a text/number/datetime input submits; Enter inside the textarea inserts a newline.
-- **Pending save (D-13)**: «Guardar ronda» becomes «Guardando…» and `aria-disabled="true"` (submit handler returns early); «Cancelar», the X, Esc and overlay are ignored (the dialog cannot close while the request is in flight, same rule as `delete-dialog.tsx`). The fields are **not** disabled (a disabled field would drop keyboard focus); edits typed during the request are simply not sent, because the values captured at submit are the ones in flight. No spinner icon; the label change is the cue.
+- **Buttons**: «Guardar ronda» is `type="submit"` `variant="default"` `h-11`, «Descartar cambios» is `type="button"` `variant="outline"` `h-11`; both `w-full sm:w-auto`. Enter inside a text/number/datetime input submits; Enter inside the textarea inserts a newline.
+- **Pending save (D-13)**: «Guardar ronda» becomes «Guardando…» and `aria-disabled="true"` (submit handler returns early); «Descartar cambios», the X, Esc and overlay are ignored (the dialog cannot close while the request is in flight, same rule as `delete-dialog.tsx`). The fields are **not** disabled (a disabled field would drop keyboard focus); edits typed during the request are simply not sent, because the values captured at submit are the ones in flight. No spinner icon; the label change is the cue.
 - **Success**: dialog closes, VM replaced, feedback line announces (D-15). Focus returns to the control that opened the dialog (add: «Añadir ronda»; edit: that round's edit button, which keeps its identity because items are keyed by `id`).
 - **Failure**: dialog stays open, every typed value is preserved, `RequestStatus kind="error"` appears in the in-dialog live region right above the footer: `<div role="status" aria-live="polite">`, always mounted. The error is cleared when the user starts a new submit or reopens the dialog.
 - **Edit mode**: opens with the round's values; a stored `scheduledAt` is converted to local `datetime-local` format; a null one shows an empty control. Title «Editar ronda {N}».
@@ -318,7 +318,7 @@ One controlled `InterviewDeleteDialog` (`AlertDialog`) per section, same structu
 
 ### Keyboard order
 
-Tab order in the section: «Añadir ronda» → for each round: edit icon → delete icon → «Ver notas» (if any) → next round. Dialogs trap focus (Radix): Tipo → Ronda → Fecha y hora → Modalidad (one tab stop, arrows inside) → Resultado (one tab stop) → Notas → «Guardar ronda» → «Cancelar» → X. Esc closes (unless saving). Visible focus everywhere is the project ring (`focus-visible:ring-2 focus-visible:ring-ring`).
+Tab order in the section: «Añadir ronda» → for each round: edit icon → delete icon → «Ver notas» (if any) → next round. Dialogs trap focus (Radix): Tipo → Ronda → Fecha y hora → Modalidad (one tab stop, arrows inside) → Resultado (one tab stop) → Notas → «Guardar ronda» → «Descartar cambios» → X. Esc closes (unless saving). Visible focus everywhere is the project ring (`focus-visible:ring-2 focus-visible:ring-ring`).
 
 ### Responsive (from 360 px, no horizontal scroll)
 
@@ -377,12 +377,12 @@ No new npm dependency: `dialog` is built on the already installed `radix-ui` 1.8
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
-- [ ] Dimension 7 Inventory Provenance: PASS
+- [ ] Dimension 1 Copywriting: pending
+- [ ] Dimension 2 Visuals: pending
+- [ ] Dimension 3 Color: pending
+- [ ] Dimension 4 Typography: pending
+- [ ] Dimension 5 Spacing: pending
+- [ ] Dimension 6 Registry Safety: pending
+- [ ] Dimension 7 Inventory Provenance: pending
 
 **Approval:** pending
