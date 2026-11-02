@@ -193,7 +193,7 @@ Voice: tuteo, short sentences, no exclamations, no emojis, sentence case. Dates 
 | Label «Tipo» (required, ` *` as in `FormField`) | Tipo |
 | Select placeholder option (value `""`) | Elige un tipo |
 | Label «Ronda» | Ronda |
-| Hint «Ronda» | Si lo vacías, se asigna la siguiente. |
+| Hint «Ronda» (add mode only, D-28) | Si lo vacías, se asigna la siguiente. |
 | Label «Fecha y hora» | Fecha y hora |
 | Hint «Fecha y hora» | Opcional. Hora en tu zona horaria. |
 | Group label «Modalidad» | Modalidad |
@@ -292,7 +292,7 @@ Field order and controls (D-18, D-19):
 | Field | Control | Default (add) | Notes |
 |-------|---------|---------------|-------|
 | Tipo | `NativeSelect` + `Label htmlFor`, `aria-required="true"` | `""` («Elige un tipo») | Required; error under the field. |
-| Ronda | `Input type="number" inputMode="numeric" min={1} step={1}` | max + 1 (D-09) | Hint always visible. |
+| Ronda | `Input type="number" inputMode="numeric" min={1} step={1}` | max + 1 (D-09) | Add: hint always visible, empty is valid (D-09). Edit: required (` *`, `aria-required="true"`), no hint (D-28). |
 | Fecha y hora | `Input type="datetime-local"` | empty | Empty → `null` («Sin fecha»). Past dates allowed (D-12), no error. |
 | Modalidad | `ToggleGroup type="single" variant="outline"` | `online` | Group named by a visible label via `aria-labelledby`. |
 | Resultado | `ToggleGroup type="single" variant="outline"` | `pendiente` | Same. |
@@ -300,12 +300,12 @@ Field order and controls (D-18, D-19):
 
 - On a `sm` (640 px) viewport and up, «Tipo» and «Ronda» share a row (`grid gap-4 sm:grid-cols-2`); below that every field is full width and stacked.
 - **Toggle groups**: single selection is mandatory: Radix reports `""` when the active item is pressed again, and the handler **ignores empty values** so a value is always selected (same guard as `theme-toggle.tsx`). The group is `className="grid w-full grid-cols-3"`; each item `className="h-auto min-h-11 w-full justify-center whitespace-normal px-2 text-center leading-tight"` plus the selected treatment `data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary/90 data-[state=on]:hover:text-primary-foreground`. **No icons** in these items: at 296 px of inner width, three equal columns are 98 px and «No superada» in 14px/600 semibold needs ≈ 80 px plus 16 px padding, so the label may wrap onto two lines instead of overflowing, which is why `whitespace-normal` and `h-auto min-h-11` are mandated. The groups never stack vertically. Arrow keys move between items (Radix roving focus); Space/Enter selects.
-- **Validation**: schema from `@tfm/contracts`. Errors appear under the field using the `FormField` error line (`CircleAlert` + text). Validate on submit, then re-validate on change. On a failed submit, focus moves to the first invalid field (in practice «Tipo»). The empty «Ronda» is **valid** (omitted from the input, D-09).
+- **Validation**: schema from `@tfm/contracts`. Errors appear under the field using the `FormField` error line (`CircleAlert` + text). Validate on submit, then re-validate on change. On a failed submit, focus moves to the first invalid field (in practice «Tipo»). In add mode the empty «Ronda» is **valid** (omitted from the input, D-09); in edit mode it is required and an empty field shows «La ronda debe ser un número entero de 1 o más.» (D-28).
 - **Buttons**: «Guardar ronda» is `type="submit"` `variant="default"` `h-11`, «Descartar cambios» is `type="button"` `variant="outline"` `h-11`; both `w-full sm:w-auto`. Enter inside a text/number/datetime input submits; Enter inside the textarea inserts a newline.
 - **Pending save (D-13)**: «Guardar ronda» becomes «Guardando…» and `aria-disabled="true"` (submit handler returns early); «Descartar cambios», the X, Esc and overlay are ignored (the dialog cannot close while the request is in flight, same rule as `delete-dialog.tsx`). The fields are **not** disabled (a disabled field would drop keyboard focus); edits typed during the request are simply not sent, because the values captured at submit are the ones in flight. No spinner icon; the label change is the cue.
 - **Success**: dialog closes, VM replaced, feedback line announces (D-15). Focus returns to the control that opened the dialog (add: «Añadir ronda»; edit: that round's edit button, which keeps its identity because items are keyed by `id`).
 - **Failure**: dialog stays open, every typed value is preserved, `RequestStatus kind="error"` appears in the in-dialog live region right above the footer: `<div role="status" aria-live="polite">`, always mounted. The error is cleared when the user starts a new submit or reopens the dialog.
-- **Edit mode**: opens with the round's values; a stored `scheduledAt` is converted to local `datetime-local` format; a null one shows an empty control. Title «Editar ronda {N}».
+- **Edit mode**: opens with the round's values; a stored `scheduledAt` is converted to local `datetime-local` format; a null one shows an empty control. Title «Editar ronda {N}». «Ronda» is required (` *`, `aria-required="true"`) and its hint is not rendered (D-28).
 - **Reopening**: every opening resets the form to its defaults (add) or the round's current values (edit); nothing from a cancelled attempt survives.
 
 ### Delete confirmation

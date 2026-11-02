@@ -25,6 +25,7 @@ Crear, editar y borrar rondas de entrevista (`Interview`, embebidas en `Applicat
 - **D-07:** Se **permiten números repetidos** (no hay 409). Orden de la lista: `round` asc, desempate por `scheduledAt` asc (nulls al final) y después por `id`.
 - **D-08:** Al borrar una ronda **no se renumeran** las demás: de 1-2-3, borrar la 2 deja 1 y 3, y la siguiente nueva será la 4.
 - **D-09:** El diálogo «Añadir ronda» trae el campo «Ronda» **prerrellenado con máx. + 1**, calculado en el cliente a partir del VM, y el usuario lo puede cambiar. Si lo vacía, el campo se omite en el input y lo asigna la API (D-03).
+- **D-28:** (2026-11-02, decidida por el usuario al revisar el plan) En el diálogo «Editar ronda» el campo «Ronda» es **obligatorio** (entero, mín. 1) y muestra un error en el campo si está vacío. La pista «Si lo vacías, se asigna la siguiente.» aparece **solo al añadir** (D-09 aplica solo a «Añadir ronda»). El PUT sigue siendo un `$set` por clave con `arrayFilters` (D-05): sin cálculo de máx. + 1 en el cliente al editar y sin pipeline en el PUT. Si el cuerpo del PUT omite `round` (otros clientes), se conserva la ronda guardada.
 
 ### Fecha y zona horaria
 - **D-10:** `scheduledAt` es **opcional y siempre con hora**: un único `<input type="datetime-local">`. Vacío → `null` y la lista muestra «Sin fecha». El valor local se convierte a ISO UTC en el mapper del pod y se convierte de vuelta a local al editar.

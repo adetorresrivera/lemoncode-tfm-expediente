@@ -169,7 +169,7 @@ Plans:
 - [ ] 04-02-PLAN.md — Fecha y hora (datetime-local ↔ ISO UTC), Modalidad, Resultado and Notas in the dialog; each round row with date, mode, neutral outcome badge and folded notes in D-07 order (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 04-03-PLAN.md — Edit (PUT with arrayFilters) and delete ($pull, no renumbering) a round from its row, with confirmation and focus handling (wave 3)
+- [ ] 04-03-PLAN.md — PUT (arrayFilters) and DELETE ($pull, no renumbering) round endpoints; edit from its row with «Ronda» required (D-28) and delete with confirmation and focus handling (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 04-04-PLAN.md — Status select waits while a round is saving (D-16); compose smoke round trip of the round endpoints, ARCHITECTURE rows and phase gate (wave 4)

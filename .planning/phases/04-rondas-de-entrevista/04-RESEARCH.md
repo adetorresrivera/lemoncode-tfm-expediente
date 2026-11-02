@@ -66,7 +66,7 @@ None — discussion stayed within phase scope. Recordatorios y timeline de entre
 | ID | Description | Research Support |
 |----|-------------|------------------|
 | INT-01 | Add an interview round (type, date, mode, outcome, notes) from a dialog in the detail | `POST /interviews` via atomic pipeline update (Pattern 1); `Dialog` + TanStack Form (Patterns 4-5); `onCloseAutoFocus` pitfall (Pitfall 1) |
-| INT-02 | Round number auto-assigned (max + 1) and editable | Server-side `$max` in the same pipeline (verified: empty → 1, [1,3] → 4, explicit round respected, no renumber); client prefill from VM (D-09); open question on PUT with empty round |
+| INT-02 | Round number auto-assigned (max + 1) and editable | Server-side `$max` in the same pipeline (verified: empty → 1, [1,3] → 4, explicit round respected, no renumber); client prefill from VM (D-09); PUT with empty round resolved by D-28 (required in edit mode) |
 | INT-03 | Edit and delete a round | `findOneAndUpdate` + `arrayFilters` / `$pull` (Patterns 2-3, executed against Mongo); 404 disambiguation (Pattern 3) |
 | INT-04 | Adding a round while `enviada` moves to `en_entrevistas` with history entry | Conditional `$cond` inside the same pipeline stage → race-safe, one document write; rule parameters passed from the service |
 | INT-05 | Rounds listed ordered by round number with type, date, mode, outcome | Web mapper sort (`round`, `scheduledAt` nulls last, `id`), `formatDateTime`, enum labels |
@@ -242,7 +242,7 @@ collection.findOneAndUpdate(
   { arrayFilters: [{ "i.id": interviewId }], returnDocument: "after" },
 );
 ```
-If `round` is absent in a PUT body see Open Question 1 (keep the stored round: build the element without overwriting `round`, e.g. `$set` of the individual `"interviews.$[i].type"` keys and omit `…round`).
+If `round` is absent in a PUT body see Open Question 1, resolved by D-28 (keep the stored round: build the element without overwriting `round`, e.g. `$set` of the individual `"interviews.$[i].type"` keys and omit `…round`).
 
 ### Pattern 3: Delete = `$pull` by id; disambiguating the two 404s
 ```ts
@@ -442,20 +442,22 @@ routes.delete("/:id/interviews/:interviewId", async (c) =>
 
 | # | Claim | Section | Risk if Wrong |
 |---|-------|---------|---------------|
-| A1 | In PUT, an omitted `round` should keep the stored round (rather than re-assigning max + 1) | Pattern 2 / Open Question 1 | UI hint «Si lo vacías, se asigna la siguiente.» is shown in edit mode too; behaviour would contradict the copy |
+| A1 | In PUT, an omitted `round` should keep the stored round (rather than re-assigning max + 1) — confirmed by D-28 | Pattern 2 / Open Question 1 | Resolved: the hint is shown only in add mode and «Ronda» is required in edit mode (D-28), so copy and behaviour agree |
 | A2 | Normalising `scheduledAt` with `new Date(x).toISOString()` in the service is harmless | Pitfall 8 | Changes the stored string for inputs with extra sub-second digits; contract round trip still valid |
 | A3 | `hour: "2-digit"` (`10:30`, `08:05`) is the intended time style | Code Examples | UI-SPEC shows only the 10:30 case; a `9:30` style would need `hour: "numeric"` |
 | A4 | The 5 s `SUCCESS_VISIBLE_MS` constant is module-private in the hooks file and will be reused in place | Pattern 6 | If extracted elsewhere, import path changes only |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **PUT with an empty «Ronda» field**
    - What we know: D-03 says round "editable en PUT"; D-09/UI-SPEC hint «Si lo vacías, se asigna la siguiente.» is shown in both modes; the schema makes `round` optional on input.
    - What's unclear: in edit mode, "assign the next" (max + 1) or "keep current"?
    - Recommendation: **keep current** on the server (simplest, never surprising) and, since the hint is always visible, either (a) accept the small copy mismatch in edit, or (b) make the edit-mode mapper substitute the round's current value when the field is emptied. Decide at plan time; if max + 1 on PUT is wanted, compute it with the same `$max` expression in a pipeline update (the `arrayFilters` form cannot express it).
+   - **RESOLVED (D-28, user decision 2026-11-02):** in the edit dialog «Ronda» is required (integer, min 1) and an empty field shows a field error; the hint «Si lo vacías, se asigna la siguiente.» is shown only in the add dialog (D-09 applies to «Añadir ronda» only). PUT stays a per-key `$set` with `arrayFilters` (D-05): no client-side max + 1 on edit and no pipeline on PUT. A PUT body without `round` (other clients) keeps the stored round. Planned in 04-03.
 
 2. **Where rule 3 lives (D-04 vs D-05)**
    - D-04 says the rule lives in the service; D-05 demands an atomic write. A pure service-side read-then-write is not atomic; resolved above by the service owning the rule *parameters* and the repository evaluating them in the pipeline. Confirm this reading at plan time (low risk).
+   - **RESOLVED (planning, 04-01):** the service owns rule 3 as `INTERVIEW_STATUS_RULE = { from: "enviada", to: "en_entrevistas" }` (D-04) and passes it to `repository.addInterview`, whose single pipeline `findOneAndUpdate` executes it atomically (D-05); the repository holds no status literal of its own.
 
 ## Environment Availability
 
