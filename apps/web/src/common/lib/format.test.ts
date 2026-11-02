@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   formatDate,
+  formatDateTime,
   formatMoney,
   formatSalaryRange,
   isoToLocalInput,
@@ -16,6 +17,26 @@ describe("formatDate", () => {
 
   it("keeps the period of a longer abbreviation", () => {
     expect(formatDate("2026-09-05T10:00:00.000Z", "UTC")).toBe("5 sept. 2026");
+  });
+});
+
+describe("formatDateTime", () => {
+  it("prints the date with its abbreviated month and a 24-hour time", () => {
+    expect(formatDateTime("2026-11-05T09:30:00.000Z", "Europe/Madrid")).toBe(
+      "5 nov. 2026, 10:30",
+    );
+  });
+
+  it("rolls over midnight into the next day and prints 00:00, never 24:00", () => {
+    expect(formatDateTime("2026-11-05T23:00:00.000Z", "Europe/Madrid")).toBe(
+      "6 nov. 2026, 00:00",
+    );
+  });
+
+  it("keeps the period of a longer month and pads the time", () => {
+    expect(formatDateTime("2026-09-05T06:05:00.000Z", "Europe/Madrid")).toBe(
+      "5 sept. 2026, 08:05",
+    );
   });
 });
 

@@ -30,8 +30,12 @@ export interface InterviewVm {
   type: InterviewType;
   typeLabel: string;
   scheduledAt: string | null;
+  // «5 nov. 2026, 10:30» in the browser zone, or null without a date.
+  dateLabel: string | null;
   mode: InterviewMode;
+  modeLabel: string;
   outcome: InterviewOutcome;
+  outcomeLabel: string;
   notes: string | null;
 }
 

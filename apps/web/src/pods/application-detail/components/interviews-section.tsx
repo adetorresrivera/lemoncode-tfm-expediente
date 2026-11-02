@@ -8,6 +8,7 @@ import type {
   InterviewVm,
 } from "../application-detail.vm";
 import { InterviewDialog } from "./interview-dialog";
+import { InterviewItem } from "./interview-item";
 
 interface Props {
   interviews: InterviewVm[];
@@ -64,14 +65,7 @@ export function InterviewsSection({ interviews, newValues, actions }: Props) {
       ) : (
         <ol className="flex flex-col gap-4">
           {interviews.map((interview) => (
-            <li
-              key={interview.id}
-              className="flex min-w-0 flex-col gap-2 border-t border-border pt-4 first:border-t-0 first:pt-0"
-            >
-              <h3 className="min-w-0 break-words font-serif text-base font-semibold leading-[1.2]">
-                {interview.title}
-              </h3>
-            </li>
+            <InterviewItem key={interview.id} interview={interview} />
           ))}
         </ol>
       )}

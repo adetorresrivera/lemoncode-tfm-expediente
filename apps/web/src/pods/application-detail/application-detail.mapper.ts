@@ -6,12 +6,15 @@ import {
 } from "@tfm/contracts";
 import {
   CONTRACT_TYPE_LABELS,
+  INTERVIEW_MODE_LABELS,
+  INTERVIEW_OUTCOME_LABELS,
   INTERVIEW_TYPE_LABELS,
   SENIORITY_LABELS,
   WORK_MODE_LABELS,
 } from "@/common/lib/enum-labels";
 import {
   formatDate,
+  formatDateTime,
   formatSalaryRange,
   localInputToIso,
 } from "@/common/lib/format";
@@ -79,10 +82,37 @@ export const mapInterviewFromApiToVm = (interview: Interview): InterviewVm => {
     type: interview.type,
     typeLabel,
     scheduledAt: interview.scheduledAt,
+    dateLabel:
+      interview.scheduledAt === null
+        ? null
+        : formatDateTime(interview.scheduledAt),
     mode: interview.mode,
+    modeLabel: INTERVIEW_MODE_LABELS[interview.mode],
     outcome: interview.outcome,
+    outcomeLabel: INTERVIEW_OUTCOME_LABELS[interview.outcome],
     notes: interview.notes,
   };
+};
+
+// Milliseconds of a stored date; no date, or one that does not parse, counts as «no date».
+const instantOf = (scheduledAt: string | null): number | null => {
+  if (scheduledAt === null) return null;
+  const time = Date.parse(scheduledAt);
+  return Number.isNaN(time) ? null : time;
+};
+
+// Round ascending, then date ascending with no date last (compared as instants: the stored string
+// may carry any sub-second precision), then id so the order is stable. Works on a copy (D-07).
+const compareInterviews = (a: Interview, b: Interview): number => {
+  if (a.round !== b.round) return a.round - b.round;
+  const aTime = instantOf(a.scheduledAt);
+  const bTime = instantOf(b.scheduledAt);
+  if (aTime !== bTime) {
+    if (aTime === null) return 1;
+    if (bTime === null) return -1;
+    return aTime - bTime;
+  }
+  return a.id < b.id ? -1 : a.id > b.id ? 1 : 0;
 };
 
 // Highest stored round + 1 (1 without rounds), capped so the number stays a valid contract value.
@@ -203,7 +233,9 @@ export const mapApplicationFromApiToDetailVm = (
     history: application.statusHistory
       .map((entry) => ({ status: entry.status, atLabel: formatDate(entry.at) }))
       .reverse(),
-    interviews: application.interviews.map(mapInterviewFromApiToVm),
+    interviews: [...application.interviews]
+      .sort(compareInterviews)
+      .map(mapInterviewFromApiToVm),
     newInterviewValues: newInterviewFormValues(
       nextInterviewRound(application.interviews),
     ),
