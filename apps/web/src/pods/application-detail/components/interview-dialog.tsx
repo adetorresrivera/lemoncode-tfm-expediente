@@ -30,7 +30,10 @@ import {
   INTERVIEW_TYPE_LABELS,
 } from "@/common/lib/enum-labels";
 import { useInterviewForm } from "../application-detail.hooks";
-import type { InterviewFormValues } from "../application-detail.vm";
+import type {
+  InterviewFormMode,
+  InterviewFormValues,
+} from "../application-detail.vm";
 
 // The counter groups four-digit numbers only when asked to («5.000»); 5000 is the contract limit
 // of the notes, also the `maxLength` of the textarea.
@@ -43,6 +46,7 @@ const TOGGLE_ITEM_CLASS =
 
 interface DialogProps {
   open: boolean;
+  mode: InterviewFormMode;
   title: string;
   description: string;
   initialValues: InterviewFormValues;
@@ -56,6 +60,7 @@ interface DialogProps {
 // An outside pointer never closes it: a stray click must not discard what was typed.
 export function InterviewDialog({
   open,
+  mode,
   title,
   description,
   initialValues,
@@ -77,6 +82,7 @@ export function InterviewDialog({
         <DialogTitle>{title}</DialogTitle>
         <DialogDescription>{description}</DialogDescription>
         <InterviewForm
+          mode={mode}
           initialValues={initialValues}
           saving={saving}
           onSave={onSave}
@@ -88,6 +94,7 @@ export function InterviewDialog({
 }
 
 interface FormProps {
+  mode: InterviewFormMode;
   initialValues: InterviewFormValues;
   saving: boolean;
   onSave: (values: InterviewFormValues) => Promise<void>;
@@ -96,10 +103,17 @@ interface FormProps {
 
 // Mounted inside the dialog content: Radix unmounts the content when it closes, so every opening
 // starts from `initialValues` without an explicit reset.
-function InterviewForm({ initialValues, saving, onSave, onClose }: FormProps) {
+function InterviewForm({
+  mode,
+  initialValues,
+  saving,
+  onSave,
+  onClose,
+}: FormProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const { form, saveFailed } = useInterviewForm({
     initialValues,
+    mode,
     onSave,
     // Waits one frame so React has rendered `aria-invalid` on the controls the validators marked.
     onInvalid: () => {
@@ -160,16 +174,26 @@ function InterviewForm({ initialValues, saving, onSave, onClose }: FormProps) {
         <form.Field name="round">
           {(field) => {
             const error = firstFieldError(field.state.meta.errors);
-            const hint = "Si lo vacías, se asigna la siguiente.";
+            // Adding: optional, the API numbers it. Editing: required, no hint (D-09, D-28).
+            const required = mode === "edit";
+            const hint = required
+              ? undefined
+              : "Si lo vacías, se asigna la siguiente.";
             return (
               <Field
                 id="interview-round"
                 label="Ronda"
+                required={required}
                 hint={hint}
                 error={error}
               >
                 <Input
-                  {...controlProps({ id: "interview-round", hint, error })}
+                  {...controlProps({
+                    id: "interview-round",
+                    hint,
+                    error,
+                    required,
+                  })}
                   type="number"
                   inputMode="numeric"
                   min={1}

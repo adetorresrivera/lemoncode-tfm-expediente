@@ -37,6 +37,8 @@ export interface InterviewVm {
   outcome: InterviewOutcome;
   outcomeLabel: string;
   notes: string | null;
+  // The values the edit dialog opens with (date in the browser zone, notes empty when null).
+  editValues: InterviewFormValues;
 }
 
 // Every control of the round dialog holds a string (or a closed enum value), as the form does.
@@ -51,13 +53,17 @@ export interface InterviewFormValues {
 
 export type InterviewFormField = keyof InterviewFormValues;
 
+// «Ronda» is optional when adding (the API numbers it) and required when editing (D-28).
+export type InterviewFormMode = "add" | "edit";
+
 // What the section can do with the rounds. `busy` is true while any mutation of the detail is in
-// flight (status or round); `add` resolves on success and rejects on failure so the dialog can
-// stay open with its own error.
+// flight (status or round); `add` and `update` resolve on success and reject on failure so the
+// dialog can stay open with its own error.
 export interface InterviewActions {
   busy: boolean;
   feedback: string | null;
   add: (values: InterviewFormValues) => Promise<void>;
+  update: (interviewId: string, values: InterviewFormValues) => Promise<void>;
 }
 
 export interface ApplicationDetailVm {

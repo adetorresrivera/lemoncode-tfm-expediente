@@ -16,12 +16,14 @@ import {
   formatDate,
   formatDateTime,
   formatSalaryRange,
+  isoToLocalInput,
   localInputToIso,
 } from "@/common/lib/format";
 import type {
   ApplicationDetailVm,
   DetailTagGroupVm,
   InterviewFormField,
+  InterviewFormMode,
   InterviewFormValues,
   InterviewVm,
 } from "./application-detail.vm";
@@ -91,6 +93,17 @@ export const mapInterviewFromApiToVm = (interview: Interview): InterviewVm => {
     outcome: interview.outcome,
     outcomeLabel: INTERVIEW_OUTCOME_LABELS[interview.outcome],
     notes: interview.notes,
+    editValues: {
+      type: interview.type,
+      round: String(interview.round),
+      scheduledAt:
+        interview.scheduledAt === null
+          ? ""
+          : isoToLocalInput(interview.scheduledAt),
+      mode: interview.mode,
+      outcome: interview.outcome,
+      notes: interview.notes ?? "",
+    },
   };
 };
 
@@ -187,15 +200,23 @@ const interviewFieldMessage = (field: InterviewFormField): string => {
 };
 
 // Wraps the contracts schema for TanStack Form: first message per field, or undefined when valid.
+// In edit mode an empty «Ronda» is an error too (D-28): the client never numbers a round, and a
+// PUT without a number would keep the stored one, which the edit form does not offer.
 export const validateInterviewForm = (
   values: InterviewFormValues,
+  mode: InterviewFormMode = "add",
 ): { fields: Partial<Record<InterviewFormField, string>> } | undefined => {
   const result = interviewInputSchema.safeParse(
     mapInterviewFormToApiInput(values),
     { reportInput: true },
   );
-  if (result.success) return undefined;
   const fields: Partial<Record<InterviewFormField, string>> = {};
+  if (mode === "edit" && values.round.trim() === "") {
+    fields.round = interviewFieldMessage("round");
+  }
+  if (result.success) {
+    return fields.round === undefined ? undefined : { fields };
+  }
   for (const issue of result.error.issues) {
     const field = issue.path[0];
     if (isInterviewFormField(field) && fields[field] === undefined) {

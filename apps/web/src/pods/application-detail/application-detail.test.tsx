@@ -333,6 +333,7 @@ const idleInterviewActions = {
   busy: false,
   feedback: null,
   add: async () => {},
+  update: async () => {},
 };
 
 const renderOk = (overrides: Record<string, unknown> = {}) =>
