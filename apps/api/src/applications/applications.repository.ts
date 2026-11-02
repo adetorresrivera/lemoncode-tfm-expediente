@@ -78,6 +78,17 @@ export interface NewInterview {
   outcome: InterviewOutcome;
 }
 
+// The fields an edit may write on one round (D-05). `round` null means "keep the stored number":
+// the key is left out of the `$set`. The element id is never written.
+export interface InterviewChanges {
+  round: number | null;
+  type: InterviewType;
+  scheduledAt: string | null;
+  mode: InterviewMode;
+  notes: string | null;
+  outcome: InterviewOutcome;
+}
+
 // The only fields PUT may write (D-07, D-08). Status, history, interviews, ownership, creation
 // instant and document links are deliberately absent.
 export interface EditableFields {
@@ -123,6 +134,21 @@ export interface ApplicationsRepository {
     id: ObjectId,
     interview: NewInterview,
     rule: InterviewStatusRule,
+    now: Date,
+  ): Promise<ApplicationDoc | null>;
+  // Null when the application or the round is unknown (nothing is created). Rewrites the editable
+  // keys of that element only; status and history are never touched.
+  updateInterview(
+    id: ObjectId,
+    interviewId: string,
+    changes: InterviewChanges,
+    now: Date,
+  ): Promise<ApplicationDoc | null>;
+  // Null when the application or the round is unknown. Pulls that element; the other rounds keep
+  // their numbers (D-08).
+  removeInterview(
+    id: ObjectId,
+    interviewId: string,
     now: Date,
   ): Promise<ApplicationDoc | null>;
 }
@@ -273,6 +299,39 @@ export function createApplicationsRepository(db: Db): ApplicationsRepository {
             },
           },
         ],
+        { returnDocument: "after" },
+      );
+    },
+    // Per-key `$set` through `arrayFilters` on the element id: the update is never built from the
+    // request and the element id is never written. The filter requires the element, and there is no
+    // insert-on-miss option, so a deleted round is never brought back. `round` is only written when
+    // one is sent, so a body without it keeps the stored number.
+    async updateInterview(id, interviewId, changes, now) {
+      return collection.findOneAndUpdate(
+        { _id: id, "interviews.id": interviewId },
+        {
+          $set: {
+            "interviews.$[i].type": changes.type,
+            "interviews.$[i].scheduledAt": changes.scheduledAt,
+            "interviews.$[i].mode": changes.mode,
+            "interviews.$[i].notes": changes.notes,
+            "interviews.$[i].outcome": changes.outcome,
+            ...(changes.round !== null
+              ? { "interviews.$[i].round": changes.round }
+              : {}),
+            updatedAt: now,
+          },
+        },
+        { arrayFilters: [{ "i.id": interviewId }], returnDocument: "after" },
+      );
+    },
+    async removeInterview(id, interviewId, now) {
+      return collection.findOneAndUpdate(
+        { _id: id, "interviews.id": interviewId },
+        {
+          $pull: { interviews: { id: interviewId } },
+          $set: { updatedAt: now },
+        },
         { returnDocument: "after" },
       );
     },
