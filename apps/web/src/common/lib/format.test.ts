@@ -1,5 +1,11 @@
-import { describe, expect, it } from "vitest";
-import { formatDate, formatMoney, formatSalaryRange } from "./format";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import {
+  formatDate,
+  formatMoney,
+  formatSalaryRange,
+  isoToLocalInput,
+  localInputToIso,
+} from "./format";
 
 const NBSP = " ";
 
@@ -55,5 +61,61 @@ describe("formatMoney", () => {
 
   it("rounds to whole units", () => {
     expect(formatMoney(52000.4)).toBe(`52.000${NBSP}€`);
+  });
+});
+
+// The shared setup only unstubs globals: the zone stubbed here is restored after every case.
+describe("localInputToIso and isoToLocalInput", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("reads a datetime-local value in Europe/Madrid and stores it in UTC", () => {
+    vi.stubEnv("TZ", "Europe/Madrid");
+    expect(localInputToIso("2026-11-05T10:30")).toBe(
+      "2026-11-05T09:30:00.000Z",
+    );
+  });
+
+  it("reads the same value in America/New_York with its own offset", () => {
+    vi.stubEnv("TZ", "America/New_York");
+    expect(localInputToIso("2026-11-05T10:30")).toBe(
+      "2026-11-05T15:30:00.000Z",
+    );
+  });
+
+  it("round-trips a minute-precision value in both zones", () => {
+    for (const zone of ["Europe/Madrid", "America/New_York"]) {
+      vi.stubEnv("TZ", zone);
+      expect(isoToLocalInput(localInputToIso("2026-11-05T10:30") ?? "")).toBe(
+        "2026-11-05T10:30",
+      );
+    }
+  });
+
+  it("drops seconds and milliseconds on the way back", () => {
+    vi.stubEnv("TZ", "Europe/Madrid");
+    expect(isoToLocalInput("2026-11-05T09:30:45.123Z")).toBe(
+      "2026-11-05T10:30",
+    );
+  });
+
+  it("moves the Madrid spring-forward gap to the valid instant and reads it back an hour later", () => {
+    vi.stubEnv("TZ", "Europe/Madrid");
+    const iso = localInputToIso("2026-03-29T02:30");
+    expect(iso).toBe("2026-03-29T01:30:00.000Z");
+    expect(isoToLocalInput(iso ?? "")).toBe("2026-03-29T03:30");
+  });
+
+  it("resolves the Madrid fall-back overlap to its first occurrence", () => {
+    vi.stubEnv("TZ", "Europe/Madrid");
+    expect(localInputToIso("2026-10-25T02:30")).toBe(
+      "2026-10-25T00:30:00.000Z",
+    );
+  });
+
+  it("gives null for an empty or unparsable value", () => {
+    expect(localInputToIso("")).toBeNull();
+    expect(localInputToIso("nope")).toBeNull();
   });
 });

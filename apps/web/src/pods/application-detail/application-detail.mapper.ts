@@ -10,7 +10,11 @@ import {
   SENIORITY_LABELS,
   WORK_MODE_LABELS,
 } from "@/common/lib/enum-labels";
-import { formatDate, formatSalaryRange } from "@/common/lib/format";
+import {
+  formatDate,
+  formatSalaryRange,
+  localInputToIso,
+} from "@/common/lib/format";
 import type {
   ApplicationDetailVm,
   DetailTagGroupVm,
@@ -120,7 +124,12 @@ export const mapInterviewFormToApiInput = (
     type: values.type,
     // An emptied «Ronda» is left out: the API assigns the next number (D-09).
     ...(round !== "" ? { round: Number(round) } : {}),
-    scheduledAt: values.scheduledAt === "" ? null : values.scheduledAt,
+    // The control holds local time; the API stores UTC. A value that does not parse goes on as it
+    // is, so the schema reports it under the field instead of the date being dropped (T-04-08).
+    scheduledAt:
+      values.scheduledAt === ""
+        ? null
+        : (localInputToIso(values.scheduledAt) ?? values.scheduledAt),
     mode: values.mode,
     outcome: values.outcome,
     // The contract trims but keeps "": a blank note is sent as null.
@@ -142,6 +151,8 @@ const interviewFieldMessage = (field: InterviewFormField): string => {
   if (field === "round") {
     return "La ronda debe ser un número entero de 1 o más.";
   }
+  if (field === "scheduledAt") return "Introduce una fecha y hora válidas.";
+  if (field === "notes") return "Las notas admiten hasta 5.000 caracteres.";
   return "Revisa este campo.";
 };
 
