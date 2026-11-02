@@ -80,9 +80,9 @@ src/
 | PUT | `/api/applications/:id` | reemplaza campos editables |
 | PATCH | `/api/applications/:id/status` | `{ status }` aplica reglas 1–2 |
 | DELETE | `/api/applications/:id` | 204 |
-| POST | `/api/applications/:id/interviews` | crea ronda (regla 3) |
-| PUT | `/api/applications/:id/interviews/:interviewId` | |
-| DELETE | `/api/applications/:id/interviews/:interviewId` | |
+| POST | `/api/applications/:id/interviews` | crea ronda (regla 3); 201 con la candidatura completa |
+| PUT | `/api/applications/:id/interviews/:interviewId` | edita la ronda; 200 con la candidatura completa |
+| DELETE | `/api/applications/:id/interviews/:interviewId` | borra la ronda sin renumerar; 200 con la candidatura completa |
 | GET | `/api/tags` | `{ label, group, count }[]` distintos, por count desc |
 | POST | `/api/offers/extract` | `{ text }` → `OfferExtraction` (ver AI-EXTRACTION.md) |
 | GET | `/api/documents` | lista, filtro opcional `type` |
@@ -90,7 +90,7 @@ src/
 | GET | `/api/documents/:id/download` | stream con `Content-Disposition` |
 | DELETE | `/api/documents/:id` | 409 si está vinculado |
 
-Códigos: 400 `VALIDATION_ERROR`, 404 `NOT_FOUND`, 409 `DOCUMENT_IN_USE`, 413 `FILE_TOO_LARGE`, 415 `UNSUPPORTED_FILE_TYPE`, 502 `LLM_ERROR`, 504 `LLM_TIMEOUT`, 500 `INTERNAL_ERROR`.
+Códigos: 400 `VALIDATION_ERROR`, 404 `NOT_FOUND`, 409 `DOCUMENT_IN_USE`, 413 `FILE_TOO_LARGE`, 415 `UNSUPPORTED_FILE_TYPE`, 502 `LLM_ERROR`, 504 `LLM_TIMEOUT`, 500 `INTERNAL_ERROR`. Las rutas de rondas responden 404 `NOT_FOUND` con «Candidatura no encontrada» o «Ronda no encontrada».
 
 ## apps/web
 ```
