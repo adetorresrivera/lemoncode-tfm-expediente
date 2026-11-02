@@ -1,6 +1,7 @@
 import { applicationSchema } from "@tfm/contracts";
 import {
   act,
+  fireEvent,
   render,
   renderHook,
   screen,
@@ -1205,5 +1206,361 @@ describe("interview rounds", () => {
       "Ronda añadida. Estado cambiado a En entrevistas.",
     );
     await waitFor(() => expect(opener).toHaveFocus());
+  });
+
+  describe("validation", () => {
+    it("asks for a type, moves focus to «Tipo» and sends nothing", async () => {
+      const fetchMock = mockFetch({
+        "GET /api/applications/a1": sentApplication(),
+      });
+      renderDetail();
+      const { dialog } = await openAddDialog();
+      const type = within(dialog).getByRole("combobox", { name: /Tipo/ });
+      expect(type).toHaveFocus();
+
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Guardar ronda" }),
+      );
+
+      expect(
+        await within(dialog).findByText("Elige un tipo de ronda."),
+      ).toBeInTheDocument();
+      expect(type).toHaveAttribute("aria-invalid", "true");
+      await waitFor(() => expect(type).toHaveFocus());
+      expect(postCalls(fetchMock)).toHaveLength(0);
+    });
+
+    it("rejects a round of 0 with the fixed message and sends nothing", async () => {
+      const fetchMock = mockFetch({
+        "GET /api/applications/a1": sentApplication(),
+      });
+      renderDetail();
+      const { dialog } = await openAddDialog();
+      await userEvent.selectOptions(
+        within(dialog).getByRole("combobox", { name: /Tipo/ }),
+        "tecnica",
+      );
+      const roundField = within(dialog).getByRole("spinbutton", {
+        name: "Ronda",
+      });
+      await userEvent.clear(roundField);
+      await userEvent.type(roundField, "0");
+
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Guardar ronda" }),
+      );
+
+      expect(
+        await within(dialog).findByText(
+          "La ronda debe ser un número entero de 1 o más.",
+        ),
+      ).toBeInTheDocument();
+      expect(postCalls(fetchMock)).toHaveLength(0);
+    });
+  });
+
+  describe("round number", () => {
+    it("prefills the next round and leaves the key out of the body when the field is emptied", async () => {
+      const stored = makeApplication({
+        interviews: [
+          round({ id: "i1", round: 1 }),
+          round({ id: "i3", round: 3, type: "manager" }),
+        ],
+      });
+      const fetchMock = mockFetch({
+        "GET /api/applications/a1": stored,
+        "POST /api/applications/a1/interviews": () => jsonResponse(stored, 201),
+      });
+      renderDetail();
+      const { dialog } = await openAddDialog();
+      const roundField = within(dialog).getByRole("spinbutton", {
+        name: "Ronda",
+      });
+      expect(roundField).toHaveValue(4);
+
+      await userEvent.selectOptions(
+        within(dialog).getByRole("combobox", { name: /Tipo/ }),
+        "cultural",
+      );
+      await userEvent.clear(roundField);
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Guardar ronda" }),
+      );
+
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+      );
+      const body = JSON.parse(String(postCalls(fetchMock)[0]?.[1]?.body));
+      expect(body).not.toHaveProperty("round");
+      expect(body.type).toBe("cultural");
+    });
+
+    it("caps the prefill at Number.MAX_SAFE_INTEGER", () => {
+      const vm = mapApplicationFromApiToDetailVm(
+        makeApplication({
+          interviews: [round({ round: Number.MAX_SAFE_INTEGER })],
+        }),
+      );
+
+      expect(vm.newInterviewValues.round).toBe(String(Number.MAX_SAFE_INTEGER));
+    });
+  });
+
+  describe("while saving", () => {
+    it("shows «Guardando…», sends one POST and ignores every way to close the dialog", async () => {
+      const post = deferred();
+      const fetchMock = mockFetch({
+        "GET /api/applications/a1": sentApplication(),
+        "POST /api/applications/a1/interviews": () => post.promise,
+      });
+      renderDetail();
+      const { dialog } = await openAddDialog();
+      await userEvent.selectOptions(
+        within(dialog).getByRole("combobox", { name: /Tipo/ }),
+        "tecnica",
+      );
+
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Guardar ronda" }),
+      );
+
+      const saving = await within(dialog).findByRole("button", {
+        name: "Guardando…",
+      });
+      expect(saving).toHaveAttribute("aria-disabled", "true");
+      await userEvent.click(saving);
+      await userEvent.keyboard("{Escape}");
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Cerrar" }),
+      );
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Descartar cambios" }),
+      );
+      fireEvent.pointerDown(
+        document.querySelector('[data-slot="dialog-overlay"]') as Element,
+      );
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(postCalls(fetchMock)).toHaveLength(1);
+      expect(
+        screen.getByRole("button", { name: "Añadir ronda", hidden: true }),
+      ).toHaveAttribute("aria-disabled", "true");
+
+      post.resolve(jsonResponse(interviewedApplication(), 201));
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+      );
+    });
+
+    it("never closes on a pointer-down outside the content", async () => {
+      mockFetch({ "GET /api/applications/a1": sentApplication() });
+      renderDetail();
+      await openAddDialog();
+
+      fireEvent.pointerDown(
+        document.querySelector('[data-slot="dialog-overlay"]') as Element,
+      );
+      fireEvent.pointerDown(document.body);
+
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+    });
+  });
+
+  describe("failed save", () => {
+    it("keeps the dialog open with the typed values and clears the error on the next submit", async () => {
+      const retry = deferred();
+      let calls = 0;
+      const fetchMock = mockFetch({
+        "GET /api/applications/a1": sentApplication(),
+        "POST /api/applications/a1/interviews": () => {
+          calls += 1;
+          return calls === 1 ? serverError() : retry.promise;
+        },
+      });
+      renderDetail();
+      const { dialog } = await openAddDialog();
+      const type = within(dialog).getByRole("combobox", { name: /Tipo/ });
+      await userEvent.selectOptions(type, "tecnica");
+      const roundField = within(dialog).getByRole("spinbutton", {
+        name: "Ronda",
+      });
+      await userEvent.clear(roundField);
+      await userEvent.type(roundField, "5");
+
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Guardar ronda" }),
+      );
+
+      expect(
+        await within(dialog).findByText(
+          "No se pudo guardar la ronda. Inténtalo de nuevo.",
+        ),
+      ).toBeInTheDocument();
+      expect(screen.getByRole("dialog")).toBeInTheDocument();
+      expect(type).toHaveValue("tecnica");
+      expect(roundField).toHaveValue(5);
+      expect(
+        within(dialog).getByRole("button", { name: "Guardar ronda" }),
+      ).toHaveAttribute("aria-disabled", "false");
+
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Guardar ronda" }),
+      );
+
+      await waitFor(() => expect(calls).toBe(2));
+      expect(
+        within(dialog).queryByText(
+          "No se pudo guardar la ronda. Inténtalo de nuevo.",
+        ),
+      ).not.toBeInTheDocument();
+      expect(postCalls(fetchMock)).toHaveLength(2);
+      retry.resolve(jsonResponse(interviewedApplication(), 201));
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+      );
+    });
+  });
+
+  describe("feedback", () => {
+    it("announces only «Ronda añadida.» when the status does not move, and clears it after 5 seconds", async () => {
+      const kept = makeApplication({ interviews: [round()] });
+      mockFetch({
+        "GET /api/applications/a1": makeApplication(),
+        "POST /api/applications/a1/interviews": () => jsonResponse(kept, 201),
+      });
+      renderDetail();
+      await screen.findByRole("heading", { level: 1 });
+
+      vi.useFakeTimers({ shouldAdvanceTime: true });
+      try {
+        const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+        await user.click(screen.getByRole("button", { name: "Añadir ronda" }));
+        const dialog = await screen.findByRole("dialog");
+        await user.selectOptions(
+          within(dialog).getByRole("combobox", { name: /Tipo/ }),
+          "tecnica",
+        );
+        await user.click(
+          within(dialog).getByRole("button", { name: "Guardar ronda" }),
+        );
+
+        await waitFor(() =>
+          expect(within(roundsRegion()).getByRole("status")).toHaveTextContent(
+            /^Ronda añadida\.$/,
+          ),
+        );
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(5000);
+        });
+        expect(
+          within(roundsRegion()).getByRole("status"),
+        ).toBeEmptyDOMElement();
+      } finally {
+        vi.useRealTimers();
+      }
+    });
+  });
+
+  describe("focus", () => {
+    it.each([
+      [
+        "«Descartar cambios»",
+        async (dialog: HTMLElement) => {
+          await userEvent.click(
+            within(dialog).getByRole("button", { name: "Descartar cambios" }),
+          );
+        },
+      ],
+      [
+        "the X «Cerrar»",
+        async (dialog: HTMLElement) => {
+          await userEvent.click(
+            within(dialog).getByRole("button", { name: "Cerrar" }),
+          );
+        },
+      ],
+      [
+        "Escape",
+        async () => {
+          await userEvent.keyboard("{Escape}");
+        },
+      ],
+    ])("returns to «Añadir ronda» after %s", async (_label, close) => {
+      mockFetch({ "GET /api/applications/a1": sentApplication() });
+      renderDetail();
+      const { opener, dialog } = await openAddDialog();
+
+      await close(dialog);
+
+      await waitFor(() =>
+        expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+      );
+      expect(opener).toHaveFocus();
+    });
+  });
+
+  describe("one mutation at a time", () => {
+    it("keeps «Añadir ronda» aria-disabled and closed while a status PATCH is pending", async () => {
+      const patch = deferred();
+      mockFetch({
+        "GET /api/applications/a1": makeApplication(),
+        "PATCH /api/applications/a1/status": () => patch.promise,
+      });
+      renderDetail();
+      const select = await statusSelect();
+
+      await userEvent.selectOptions(select, "enviada");
+
+      const add = screen.getByRole("button", { name: "Añadir ronda" });
+      expect(add).toHaveAttribute("aria-disabled", "true");
+      await userEvent.click(add);
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+      patch.resolve(jsonResponse(sentApplication()));
+      await waitFor(() =>
+        expect(
+          screen.getByRole("button", { name: "Añadir ronda" }),
+        ).toHaveAttribute("aria-disabled", "false"),
+      );
+    });
+
+    it("sends no PATCH while a round is saving and releases busy when the POST settles", async () => {
+      const post = deferred();
+      const fetchMock = mockFetch({
+        "GET /api/applications/a1": sentApplication(),
+        "POST /api/applications/a1/interviews": () => post.promise,
+        "PATCH /api/applications/a1/status": () =>
+          jsonResponse(interviewedApplication()),
+      });
+      const { result } = renderHook(() =>
+        useApplicationDetail("a1", { onDeleted: () => {} }),
+      );
+      await waitFor(() => expect(result.current.status).toBe("ok"));
+      const vm = result.current.vm;
+      if (vm === null) throw new Error("The application did not load");
+      let added: Promise<void> = Promise.resolve();
+
+      act(() => {
+        added = result.current.interviewActions.add({
+          ...vm.newInterviewValues,
+          type: "tecnica",
+        });
+      });
+      await waitFor(() =>
+        expect(result.current.interviewActions.busy).toBe(true),
+      );
+      act(() => result.current.changeStatus("rechazada"));
+
+      expect(
+        fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH"),
+      ).toHaveLength(0);
+
+      await act(async () => {
+        post.resolve(jsonResponse(interviewedApplication(), 201));
+        await added;
+      });
+      expect(result.current.interviewActions.busy).toBe(false);
+      expect(result.current.vm?.interviews).toHaveLength(1);
+    });
   });
 });
