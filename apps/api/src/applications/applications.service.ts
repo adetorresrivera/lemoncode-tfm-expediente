@@ -6,15 +6,18 @@ import {
   type ApplicationQuery,
   type ApplicationInput,
   type ApplicationStatus,
+  type InterviewInput,
   type TagSummary,
 } from "@tfm/contracts";
-import type { ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import { ApiError } from "../errors.js";
 import { mapApplicationDocToApi } from "./applications.mapper.js";
 import type {
   ApplicationsRepository,
   EditableFields,
+  InterviewStatusRule,
   NewApplicationDoc,
+  NewInterview,
 } from "./applications.repository.js";
 
 export interface ApplicationsService {
@@ -25,7 +28,15 @@ export interface ApplicationsService {
   update(id: ObjectId, input: ApplicationInput): Promise<Application>;
   changeStatus(id: ObjectId, status: ApplicationStatus): Promise<Application>;
   remove(id: ObjectId): Promise<void>;
+  addInterview(id: ObjectId, input: InterviewInput): Promise<Application>;
 }
+
+// Rule 3 (D-04): a round created while the application is `enviada` moves it to `en_entrevistas`.
+// The rule lives here; the repository applies it inside the same atomic write.
+export const INTERVIEW_STATUS_RULE: InterviewStatusRule = {
+  from: "enviada",
+  to: "en_entrevistas",
+};
 
 // Copies the editable keys one by one (no rest, no spread): status, statusHistory, interviews,
 // ownerId, createdAt and the document links in the input can never reach Mongo. offerText is
@@ -137,6 +148,35 @@ export function createApplicationsService(
       if (!(await repository.deleteById(id))) {
         throw new ApiError(404, "NOT_FOUND", "Candidatura no encontrada");
       }
+    },
+
+    async addInterview(id, input) {
+      const at = now();
+      // Built field by field (no spread): an id, status, statusHistory or interviews key sent by
+      // the client can never reach Mongo. The id is server-generated (D-02) and the date is stored
+      // as the same instant with millisecond precision.
+      const interview: NewInterview = {
+        id: new ObjectId().toString(),
+        round: input.round ?? null,
+        type: input.type,
+        scheduledAt:
+          input.scheduledAt !== null
+            ? new Date(input.scheduledAt).toISOString()
+            : null,
+        mode: input.mode,
+        notes: input.notes,
+        outcome: input.outcome,
+      };
+      const doc = await repository.addInterview(
+        id,
+        interview,
+        INTERVIEW_STATUS_RULE,
+        at,
+      );
+      if (doc === null) {
+        throw new ApiError(404, "NOT_FOUND", "Candidatura no encontrada");
+      }
+      return mapApplicationDocToApi(doc);
     },
 
     async listTags() {

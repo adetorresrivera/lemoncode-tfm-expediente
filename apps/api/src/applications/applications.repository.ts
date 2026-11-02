@@ -3,6 +3,9 @@ import type {
   ApplicationStatus,
   ContractType,
   Interview,
+  InterviewMode,
+  InterviewOutcome,
+  InterviewType,
   Seniority,
   TagGroup,
   WorkMode,
@@ -49,13 +52,31 @@ export interface ApplicationDoc {
   status: ApplicationStatus;
   statusHistory: { status: ApplicationStatus; at: Date }[];
   appliedAt: Date | null;
-  interviews: Interview[]; // always [] in Phase 2; Phase 4 owns its storage
+  interviews: Interview[]; // [] on create; rounds are written by addInterview from Phase 4
   createdAt: Date;
   updatedAt: Date;
   ownerId: null;
 }
 
 export type NewApplicationDoc = Omit<ApplicationDoc, "_id">;
+
+// Rule 3 (D-04) as data: a round created while the status is `from` moves it to `to`. The service
+// owns the rule; the repository only evaluates it inside the same atomic write.
+export interface InterviewStatusRule {
+  from: ApplicationStatus;
+  to: ApplicationStatus;
+}
+
+// The round to append. `round` null means "assign the highest stored round + 1".
+export interface NewInterview {
+  id: string;
+  round: number | null;
+  type: InterviewType;
+  scheduledAt: string | null;
+  mode: InterviewMode;
+  notes: string | null;
+  outcome: InterviewOutcome;
+}
 
 // The only fields PUT may write (D-07, D-08). Status, history, interviews, ownership, creation
 // instant and document links are deliberately absent.
@@ -94,6 +115,14 @@ export interface ApplicationsRepository {
   updateEditable(
     id: ObjectId,
     fields: EditableFields,
+    now: Date,
+  ): Promise<ApplicationDoc | null>;
+  // Null when the id is unknown (nothing is created). Appends the round, applies the status rule
+  // and sets updatedAt in one atomic write.
+  addInterview(
+    id: ObjectId,
+    interview: NewInterview,
+    rule: InterviewStatusRule,
     now: Date,
   ): Promise<ApplicationDoc | null>;
 }
@@ -176,6 +205,74 @@ export function createApplicationsRepository(db: Db): ApplicationsRepository {
             updatedAt: now,
           },
         },
+        { returnDocument: "after" },
+      );
+    },
+    // One atomic pipeline update. Every expression of the `$set` stage reads the input document, so
+    // the number (highest stored round + 1, capped at MAX_SAFE_INTEGER so it never leaves the
+    // contract), the status test and the history all see the state before the write: two concurrent
+    // creates get distinct numbers and at most one gets the status move. Every client value is a
+    // `$literal` (a leading `$` would otherwise be evaluated). A document without `interviews` is
+    // handled by `$ifNull`. No insert-on-miss option: a deleted application is never recreated.
+    async addInterview(id, interview, rule, now) {
+      const round =
+        interview.round !== null
+          ? { $literal: interview.round }
+          : {
+              $min: [
+                {
+                  $add: [
+                    {
+                      $ifNull: [
+                        { $max: { $ifNull: ["$interviews.round", []] } },
+                        0,
+                      ],
+                    },
+                    1,
+                  ],
+                },
+                Number.MAX_SAFE_INTEGER,
+              ],
+            };
+      const moves = { $eq: ["$status", { $literal: rule.from }] };
+      return collection.findOneAndUpdate(
+        { _id: id },
+        [
+          {
+            $set: {
+              interviews: {
+                $concatArrays: [
+                  { $ifNull: ["$interviews", []] },
+                  [
+                    {
+                      id: { $literal: interview.id },
+                      round,
+                      type: { $literal: interview.type },
+                      scheduledAt: { $literal: interview.scheduledAt },
+                      mode: { $literal: interview.mode },
+                      notes: { $literal: interview.notes },
+                      outcome: { $literal: interview.outcome },
+                    },
+                  ],
+                ],
+              },
+              statusHistory: {
+                $cond: [
+                  moves,
+                  {
+                    $concatArrays: [
+                      "$statusHistory",
+                      [{ status: { $literal: rule.to }, at: now }],
+                    ],
+                  },
+                  "$statusHistory",
+                ],
+              },
+              status: { $cond: [moves, { $literal: rule.to }, "$status"] },
+              updatedAt: now,
+            },
+          },
+        ],
         { returnDocument: "after" },
       );
     },

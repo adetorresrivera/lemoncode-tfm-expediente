@@ -1,20 +1,26 @@
-import type { ApplicationStatus } from "@tfm/contracts";
+import { interviewInputSchema, type ApplicationStatus } from "@tfm/contracts";
+import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useEffect, useRef, useState } from "react";
 import { STATUS_LABELS } from "@/common/lib/enum-labels";
 import { formatDate } from "@/common/lib/format";
 import { HttpError, type HttpErrorCode } from "@/core/http/http-client";
 import {
+  createInterview,
   deleteApplication,
   getApplication,
   patchApplicationStatus,
 } from "./api/api";
 import {
   mapApplicationFromApiToDetailVm,
+  mapInterviewFormToApiInput,
+  validateInterviewForm,
   withOptimisticStatus,
 } from "./application-detail.mapper";
 import type {
   ApplicationDetailVm,
   DeleteState,
+  InterviewActions,
+  InterviewFormValues,
   StatusFeedback,
 } from "./application-detail.vm";
 
@@ -32,6 +38,12 @@ interface Mutation {
   feedback: StatusFeedback | null;
 }
 
+// Round feedback lives in its own slot (the section's polite region), keyed like the result.
+interface InterviewFeedback {
+  key: string;
+  message: string;
+}
+
 const SUCCESS_VISIBLE_MS = 5000;
 const STATUS_ERROR_MESSAGE =
   "No se pudo cambiar el estado. Inténtalo de nuevo.";
@@ -46,6 +58,7 @@ export interface ApplicationDetailState {
   statusFeedback: StatusFeedback | null;
   remove: () => void;
   deleteState: DeleteState;
+  interviewActions: InterviewActions;
 }
 
 interface Options {
@@ -66,6 +79,9 @@ export const useApplicationDetail = (
     key: string;
     state: "deleting" | "error";
   } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [interviewFeedback, setInterviewFeedback] =
+    useState<InterviewFeedback | null>(null);
   const busyRef = useRef(false);
   const deletingRef = useRef(false);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -115,14 +131,49 @@ export const useApplicationDetail = (
 
   // The mutation is never aborted on unmount and nothing is refetched: the PATCH answer is the
   // new truth. One request in flight (busy ref); the snapshot comes from this render's closure.
-  const changeStatus = (next: ApplicationStatus) => {
-    if (busyRef.current || current?.outcome !== "ok") return;
-    if (current.vm.status === next) return;
+  // One mutation at a time, shared by the status change and the rounds. The ref blocks a second
+  // call in the same tick; the state lets the buttons render `aria-disabled`.
+  const startBusy = () => {
     busyRef.current = true;
+    setBusy(true);
+  };
+  const endBusy = () => {
+    busyRef.current = false;
+    setBusy(false);
+  };
+
+  // Drops the pending 5 s timer and any success message (status slot and rounds slot).
+  const clearSuccess = () => {
     if (successTimerRef.current !== null) {
       clearTimeout(successTimerRef.current);
       successTimerRef.current = null;
     }
+    setMutation((previous) =>
+      previous?.feedback?.kind === "success"
+        ? { ...previous, feedback: null }
+        : previous,
+    );
+    setInterviewFeedback(null);
+  };
+
+  // One timer for both slots: after SUCCESS_VISIBLE_MS no success message stays on screen.
+  const scheduleSuccessClear = () => {
+    successTimerRef.current = setTimeout(() => {
+      successTimerRef.current = null;
+      setMutation((previous) =>
+        previous?.feedback?.kind === "success"
+          ? { ...previous, feedback: null }
+          : previous,
+      );
+      setInterviewFeedback(null);
+    }, SUCCESS_VISIBLE_MS);
+  };
+
+  const changeStatus = (next: ApplicationStatus) => {
+    if (busyRef.current || current?.outcome !== "ok") return;
+    if (current.vm.status === next) return;
+    startBusy();
+    clearSuccess();
     const snapshot = current;
     replaceResult({
       ...snapshot,
@@ -152,14 +203,7 @@ export const useApplicationDetail = (
             message: `Estado cambiado a ${STATUS_LABELS[next]}.`,
           },
         });
-        successTimerRef.current = setTimeout(() => {
-          successTimerRef.current = null;
-          setMutation((previous) =>
-            previous?.feedback?.kind === "success"
-              ? { ...previous, feedback: null }
-              : previous,
-          );
-        }, SUCCESS_VISIBLE_MS);
+        scheduleSuccessClear();
       })
       .catch(() => {
         replaceResult(snapshot);
@@ -169,9 +213,44 @@ export const useApplicationDetail = (
           feedback: { kind: "error", message: STATUS_ERROR_MESSAGE },
         });
       })
-      .finally(() => {
-        busyRef.current = false;
+      .finally(endBusy);
+  };
+
+  // The POST answer is the new truth: nothing is shown before the server confirms (D-13). Rejects
+  // without a request when another mutation is running, the result is not loaded or the values do
+  // not parse; rejects after releasing the busy guard when the request fails, so the dialog can
+  // stay open with its own error. The status move is read from the response, never guessed.
+  const addInterview = async (values: InterviewFormValues): Promise<void> => {
+    if (busyRef.current || current?.outcome !== "ok") {
+      throw new Error("Interview not added: another change is in progress");
+    }
+    const parsed = interviewInputSchema.safeParse(
+      mapInterviewFormToApiInput(values),
+    );
+    if (!parsed.success) throw new Error("Interview not added: invalid values");
+    startBusy();
+    clearSuccess();
+    const snapshot = current;
+    try {
+      const application = await createInterview(applicationId, parsed.data);
+      replaceResult({
+        key,
+        outcome: "ok",
+        vm: mapApplicationFromApiToDetailVm(application),
       });
+      const moved =
+        snapshot.vm.status !== application.status &&
+        application.status === "en_entrevistas";
+      setInterviewFeedback({
+        key,
+        message: moved
+          ? `Ronda añadida. Estado cambiado a ${STATUS_LABELS.en_entrevistas}.`
+          : "Ronda añadida.",
+      });
+      scheduleSuccessClear();
+    } finally {
+      endBusy();
+    }
   };
 
   // One DELETE in flight. After a success the ref stays set: the scene is about to leave.
@@ -198,5 +277,52 @@ export const useApplicationDetail = (
     statusFeedback: currentMutation?.feedback ?? null,
     remove,
     deleteState: deletion?.key === key ? deletion.state : "idle",
+    interviewActions: {
+      busy,
+      feedback:
+        interviewFeedback?.key === key ? interviewFeedback.message : null,
+      add: addInterview,
+    },
   };
 };
+
+interface InterviewFormOptions {
+  initialValues: InterviewFormValues;
+  onSave: (values: InterviewFormValues) => Promise<void>;
+  onInvalid: () => void;
+}
+
+// Form state of the round dialog. It is created inside the dialog content, so every opening
+// starts from the defaults. Errors show on the first submit and then update while typing. A save
+// that rejects keeps the typed values and raises `saveFailed`; the next valid submit clears it.
+export function useInterviewForm({
+  initialValues,
+  onSave,
+  onInvalid,
+}: InterviewFormOptions) {
+  const [saveFailed, setSaveFailed] = useState(false);
+
+  const form = useForm({
+    defaultValues: initialValues,
+    validationLogic: revalidateLogic({
+      mode: "submit",
+      modeAfterSubmission: "change",
+    }),
+    validators: {
+      onDynamic: ({ value }) => validateInterviewForm(value),
+    },
+    onSubmit: async ({ value }) => {
+      setSaveFailed(false);
+      try {
+        await onSave(value);
+      } catch {
+        setSaveFailed(true);
+      }
+    },
+    onSubmitInvalid: onInvalid,
+  });
+
+  return { form, saveFailed };
+}
+
+export type InterviewFormApi = ReturnType<typeof useInterviewForm>["form"];
