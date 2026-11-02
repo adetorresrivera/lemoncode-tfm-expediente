@@ -1044,3 +1044,242 @@ describe("edit a round", () => {
     );
   });
 });
+
+const deleteButton = (n: number) =>
+  screen.findByRole("button", { name: `Eliminar ronda ${n}` });
+
+const openDeleteDialog = async (n: number) => {
+  const opener = await deleteButton(n);
+  await userEvent.click(opener);
+  return { opener, dialog: await screen.findByRole("alertdialog") };
+};
+
+const withoutRound = (id: string) =>
+  makeApplication({
+    interviews: [
+      round({ id: "i1", round: 1, type: "rrhh" }),
+      round({ id: "i2", round: 2, type: "tecnica" }),
+      round({ id: "i3", round: 3, type: "cultural" }),
+    ].filter((item) => item.id !== id),
+  });
+
+describe("delete a round", () => {
+  it("shows a delete button of 44 px whose icon carries no destructive token", async () => {
+    mockFetch({ "GET /api/applications/a1": threeRounds() });
+    renderDetail();
+
+    const button = await deleteButton(2);
+    expect(button.className).toContain("size-11");
+    const icon = button.querySelector("svg");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(icon?.getAttribute("class") ?? "").not.toContain("destructive");
+    expect(
+      screen.getAllByRole("button", { name: /^Eliminar ronda \d$/ }),
+    ).toHaveLength(3);
+  });
+
+  it("asks for confirmation with the round and its type, focusing «Conservar ronda»", async () => {
+    mockFetch({ "GET /api/applications/a1": threeRounds() });
+    renderDetail();
+
+    const { dialog } = await openDeleteDialog(2);
+
+    expect(
+      within(dialog).getByRole("heading", { name: "¿Eliminar la ronda 2?" }),
+    ).toBeInTheDocument();
+    const description = within(dialog).getByText(
+      "Vas a eliminar la ronda 2 (Técnica). Esta acción no se puede deshacer.",
+    );
+    expect(description.className).toContain("break-words");
+    expect(
+      within(dialog).getByRole("button", { name: "Conservar ronda" }),
+    ).toHaveFocus();
+  });
+
+  it("tells two rounds with the same number apart by their type", async () => {
+    mockFetch({
+      "GET /api/applications/a1": makeApplication({
+        interviews: [
+          round({ id: "ia", round: 2, type: "tecnica" }),
+          round({ id: "ib", round: 2, type: "cultural" }),
+        ],
+      }),
+    });
+    renderDetail();
+
+    const buttons = await screen.findAllByRole("button", {
+      name: "Eliminar ronda 2",
+    });
+    await userEvent.click(buttons[0] as HTMLElement);
+    const first = (await screen.findByRole("alertdialog")).textContent;
+    await userEvent.keyboard("{Escape}");
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    await userEvent.click(buttons[1] as HTMLElement);
+    const second = (await screen.findByRole("alertdialog")).textContent;
+
+    expect(first).toContain("(Técnica)");
+    expect(second).toContain("(Cultural)");
+  });
+
+  it.each([
+    [
+      "«Conservar ronda»",
+      async (dialog: HTMLElement) => {
+        await userEvent.click(
+          within(dialog).getByRole("button", { name: "Conservar ronda" }),
+        );
+      },
+    ],
+    [
+      "Escape",
+      async () => {
+        await userEvent.keyboard("{Escape}");
+      },
+    ],
+    [
+      "an overlay click",
+      async () => {
+        const overlay = document.querySelector(
+          '[data-slot="alert-dialog-overlay"]',
+        );
+        await userEvent.click(overlay as HTMLElement);
+      },
+    ],
+  ])(
+    "closes with %s without a request and focuses the delete button",
+    async (_label, close) => {
+      const fetchMock = mockFetch({
+        "GET /api/applications/a1": threeRounds(),
+      });
+      renderDetail();
+      const { opener, dialog } = await openDeleteDialog(2);
+
+      await close(dialog);
+
+      await vi.waitFor(() =>
+        expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+      );
+      expect(opener).toHaveFocus();
+      expect(callsOf(fetchMock, "DELETE")).toHaveLength(0);
+    },
+  );
+
+  it("sends one DELETE and ignores a second click and every close while pending", async () => {
+    const del = deferred();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "DELETE /api/applications/a1/interviews/i2": () => del.promise,
+    });
+    renderDetail();
+    const { dialog } = await openDeleteDialog(2);
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar ronda" }),
+    );
+
+    const confirm = await within(dialog).findByRole("button", {
+      name: "Eliminando…",
+    });
+    expect(confirm).toHaveAttribute("aria-disabled", "true");
+    expect(
+      within(dialog).getByRole("button", { name: "Conservar ronda" }),
+    ).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(confirm);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Conservar ronda" }),
+    );
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(callsOf(fetchMock, "DELETE")).toHaveLength(1);
+    expect(callsOf(fetchMock, "DELETE")[0]?.[0]).toBe(
+      "/api/applications/a1/interviews/i2",
+    );
+
+    del.resolve(jsonResponse(withoutRound("i2")));
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("removes the row, announces it and moves focus to «Añadir ronda»", async () => {
+    mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "DELETE /api/applications/a1/interviews/i2": () =>
+        jsonResponse(withoutRound("i2")),
+    });
+    renderDetail();
+    const { dialog } = await openDeleteDialog(2);
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar ronda" }),
+    );
+
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole("heading", { name: /^Ronda 2/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Ronda 3 · Cultural" }),
+    ).toBeInTheDocument();
+    expect(within(roundsRegion()).getByRole("status")).toHaveTextContent(
+      "Ronda eliminada.",
+    );
+    expect(screen.getByRole("button", { name: "Añadir ronda" })).toHaveFocus();
+  });
+
+  it("keeps the dialog open with an error on a 500 and lets the user confirm again", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "DELETE /api/applications/a1/interviews/i2": serverError,
+    });
+    renderDetail();
+    const { dialog } = await openDeleteDialog(2);
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar ronda" }),
+    );
+
+    expect(
+      await within(dialog).findByText(
+        "No se pudo eliminar la ronda. Inténtalo de nuevo.",
+      ),
+    ).toBeInTheDocument();
+    const confirm = within(dialog).getByRole("button", {
+      name: "Eliminar ronda",
+    });
+    expect(confirm).not.toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(confirm);
+    await vi.waitFor(() =>
+      expect(callsOf(fetchMock, "DELETE")).toHaveLength(2),
+    );
+  });
+
+  it("disables the delete button while a status change is pending", async () => {
+    const patch = deferred();
+    mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "PATCH /api/applications/a1/status": () => patch.promise,
+    });
+    renderDetail();
+    await userEvent.selectOptions(
+      await screen.findByRole("combobox", { name: "Cambiar estado" }),
+      "rechazada",
+    );
+
+    const button = await deleteButton(1);
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(button);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+    patch.resolve(jsonResponse(threeRounds({ status: "rechazada" })));
+    await vi.waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Eliminar ronda 1" }),
+      ).toHaveAttribute("aria-disabled", "false"),
+    );
+  });
+});

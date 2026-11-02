@@ -1,4 +1,4 @@
-import { ChevronDown, Pencil } from "lucide-react";
+import { ChevronDown, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Button } from "@/common/components/ui/button";
 import {
@@ -14,11 +14,12 @@ interface Props {
   // True while any mutation of the detail is in flight: the actions stay in place but do nothing.
   busy: boolean;
   onEdit: (opener: HTMLElement, interview: InterviewVm) => void;
+  onDelete: (opener: HTMLElement, interview: InterviewVm) => void;
 }
 
 // One round: title with its actions, then date, mode and outcome, and the notes folded when there are any. Each
 // value of the meta row is preceded by an `sr-only` prefix so a screen reader names what it reads.
-export function InterviewItem({ interview, busy, onEdit }: Props) {
+export function InterviewItem({ interview, busy, onEdit, onDelete }: Props) {
   const [notesOpen, setNotesOpen] = useState(false);
   const hasNotes = interview.notes !== null && interview.notes !== "";
 
@@ -42,6 +43,20 @@ export function InterviewItem({ interview, busy, onEdit }: Props) {
             }}
           >
             <Pencil aria-hidden="true" strokeWidth={1.5} />
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="size-11 aria-disabled:pointer-events-none aria-disabled:opacity-50"
+            aria-label={`Eliminar ronda ${interview.round}`}
+            aria-disabled={busy}
+            onClick={(event) => {
+              if (busy) return;
+              onDelete(event.currentTarget, interview);
+            }}
+          >
+            <Trash2 aria-hidden="true" strokeWidth={1.5} />
           </Button>
         </div>
       </div>

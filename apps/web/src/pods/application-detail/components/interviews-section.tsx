@@ -8,6 +8,7 @@ import type {
   InterviewFormValues,
   InterviewVm,
 } from "../application-detail.vm";
+import { InterviewDeleteDialog } from "./interview-delete-dialog";
 import { InterviewDialog } from "./interview-dialog";
 import { InterviewItem } from "./interview-item";
 
@@ -30,6 +31,13 @@ export function InterviewsSection({ interviews, newValues, actions }: Props) {
   // Radix returns focus only to a Trigger; the dialog is controlled and trigger-less, so the
   // opener is stored on click and focused again in `onCloseAutoFocus`.
   const openerRef = useRef<HTMLElement | null>(null);
+  // Delete confirmation: the round, a local failure flag and the opener of that dialog. After a
+  // completed delete the opener is gone, so focus moves to «Añadir ronda» instead.
+  const [pendingDelete, setPendingDelete] = useState<InterviewVm | null>(null);
+  const [deleteFailed, setDeleteFailed] = useState(false);
+  const deleteOpenerRef = useRef<HTMLElement | null>(null);
+  const deletedRef = useRef(false);
+  const addRef = useRef<HTMLButtonElement>(null);
 
   const closeDialog = () =>
     setDialog((previous) => ({ ...previous, open: false }));
@@ -47,6 +55,7 @@ export function InterviewsSection({ interviews, newValues, actions }: Props) {
           Rondas de entrevista
         </h2>
         <Button
+          ref={addRef}
           type="button"
           variant="outline"
           className="h-11 aria-disabled:pointer-events-none aria-disabled:opacity-50"
@@ -83,6 +92,12 @@ export function InterviewsSection({ interviews, newValues, actions }: Props) {
                 openerRef.current = opener;
                 setDialog({ open: true, mode: "edit", interview: target });
               }}
+              onDelete={(opener, target) => {
+                deleteOpenerRef.current = opener;
+                deletedRef.current = false;
+                setDeleteFailed(false);
+                setPendingDelete(target);
+              }}
             />
           ))}
         </ol>
@@ -115,6 +130,32 @@ export function InterviewsSection({ interviews, newValues, actions }: Props) {
           event.preventDefault();
           const opener = openerRef.current;
           if (opener?.isConnected === true) opener.focus();
+        }}
+      />
+      <InterviewDeleteDialog
+        interview={pendingDelete}
+        deleting={actions.busy}
+        failed={deleteFailed}
+        onConfirm={() => {
+          if (pendingDelete === null) return;
+          setDeleteFailed(false);
+          actions.remove(pendingDelete.id).then(
+            () => {
+              deletedRef.current = true;
+              setPendingDelete(null);
+            },
+            () => setDeleteFailed(true),
+          );
+        }}
+        onClose={() => setPendingDelete(null)}
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          const opener = deleteOpenerRef.current;
+          if (!deletedRef.current && opener?.isConnected === true) {
+            opener.focus();
+          } else {
+            addRef.current?.focus();
+          }
         }}
       />
     </section>

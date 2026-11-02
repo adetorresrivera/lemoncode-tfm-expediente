@@ -64,6 +64,8 @@ export interface InterviewActions {
   feedback: string | null;
   add: (values: InterviewFormValues) => Promise<void>;
   update: (interviewId: string, values: InterviewFormValues) => Promise<void>;
+  // Resolves on success and rejects on failure so the confirmation can stay open with its error.
+  remove: (interviewId: string) => Promise<void>;
 }
 
 export interface ApplicationDetailVm {
