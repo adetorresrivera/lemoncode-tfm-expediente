@@ -126,6 +126,7 @@ export function ApplicationDetailComponent({
           <StatusChange
             value={vm.status}
             pending={statusPending}
+            locked={interviewActions.busy}
             feedback={statusFeedback}
             onChange={onChangeStatus}
           />

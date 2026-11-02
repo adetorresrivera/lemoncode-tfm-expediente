@@ -1283,3 +1283,146 @@ describe("delete a round", () => {
     );
   });
 });
+
+const statusSelect = () =>
+  screen.getByRole("combobox", { name: "Cambiar estado", hidden: true });
+
+// The select sits behind the open modal (aria-hidden, pointer-events off), so the change is fired
+// directly instead of going through the pointer.
+const chooseStatus = (value: string) =>
+  fireEvent.change(statusSelect(), { target: { value } });
+
+describe("one change at a time across the detail", () => {
+  it("locks «Cambiar estado» while a round is being added and sends no PATCH", async () => {
+    const post = deferred();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "POST /api/applications/a1/interviews": () => post.promise,
+      "PATCH /api/applications/a1/status": () =>
+        jsonResponse(makeApplication({ status: "rechazada" })),
+    });
+    renderDetail();
+    const { dialog } = await openAddDialog();
+    await userEvent.selectOptions(
+      within(dialog).getByRole("combobox", { name: /Tipo/ }),
+      "tecnica",
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Guardar ronda" }),
+    );
+
+    await vi.waitFor(() =>
+      expect(statusSelect()).toHaveAttribute("aria-disabled", "true"),
+    );
+    expect(statusSelect()).toHaveAttribute("aria-busy", "false");
+    chooseStatus("rechazada");
+    expect(callsOf(fetchMock, "PATCH")).toHaveLength(0);
+
+    post.resolve(
+      jsonResponse(
+        makeApplication({ interviews: [round({ id: "i1", round: 1 })] }),
+        201,
+      ),
+    );
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(statusSelect()).toHaveAttribute("aria-disabled", "false");
+    expect(callsOf(fetchMock, "PATCH")).toHaveLength(0);
+  });
+
+  it("locks «Cambiar estado» while a round is being edited", async () => {
+    const put = deferred();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "PUT /api/applications/a1/interviews/i2": () => put.promise,
+      "PATCH /api/applications/a1/status": () =>
+        jsonResponse(threeRounds({ status: "rechazada" })),
+    });
+    renderDetail();
+    const { dialog } = await openEditDialog(2);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Guardar ronda" }),
+    );
+
+    await vi.waitFor(() =>
+      expect(statusSelect()).toHaveAttribute("aria-disabled", "true"),
+    );
+    expect(statusSelect()).toHaveAttribute("aria-busy", "false");
+    chooseStatus("rechazada");
+    expect(callsOf(fetchMock, "PATCH")).toHaveLength(0);
+
+    put.resolve(jsonResponse(threeRounds()));
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(statusSelect()).toHaveAttribute("aria-disabled", "false");
+  });
+
+  it("locks «Cambiar estado» while a round is being deleted", async () => {
+    const del = deferred();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "DELETE /api/applications/a1/interviews/i2": () => del.promise,
+      "PATCH /api/applications/a1/status": () =>
+        jsonResponse(threeRounds({ status: "rechazada" })),
+    });
+    renderDetail();
+    const { dialog } = await openDeleteDialog(2);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar ronda" }),
+    );
+
+    await vi.waitFor(() =>
+      expect(statusSelect()).toHaveAttribute("aria-disabled", "true"),
+    );
+    expect(statusSelect()).toHaveAttribute("aria-busy", "false");
+    chooseStatus("rechazada");
+    expect(callsOf(fetchMock, "PATCH")).toHaveLength(0);
+
+    del.resolve(jsonResponse(withoutRound("i2")));
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(statusSelect()).toHaveAttribute("aria-disabled", "false");
+  });
+
+  it("makes every round control unavailable while a status change is pending", async () => {
+    const patch = deferred();
+    mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "PATCH /api/applications/a1/status": () => patch.promise,
+    });
+    renderDetail();
+    await userEvent.selectOptions(
+      await screen.findByRole("combobox", { name: "Cambiar estado" }),
+      "rechazada",
+    );
+
+    const add = screen.getByRole("button", { name: "Añadir ronda" });
+    const edit = await editButton(1);
+    const remove = await deleteButton(1);
+    expect(statusSelect()).toHaveAttribute("aria-busy", "true");
+    for (const control of [add, edit, remove]) {
+      expect(control).toHaveAttribute("aria-disabled", "true");
+      await userEvent.click(control);
+    }
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+    patch.resolve(jsonResponse(threeRounds({ status: "rechazada" })));
+    await vi.waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Añadir ronda" }),
+      ).toHaveAttribute("aria-disabled", "false"),
+    );
+    expect(
+      screen.getByRole("button", { name: "Editar ronda 1" }),
+    ).toHaveAttribute("aria-disabled", "false");
+    expect(
+      screen.getByRole("button", { name: "Eliminar ronda 1" }),
+    ).toHaveAttribute("aria-disabled", "false");
+    await userEvent.click(screen.getByRole("button", { name: "Añadir ronda" }));
+    expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+});
