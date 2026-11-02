@@ -6,6 +6,7 @@ import type { HttpErrorCode } from "@/core/http/http-client";
 import type {
   ApplicationDetailVm,
   DeleteState,
+  InterviewActions,
   RenderEditLink,
   RenderListLink,
   StatusFeedback,
@@ -17,6 +18,7 @@ import {
   DetailSkeleton,
 } from "./components/detail-states";
 import { DeleteDialog } from "./components/delete-dialog";
+import { InterviewsSection } from "./components/interviews-section";
 import { NotesSection } from "./components/notes-section";
 import { OfferDataSection } from "./components/offer-data-section";
 import { OfferTextSection } from "./components/offer-text-section";
@@ -34,6 +36,7 @@ interface Props {
   statusFeedback: StatusFeedback | null;
   deleteState: DeleteState;
   onDelete: () => void;
+  interviewActions: InterviewActions;
   renderListLink: RenderListLink;
   renderEditLink: RenderEditLink;
   notice: string;
@@ -50,6 +53,7 @@ export function ApplicationDetailComponent({
   statusFeedback,
   deleteState,
   onDelete,
+  interviewActions,
   renderListLink,
   renderEditLink,
   notice,
@@ -138,6 +142,11 @@ export function ApplicationDetailComponent({
         <div className="flex min-w-0 flex-col gap-6 lg:col-span-2">
           <OfferDataSection vm={vm} />
           <TagsSection groups={vm.tagGroups} />
+          <InterviewsSection
+            interviews={vm.interviews}
+            newValues={vm.newInterviewValues}
+            actions={interviewActions}
+          />
           <NotesSection notes={vm.notes} />
           {vm.offerText ? <OfferTextSection offerText={vm.offerText} /> : null}
         </div>

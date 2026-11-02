@@ -1,4 +1,9 @@
-import type { ApplicationStatus } from "@tfm/contracts";
+import type {
+  ApplicationStatus,
+  InterviewMode,
+  InterviewOutcome,
+  InterviewType,
+} from "@tfm/contracts";
 import type { ReactElement, ReactNode } from "react";
 
 export interface DetailTagVm {
@@ -14,6 +19,41 @@ export interface DetailTagGroupVm {
 export interface DetailHistoryEntryVm {
   status: ApplicationStatus;
   atLabel: string;
+}
+
+// One interview round as the section shows it. Declared field by field: the view model never
+// derives from the API model.
+export interface InterviewVm {
+  id: string;
+  round: number;
+  title: string;
+  type: InterviewType;
+  typeLabel: string;
+  scheduledAt: string | null;
+  mode: InterviewMode;
+  outcome: InterviewOutcome;
+  notes: string | null;
+}
+
+// Every control of the round dialog holds a string (or a closed enum value), as the form does.
+export interface InterviewFormValues {
+  type: InterviewType | "";
+  round: string;
+  scheduledAt: string;
+  mode: InterviewMode;
+  outcome: InterviewOutcome;
+  notes: string;
+}
+
+export type InterviewFormField = keyof InterviewFormValues;
+
+// What the section can do with the rounds. `busy` is true while any mutation of the detail is in
+// flight (status or round); `add` resolves on success and rejects on failure so the dialog can
+// stay open with its own error.
+export interface InterviewActions {
+  busy: boolean;
+  feedback: string | null;
+  add: (values: InterviewFormValues) => Promise<void>;
 }
 
 export interface ApplicationDetailVm {
@@ -32,6 +72,9 @@ export interface ApplicationDetailVm {
   offerText: string | null;
   // Newest first: the first entry is the current status.
   history: DetailHistoryEntryVm[];
+  interviews: InterviewVm[];
+  // Defaults of the add dialog (next round number computed from the stored rounds).
+  newInterviewValues: InterviewFormValues;
 }
 
 // Feedback of a mutation shown in an always-mounted polite status slot.

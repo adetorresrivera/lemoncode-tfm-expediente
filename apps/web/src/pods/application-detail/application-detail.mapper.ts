@@ -1,6 +1,12 @@
-import type { Application, ApplicationStatus } from "@tfm/contracts";
+import {
+  interviewInputSchema,
+  type Application,
+  type ApplicationStatus,
+  type Interview,
+} from "@tfm/contracts";
 import {
   CONTRACT_TYPE_LABELS,
+  INTERVIEW_TYPE_LABELS,
   SENIORITY_LABELS,
   WORK_MODE_LABELS,
 } from "@/common/lib/enum-labels";
@@ -8,6 +14,9 @@ import { formatDate, formatSalaryRange } from "@/common/lib/format";
 import type {
   ApplicationDetailVm,
   DetailTagGroupVm,
+  InterviewFormField,
+  InterviewFormValues,
+  InterviewVm,
 } from "./application-detail.vm";
 
 // Only http and https become links. The contract already restricts new data; this also covers
@@ -57,6 +66,104 @@ const buildTagGroups = (application: Application): DetailTagGroupVm[] => {
   return groups.filter((group) => group.tags.length > 0);
 };
 
+export const mapInterviewFromApiToVm = (interview: Interview): InterviewVm => {
+  const typeLabel = INTERVIEW_TYPE_LABELS[interview.type];
+  return {
+    id: interview.id,
+    round: interview.round,
+    title: `Ronda ${interview.round} · ${typeLabel}`,
+    type: interview.type,
+    typeLabel,
+    scheduledAt: interview.scheduledAt,
+    mode: interview.mode,
+    outcome: interview.outcome,
+    notes: interview.notes,
+  };
+};
+
+// Highest stored round + 1 (1 without rounds), capped so the number stays a valid contract value.
+export const nextInterviewRound = (
+  interviews: readonly { round: number }[],
+): number =>
+  Math.min(
+    interviews.reduce((highest, { round }) => Math.max(highest, round), 0) + 1,
+    Number.MAX_SAFE_INTEGER,
+  );
+
+// Defaults of the add dialog (D-19): no type chosen, the next round, online and pending.
+export const newInterviewFormValues = (
+  nextRound: number,
+): InterviewFormValues => ({
+  type: "",
+  round: String(nextRound),
+  scheduledAt: "",
+  mode: "online",
+  outcome: "pendiente",
+  notes: "",
+});
+
+// The API draft of the round form: loose values that the contracts schema then validates.
+export interface InterviewInputDraft {
+  type: string;
+  round?: number;
+  scheduledAt: string | null;
+  mode: string;
+  outcome: string;
+  notes: string | null;
+}
+
+export const mapInterviewFormToApiInput = (
+  values: InterviewFormValues,
+): InterviewInputDraft => {
+  const round = values.round.trim();
+  return {
+    type: values.type,
+    // An emptied «Ronda» is left out: the API assigns the next number (D-09).
+    ...(round !== "" ? { round: Number(round) } : {}),
+    scheduledAt: values.scheduledAt === "" ? null : values.scheduledAt,
+    mode: values.mode,
+    outcome: values.outcome,
+    // The contract trims but keeps "": a blank note is sent as null.
+    notes: values.notes.trim() === "" ? null : values.notes,
+  };
+};
+
+const isInterviewFormField = (name: unknown): name is InterviewFormField =>
+  name === "type" ||
+  name === "round" ||
+  name === "scheduledAt" ||
+  name === "mode" ||
+  name === "outcome" ||
+  name === "notes";
+
+// Fixed Spanish copy per field: the contracts' own text and the typed value are never shown.
+const interviewFieldMessage = (field: InterviewFormField): string => {
+  if (field === "type") return "Elige un tipo de ronda.";
+  if (field === "round") {
+    return "La ronda debe ser un número entero de 1 o más.";
+  }
+  return "Revisa este campo.";
+};
+
+// Wraps the contracts schema for TanStack Form: first message per field, or undefined when valid.
+export const validateInterviewForm = (
+  values: InterviewFormValues,
+): { fields: Partial<Record<InterviewFormField, string>> } | undefined => {
+  const result = interviewInputSchema.safeParse(
+    mapInterviewFormToApiInput(values),
+    { reportInput: true },
+  );
+  if (result.success) return undefined;
+  const fields: Partial<Record<InterviewFormField, string>> = {};
+  for (const issue of result.error.issues) {
+    const field = issue.path[0];
+    if (isInterviewFormField(field) && fields[field] === undefined) {
+      fields[field] = interviewFieldMessage(field);
+    }
+  }
+  return { fields };
+};
+
 export const mapApplicationFromApiToDetailVm = (
   application: Application,
 ): ApplicationDetailVm => {
@@ -85,6 +192,10 @@ export const mapApplicationFromApiToDetailVm = (
     history: application.statusHistory
       .map((entry) => ({ status: entry.status, atLabel: formatDate(entry.at) }))
       .reverse(),
+    interviews: application.interviews.map(mapInterviewFromApiToVm),
+    newInterviewValues: newInterviewFormValues(
+      nextInterviewRound(application.interviews),
+    ),
   };
 };
 

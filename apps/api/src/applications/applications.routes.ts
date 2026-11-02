@@ -1,6 +1,7 @@
 import {
   applicationInputSchema,
   applicationQuerySchema,
+  interviewInputSchema,
   statusChangeSchema,
 } from "@tfm/contracts";
 import { Hono } from "hono";
@@ -42,6 +43,12 @@ export function applicationsRoutes(service: ApplicationsService): Hono {
     const id = parseObjectId(c.req.param("id"));
     const { status } = statusChangeSchema.parse(await c.req.json());
     return c.json(await service.changeStatus(id, status));
+  });
+
+  routes.post("/:id/interviews", async (c) => {
+    const id = parseObjectId(c.req.param("id"));
+    const input = interviewInputSchema.parse(await c.req.json());
+    return c.json(await service.addInterview(id, input), 201);
   });
 
   routes.delete("/:id", async (c) => {

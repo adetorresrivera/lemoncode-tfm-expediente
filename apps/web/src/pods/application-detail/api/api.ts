@@ -2,6 +2,7 @@ import {
   applicationSchema,
   type Application,
   type ApplicationStatus,
+  type InterviewInput,
 } from "@tfm/contracts";
 import { z } from "zod";
 import { request } from "@/core/http/http-client";
@@ -31,4 +32,15 @@ export const patchApplicationStatus = (
     `/api/applications/${encodeURIComponent(id)}/status`,
     applicationSchema,
     { method: "PATCH", body: { status } },
+  );
+
+// The server answers 201 with the whole updated application: rounds, status and history.
+export const createInterview = (
+  id: string,
+  input: InterviewInput,
+): Promise<Application> =>
+  request(
+    `/api/applications/${encodeURIComponent(id)}/interviews`,
+    applicationSchema,
+    { method: "POST", body: input },
   );

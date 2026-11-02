@@ -85,6 +85,15 @@ describe("application-detail mapper", () => {
       notes: null,
       offerText: null,
       history: [{ status: "guardada", atLabel: "12 oct. 2026" }],
+      interviews: [],
+      newInterviewValues: {
+        type: "",
+        round: "1",
+        scheduledAt: "",
+        mode: "online",
+        outcome: "pendiente",
+        notes: "",
+      },
     });
   });
 
@@ -318,6 +327,13 @@ describe("ApplicationDetailContainer header", () => {
   });
 });
 
+// The section is idle: no request in flight and nothing to announce.
+const idleInterviewActions = {
+  busy: false,
+  feedback: null,
+  add: async () => {},
+};
+
 const renderOk = (overrides: Record<string, unknown> = {}) =>
   render(
     <ApplicationDetailComponent
@@ -333,6 +349,7 @@ const renderOk = (overrides: Record<string, unknown> = {}) =>
       statusFeedback={null}
       deleteState="idle"
       onDelete={() => {}}
+      interviewActions={idleInterviewActions}
       renderListLink={renderListLink}
       renderEditLink={renderEditLink}
       notice=""
@@ -532,16 +549,12 @@ describe("detail sections", () => {
     expect(list.className).not.toMatch(/overflow|max-h/);
   });
 
-  it("never renders interview rounds or linked documents", () => {
+  it("never renders linked documents", () => {
     renderOk(FULL);
 
     expect(
-      screen.queryByRole("heading", { name: /ronda|entrevista/i }),
-    ).not.toBeInTheDocument();
-    expect(
       screen.queryByRole("heading", { name: /documento|CV|carta/i }),
     ).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /ronda/i })).toBeNull();
   });
 
   it("wraps a long title and company instead of overflowing", () => {
@@ -573,6 +586,7 @@ const renderState = (
       statusFeedback={null}
       deleteState="idle"
       onDelete={() => {}}
+      interviewActions={idleInterviewActions}
       renderListLink={renderListLink}
       renderEditLink={renderEditLink}
       notice=""
@@ -630,6 +644,7 @@ describe("detail page states", () => {
         statusFeedback={null}
         deleteState="idle"
         onDelete={() => {}}
+        interviewActions={idleInterviewActions}
         renderListLink={renderListLink}
         renderEditLink={renderEditLink}
         notice=""
@@ -690,8 +705,8 @@ const renderDetail = (onDeleted: () => void = () => {}) =>
     />,
   );
 
-// The loaded view has two polite regions: the status-change feedback (inside the header) and the
-// arrival notice line that follows the header.
+// The loaded view has three polite regions: the status-change feedback (inside the header), the
+// arrival notice line that follows the header and the rounds section's feedback line.
 const feedbackLine = (): HTMLElement => {
   const [first] = screen.getAllByRole("status");
   if (first === undefined) throw new Error("No status region rendered");
@@ -1077,7 +1092,118 @@ describe("arrival notice", () => {
 
     await screen.findByRole("heading", { level: 1 });
     const regions = screen.getAllByRole("status");
-    expect(regions).toHaveLength(2);
+    expect(regions).toHaveLength(3);
     expect(regions[1]).toBeEmptyDOMElement();
+    expect(regions[2]).toBeEmptyDOMElement();
+  });
+});
+
+const postCalls = (fetchMock: ReturnType<typeof mockFetch>) =>
+  fetchMock.mock.calls.filter(([, init]) => init?.method === "POST");
+
+const round = (overrides: Record<string, unknown> = {}) => ({
+  id: "i1",
+  round: 1,
+  type: "tecnica",
+  scheduledAt: null,
+  mode: "online",
+  notes: null,
+  outcome: "pendiente",
+  ...overrides,
+});
+
+const interviewedApplication = () =>
+  makeApplication({
+    status: "en_entrevistas",
+    appliedAt: "2026-10-30T09:00:00.000Z",
+    updatedAt: "2026-10-31T09:00:00.000Z",
+    statusHistory: [
+      { status: "guardada", at: "2026-10-12T10:00:00.000Z" },
+      { status: "enviada", at: "2026-10-30T09:00:00.000Z" },
+      { status: "en_entrevistas", at: "2026-10-31T09:00:00.000Z" },
+    ],
+    interviews: [round()],
+  });
+
+const openAddDialog = async () => {
+  const opener = await screen.findByRole("button", { name: "Añadir ronda" });
+  await userEvent.click(opener);
+  return { opener, dialog: await screen.findByRole("dialog") };
+};
+
+const roundsRegion = () =>
+  screen.getByRole("region", { name: "Rondas de entrevista" });
+
+describe("interview rounds", () => {
+  it("adds a round through the dialog and replaces rounds, badge, history and feedback with the response", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": sentApplication(),
+      "POST /api/applications/a1/interviews": () =>
+        jsonResponse(interviewedApplication(), 201),
+    });
+    renderDetail();
+    const header = (await screen.findByRole("heading", { level: 1 })).closest(
+      "header",
+    ) as HTMLElement;
+    expect(
+      within(roundsRegion()).getByText(
+        "Aún no hay rondas. Añade la primera cuando te convoquen.",
+      ),
+    ).toBeInTheDocument();
+
+    const { opener, dialog } = await openAddDialog();
+
+    expect(
+      within(dialog).getByRole("heading", { name: "Añadir ronda" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText(
+        "Anota los datos de la entrevista. Solo el tipo es obligatorio.",
+      ),
+    ).toBeInTheDocument();
+    const type = within(dialog).getByRole("combobox", { name: /Tipo/ });
+    expect(type).toHaveValue("");
+    expect(type).toHaveFocus();
+    expect(
+      within(dialog).getByRole("spinbutton", { name: "Ronda" }),
+    ).toHaveValue(1);
+
+    await userEvent.selectOptions(type, "tecnica");
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Guardar ronda" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    const posts = postCalls(fetchMock);
+    expect(posts).toHaveLength(1);
+    expect(String(posts[0]?.[0])).toBe("/api/applications/a1/interviews");
+    expect(JSON.parse(String(posts[0]?.[1]?.body))).toStrictEqual({
+      type: "tecnica",
+      round: 1,
+      scheduledAt: null,
+      mode: "online",
+      outcome: "pendiente",
+      notes: null,
+    });
+    expect(
+      within(roundsRegion()).getByRole("heading", {
+        level: 3,
+        name: "Ronda 1 · Técnica",
+      }),
+    ).toBeInTheDocument();
+    expect(
+      within(header).getByText("En entrevistas", { selector: "span" }),
+    ).toBeInTheDocument();
+    const entries = within(
+      screen.getByRole("region", { name: "Historial de estados" }),
+    ).getAllByRole("listitem");
+    expect(entries).toHaveLength(3);
+    expect(entries[0]).toHaveTextContent("En entrevistas");
+    expect(within(roundsRegion()).getByRole("status")).toHaveTextContent(
+      "Ronda añadida. Estado cambiado a En entrevistas.",
+    );
+    await waitFor(() => expect(opener).toHaveFocus());
   });
 });

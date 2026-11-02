@@ -30,6 +30,7 @@ export function ApplicationDetailContainer({
     statusFeedback,
     remove,
     deleteState,
+    interviewActions,
   } = useApplicationDetail(applicationId, { onDeleted });
   const title = vm?.title;
 
@@ -48,6 +49,7 @@ export function ApplicationDetailContainer({
       statusFeedback={statusFeedback}
       deleteState={deleteState}
       onDelete={remove}
+      interviewActions={interviewActions}
       renderListLink={renderListLink}
       renderEditLink={renderEditLink}
       notice={notice}
