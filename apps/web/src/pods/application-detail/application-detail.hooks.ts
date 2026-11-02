@@ -7,8 +7,10 @@ import { HttpError, type HttpErrorCode } from "@/core/http/http-client";
 import {
   createInterview,
   deleteApplication,
+  deleteInterview,
   getApplication,
   patchApplicationStatus,
+  updateInterview,
 } from "./api/api";
 import {
   mapApplicationFromApiToDetailVm,
@@ -20,6 +22,7 @@ import type {
   ApplicationDetailVm,
   DeleteState,
   InterviewActions,
+  InterviewFormMode,
   InterviewFormValues,
   StatusFeedback,
 } from "./application-detail.vm";
@@ -253,6 +256,66 @@ export const useApplicationDetail = (
     }
   };
 
+  // Same contract as `addInterview` for the PUT of one round. The hook never derives a round
+  // number: an empty «Ronda» is rejected here and the edit form already blocks it (D-28).
+  const updateRound = async (
+    interviewId: string,
+    values: InterviewFormValues,
+  ): Promise<void> => {
+    if (busyRef.current || current?.outcome !== "ok") {
+      throw new Error("Interview not updated: another change is in progress");
+    }
+    if (values.round.trim() === "") {
+      throw new Error("Interview not updated: the round is required");
+    }
+    const parsed = interviewInputSchema.safeParse(
+      mapInterviewFormToApiInput(values),
+    );
+    if (!parsed.success) {
+      throw new Error("Interview not updated: invalid values");
+    }
+    startBusy();
+    clearSuccess();
+    try {
+      const application = await updateInterview(
+        applicationId,
+        interviewId,
+        parsed.data,
+      );
+      replaceResult({
+        key,
+        outcome: "ok",
+        vm: mapApplicationFromApiToDetailVm(application),
+      });
+      setInterviewFeedback({ key, message: "Ronda actualizada." });
+      scheduleSuccessClear();
+    } finally {
+      endBusy();
+    }
+  };
+
+  // Same contract for the DELETE of one round: the answer replaces the view, the other rounds keep
+  // their numbers and the status is whatever the server returns (D-08).
+  const removeRound = async (interviewId: string): Promise<void> => {
+    if (busyRef.current || current?.outcome !== "ok") {
+      throw new Error("Interview not deleted: another change is in progress");
+    }
+    startBusy();
+    clearSuccess();
+    try {
+      const application = await deleteInterview(applicationId, interviewId);
+      replaceResult({
+        key,
+        outcome: "ok",
+        vm: mapApplicationFromApiToDetailVm(application),
+      });
+      setInterviewFeedback({ key, message: "Ronda eliminada." });
+      scheduleSuccessClear();
+    } finally {
+      endBusy();
+    }
+  };
+
   // One DELETE in flight. After a success the ref stays set: the scene is about to leave.
   const remove = () => {
     if (deletingRef.current) return;
@@ -282,12 +345,15 @@ export const useApplicationDetail = (
       feedback:
         interviewFeedback?.key === key ? interviewFeedback.message : null,
       add: addInterview,
+      update: updateRound,
+      remove: removeRound,
     },
   };
 };
 
 interface InterviewFormOptions {
   initialValues: InterviewFormValues;
+  mode: InterviewFormMode;
   onSave: (values: InterviewFormValues) => Promise<void>;
   onInvalid: () => void;
 }
@@ -297,6 +363,7 @@ interface InterviewFormOptions {
 // that rejects keeps the typed values and raises `saveFailed`; the next valid submit clears it.
 export function useInterviewForm({
   initialValues,
+  mode,
   onSave,
   onInvalid,
 }: InterviewFormOptions) {
@@ -309,7 +376,7 @@ export function useInterviewForm({
       modeAfterSubmission: "change",
     }),
     validators: {
-      onDynamic: ({ value }) => validateInterviewForm(value),
+      onDynamic: ({ value }) => validateInterviewForm(value, mode),
     },
     onSubmit: async ({ value }) => {
       setSaveFailed(false);

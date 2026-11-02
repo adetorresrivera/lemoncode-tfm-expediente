@@ -1,10 +1,18 @@
 import { applicationSchema } from "@tfm/contracts";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  renderHook,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { jsonResponse, mockFetch } from "@/test/mock-fetch";
 import { ApplicationDetailContainer } from "./application-detail.container";
+import { useApplicationDetail } from "./application-detail.hooks";
 import {
   mapApplicationFromApiToDetailVm,
   mapInterviewFormToApiInput,
@@ -655,5 +663,623 @@ describe("round dialog fields", () => {
       "",
     );
     expect(within(dialog).getByText("0 / 5.000")).toBeInTheDocument();
+  });
+});
+
+const deferred = () => {
+  let resolve: (response: Response) => void = () => {};
+  const promise = new Promise<Response>((r) => {
+    resolve = r;
+  });
+  return { promise, resolve };
+};
+
+const serverError = () =>
+  jsonResponse({ error: { code: "INTERNAL_ERROR", message: "x" } }, 500);
+
+const callsOf = (fetchMock: ReturnType<typeof mockFetch>, method: string) =>
+  fetchMock.mock.calls.filter(([, init]) => init?.method === method);
+
+const threeRounds = (overrides: Record<string, unknown> = {}) =>
+  makeApplication({
+    interviews: [
+      round({
+        id: "i1",
+        round: 1,
+        type: "rrhh",
+        scheduledAt: "2026-11-03T08:00:00.000Z",
+        notes: "Primera",
+      }),
+      round({
+        id: "i2",
+        round: 2,
+        type: "tecnica",
+        scheduledAt: "2026-11-05T09:30:00.000Z",
+        mode: "presencial",
+        outcome: "superada",
+        notes: "Salió bien",
+      }),
+      round({ id: "i3", round: 3, type: "cultural" }),
+    ],
+    ...overrides,
+  });
+
+const editButton = (n: number) =>
+  screen.findByRole("button", { name: `Editar ronda ${n}` });
+
+const openEditDialog = async (n: number) => {
+  const opener = await editButton(n);
+  await userEvent.click(opener);
+  return { opener, dialog: await screen.findByRole("dialog") };
+};
+
+const roundField = (dialog: HTMLElement) =>
+  within(dialog).getByRole("spinbutton", { name: /^Ronda/ });
+
+describe("round row actions", () => {
+  it("shows an edit button of 44 px with a decorative icon on every row", async () => {
+    mockFetch({ "GET /api/applications/a1": threeRounds() });
+    renderDetail();
+
+    const button = await editButton(2);
+    expect(button.className).toContain("size-11");
+    expect(button).toHaveAttribute("type", "button");
+    expect(button.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(
+      screen.getAllByRole("button", { name: /^Editar ronda \d$/ }),
+    ).toHaveLength(3);
+  });
+
+  it("keeps the title wrapping and the actions in place", async () => {
+    mockFetch({ "GET /api/applications/a1": threeRounds() });
+    renderDetail();
+
+    const button = await editButton(1);
+    const heading = within(await roundsList()).getAllByRole("heading", {
+      level: 3,
+    })[0];
+    expect(heading?.className).toContain("break-words");
+    expect(button.parentElement?.className).toContain("shrink-0");
+  });
+});
+
+describe("edit a round", () => {
+  beforeEach(() => {
+    vi.stubEnv("TZ", "Europe/Madrid");
+  });
+
+  it("opens with the stored values in local time", async () => {
+    mockFetch({ "GET /api/applications/a1": threeRounds() });
+    renderDetail();
+
+    const { dialog } = await openEditDialog(2);
+
+    expect(
+      within(dialog).getByRole("heading", { name: "Editar ronda 2" }),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByText("Cambia los datos de esta ronda."),
+    ).toBeInTheDocument();
+    expect(within(dialog).getByRole("combobox", { name: /Tipo/ })).toHaveValue(
+      "tecnica",
+    );
+    expect(roundField(dialog)).toHaveValue(2);
+    expect(within(dialog).getByLabelText("Fecha y hora")).toHaveValue(
+      "2026-11-05T10:30",
+    );
+    expect(
+      within(dialog).getByRole("radio", { name: "Presencial" }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(
+      within(dialog).getByRole("radio", { name: "Superada" }),
+    ).toHaveAttribute("aria-checked", "true");
+    expect(within(dialog).getByRole("textbox", { name: "Notas" })).toHaveValue(
+      "Salió bien",
+    );
+  });
+
+  it("opens a round without date or notes empty and saves null for both", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "PUT /api/applications/a1/interviews/i3": () =>
+        jsonResponse(threeRounds()),
+    });
+    renderDetail();
+    const { dialog } = await openEditDialog(3);
+
+    expect(within(dialog).getByLabelText("Fecha y hora")).toHaveValue("");
+    expect(within(dialog).getByRole("textbox", { name: "Notas" })).toHaveValue(
+      "",
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Guardar ronda" }),
+    );
+
+    await vi.waitFor(() => expect(callsOf(fetchMock, "PUT")).toHaveLength(1));
+    expect(
+      JSON.parse(String(callsOf(fetchMock, "PUT")[0]?.[1]?.body)),
+    ).toStrictEqual({
+      type: "cultural",
+      round: 3,
+      scheduledAt: null,
+      mode: "online",
+      outcome: "pendiente",
+      notes: null,
+    });
+  });
+
+  it("requires «Ronda» in the edit dialog and shows no hint, unlike the add dialog", async () => {
+    mockFetch({ "GET /api/applications/a1": threeRounds() });
+    renderDetail();
+
+    const { dialog } = await openEditDialog(2);
+
+    const input = roundField(dialog);
+    expect(input).toHaveAttribute("aria-required", "true");
+    expect(
+      dialog.querySelector('label[for="interview-round"]')?.textContent,
+    ).toBe("Ronda *");
+    expect(
+      within(dialog).queryByText("Si lo vacías, se asigna la siguiente."),
+    ).not.toBeInTheDocument();
+    expect(input).not.toHaveAttribute("aria-describedby");
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Descartar cambios" }),
+    );
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    const add = await openAddDialog();
+    expect(
+      within(add.dialog).getByText("Si lo vacías, se asigna la siguiente."),
+    ).toBeInTheDocument();
+    expect(roundField(add.dialog)).not.toHaveAttribute("aria-required");
+  });
+
+  it.each([[""], ["0"]])(
+    "rejects «Ronda» %j with the field error, focus on it and no request",
+    async (value) => {
+      const fetchMock = mockFetch({
+        "GET /api/applications/a1": threeRounds(),
+      });
+      renderDetail();
+      const { dialog } = await openEditDialog(2);
+      const input = roundField(dialog);
+      await userEvent.clear(input);
+      if (value !== "") await userEvent.type(input, value);
+
+      await userEvent.click(
+        within(dialog).getByRole("button", { name: "Guardar ronda" }),
+      );
+
+      expect(
+        await within(dialog).findByText(
+          "La ronda debe ser un número entero de 1 o más.",
+        ),
+      ).toBeInTheDocument();
+      await vi.waitFor(() => expect(roundField(dialog)).toHaveFocus());
+      expect(callsOf(fetchMock, "PUT")).toHaveLength(0);
+    },
+  );
+
+  it("validates «Ronda» by mode in the mapper", () => {
+    expect(
+      validateInterviewForm(baseValues({ round: "" }), "edit"),
+    ).toStrictEqual({
+      fields: { round: "La ronda debe ser un número entero de 1 o más." },
+    });
+    expect(
+      validateInterviewForm(baseValues({ round: "" }), "add"),
+    ).toBeUndefined();
+    expect(
+      validateInterviewForm(baseValues({ round: "  " }), "edit"),
+    ).toBeDefined();
+    expect(
+      validateInterviewForm(baseValues({ round: "2" }), "edit"),
+    ).toBeUndefined();
+  });
+
+  it("fills the edit values of the view model from the stored round", () => {
+    vi.stubEnv("TZ", "Europe/Madrid");
+    const vm = mapApplicationFromApiToDetailVm(threeRounds());
+    expect(vm.interviews[1]?.editValues).toStrictEqual({
+      type: "tecnica",
+      round: "2",
+      scheduledAt: "2026-11-05T10:30",
+      mode: "presencial",
+      outcome: "superada",
+      notes: "Salió bien",
+    });
+    expect(vm.interviews[2]?.editValues.scheduledAt).toBe("");
+    expect(vm.interviews[2]?.editValues.notes).toBe("");
+  });
+
+  it("rejects update without a request when «Ronda» is empty", async () => {
+    const fetchMock = mockFetch({ "GET /api/applications/a1": threeRounds() });
+    const { result } = renderHook(() =>
+      useApplicationDetail("a1", { onDeleted: () => {} }),
+    );
+    await waitFor(() => expect(result.current.status).toBe("ok"));
+    const values = result.current.vm?.interviews[1]?.editValues;
+    if (values === undefined) throw new Error("The application did not load");
+
+    await expect(
+      result.current.interviewActions.update("i2", { ...values, round: "" }),
+    ).rejects.toThrow();
+
+    expect(callsOf(fetchMock, "PUT")).toHaveLength(0);
+  });
+
+  it("saves the change, closes, announces it and returns focus to the row's edit button", async () => {
+    const updated = threeRounds({
+      interviews: [
+        round({ id: "i1", round: 1, type: "rrhh" }),
+        round({
+          id: "i2",
+          round: 2,
+          type: "tecnica",
+          scheduledAt: "2026-11-05T09:30:00.000Z",
+          mode: "presencial",
+          outcome: "no_superada",
+          notes: "Salió bien",
+        }),
+        round({ id: "i3", round: 3, type: "cultural" }),
+      ],
+    });
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "PUT /api/applications/a1/interviews/i2": () => jsonResponse(updated),
+    });
+    renderDetail();
+    const { opener, dialog } = await openEditDialog(2);
+
+    await userEvent.click(
+      within(dialog).getByRole("radio", { name: "No superada" }),
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Guardar ronda" }),
+    );
+
+    await vi.waitFor(() => expect(callsOf(fetchMock, "PUT")).toHaveLength(1));
+    expect(callsOf(fetchMock, "PUT")[0]?.[0]).toBe(
+      "/api/applications/a1/interviews/i2",
+    );
+    expect(
+      JSON.parse(String(callsOf(fetchMock, "PUT")[0]?.[1]?.body)),
+    ).toStrictEqual({
+      type: "tecnica",
+      round: 2,
+      scheduledAt: "2026-11-05T09:30:00.000Z",
+      mode: "presencial",
+      outcome: "no_superada",
+      notes: "Salió bien",
+    });
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(within(roundsRegion()).getByRole("status")).toHaveTextContent(
+      "Ronda actualizada.",
+    );
+    expect(opener).toHaveFocus();
+    expect(
+      within(roundsRegion()).getByText("No superada", { selector: "span" }),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the dialog open with the values and an error when the PUT fails", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "PUT /api/applications/a1/interviews/i2": serverError,
+    });
+    renderDetail();
+    const { dialog } = await openEditDialog(2);
+    await userEvent.click(
+      within(dialog).getByRole("radio", { name: "No superada" }),
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Guardar ronda" }),
+    );
+
+    expect(
+      await within(dialog).findByText(
+        "No se pudo guardar la ronda. Inténtalo de nuevo.",
+      ),
+    ).toBeInTheDocument();
+    expect(callsOf(fetchMock, "PUT")).toHaveLength(1);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("radio", { name: "No superada" }),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("reads «Guardando…» and cannot be closed while the PUT is pending", async () => {
+    const put = deferred();
+    mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "PUT /api/applications/a1/interviews/i2": () => put.promise,
+    });
+    renderDetail();
+    const { dialog } = await openEditDialog(2);
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Guardar ronda" }),
+    );
+
+    expect(
+      await within(dialog).findByRole("button", { name: "Guardando…" }),
+    ).toBeInTheDocument();
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    put.resolve(jsonResponse(threeRounds()));
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("disables the row actions while a status change is pending", async () => {
+    const patch = deferred();
+    mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "PATCH /api/applications/a1/status": () => patch.promise,
+    });
+    renderDetail();
+    await userEvent.selectOptions(
+      await screen.findByRole("combobox", { name: "Cambiar estado" }),
+      "rechazada",
+    );
+
+    const button = await editButton(1);
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(button);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+
+    patch.resolve(jsonResponse(threeRounds({ status: "rechazada" })));
+    await vi.waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Editar ronda 1" }),
+      ).toHaveAttribute("aria-disabled", "false"),
+    );
+  });
+});
+
+const deleteButton = (n: number) =>
+  screen.findByRole("button", { name: `Eliminar ronda ${n}` });
+
+const openDeleteDialog = async (n: number) => {
+  const opener = await deleteButton(n);
+  await userEvent.click(opener);
+  return { opener, dialog: await screen.findByRole("alertdialog") };
+};
+
+const withoutRound = (id: string) =>
+  makeApplication({
+    interviews: [
+      round({ id: "i1", round: 1, type: "rrhh" }),
+      round({ id: "i2", round: 2, type: "tecnica" }),
+      round({ id: "i3", round: 3, type: "cultural" }),
+    ].filter((item) => item.id !== id),
+  });
+
+describe("delete a round", () => {
+  it("shows a delete button of 44 px whose icon carries no destructive token", async () => {
+    mockFetch({ "GET /api/applications/a1": threeRounds() });
+    renderDetail();
+
+    const button = await deleteButton(2);
+    expect(button.className).toContain("size-11");
+    const icon = button.querySelector("svg");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(icon?.getAttribute("class") ?? "").not.toContain("destructive");
+    expect(
+      screen.getAllByRole("button", { name: /^Eliminar ronda \d$/ }),
+    ).toHaveLength(3);
+  });
+
+  it("asks for confirmation with the round and its type, focusing «Conservar ronda»", async () => {
+    mockFetch({ "GET /api/applications/a1": threeRounds() });
+    renderDetail();
+
+    const { dialog } = await openDeleteDialog(2);
+
+    expect(
+      within(dialog).getByRole("heading", { name: "¿Eliminar la ronda 2?" }),
+    ).toBeInTheDocument();
+    const description = within(dialog).getByText(
+      "Vas a eliminar la ronda 2 (Técnica). Esta acción no se puede deshacer.",
+    );
+    expect(description.className).toContain("break-words");
+    expect(
+      within(dialog).getByRole("button", { name: "Conservar ronda" }),
+    ).toHaveFocus();
+  });
+
+  it("tells two rounds with the same number apart by their type", async () => {
+    mockFetch({
+      "GET /api/applications/a1": makeApplication({
+        interviews: [
+          round({ id: "ia", round: 2, type: "tecnica" }),
+          round({ id: "ib", round: 2, type: "cultural" }),
+        ],
+      }),
+    });
+    renderDetail();
+
+    const buttons = await screen.findAllByRole("button", {
+      name: "Eliminar ronda 2",
+    });
+    await userEvent.click(buttons[0] as HTMLElement);
+    const first = (await screen.findByRole("alertdialog")).textContent;
+    await userEvent.keyboard("{Escape}");
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    await userEvent.click(buttons[1] as HTMLElement);
+    const second = (await screen.findByRole("alertdialog")).textContent;
+
+    expect(first).toContain("(Técnica)");
+    expect(second).toContain("(Cultural)");
+  });
+
+  it.each([
+    [
+      "«Conservar ronda»",
+      async (dialog: HTMLElement) => {
+        await userEvent.click(
+          within(dialog).getByRole("button", { name: "Conservar ronda" }),
+        );
+      },
+    ],
+    [
+      "Escape",
+      async () => {
+        await userEvent.keyboard("{Escape}");
+      },
+    ],
+    [
+      "an overlay click",
+      async () => {
+        const overlay = document.querySelector(
+          '[data-slot="alert-dialog-overlay"]',
+        );
+        await userEvent.click(overlay as HTMLElement);
+      },
+    ],
+  ])(
+    "closes with %s without a request and focuses the delete button",
+    async (_label, close) => {
+      const fetchMock = mockFetch({
+        "GET /api/applications/a1": threeRounds(),
+      });
+      renderDetail();
+      const { opener, dialog } = await openDeleteDialog(2);
+
+      await close(dialog);
+
+      await vi.waitFor(() =>
+        expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+      );
+      expect(opener).toHaveFocus();
+      expect(callsOf(fetchMock, "DELETE")).toHaveLength(0);
+    },
+  );
+
+  it("sends one DELETE and ignores a second click and every close while pending", async () => {
+    const del = deferred();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "DELETE /api/applications/a1/interviews/i2": () => del.promise,
+    });
+    renderDetail();
+    const { dialog } = await openDeleteDialog(2);
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar ronda" }),
+    );
+
+    const confirm = await within(dialog).findByRole("button", {
+      name: "Eliminando…",
+    });
+    expect(confirm).toHaveAttribute("aria-disabled", "true");
+    expect(
+      within(dialog).getByRole("button", { name: "Conservar ronda" }),
+    ).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(confirm);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Conservar ronda" }),
+    );
+    await userEvent.keyboard("{Escape}");
+    expect(screen.getByRole("alertdialog")).toBeInTheDocument();
+    expect(callsOf(fetchMock, "DELETE")).toHaveLength(1);
+    expect(callsOf(fetchMock, "DELETE")[0]?.[0]).toBe(
+      "/api/applications/a1/interviews/i2",
+    );
+
+    del.resolve(jsonResponse(withoutRound("i2")));
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("removes the row, announces it and moves focus to «Añadir ronda»", async () => {
+    mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "DELETE /api/applications/a1/interviews/i2": () =>
+        jsonResponse(withoutRound("i2")),
+    });
+    renderDetail();
+    const { dialog } = await openDeleteDialog(2);
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar ronda" }),
+    );
+
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole("heading", { name: /^Ronda 2/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "Ronda 3 · Cultural" }),
+    ).toBeInTheDocument();
+    expect(within(roundsRegion()).getByRole("status")).toHaveTextContent(
+      "Ronda eliminada.",
+    );
+    expect(screen.getByRole("button", { name: "Añadir ronda" })).toHaveFocus();
+  });
+
+  it("keeps the dialog open with an error on a 500 and lets the user confirm again", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "DELETE /api/applications/a1/interviews/i2": serverError,
+    });
+    renderDetail();
+    const { dialog } = await openDeleteDialog(2);
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar ronda" }),
+    );
+
+    expect(
+      await within(dialog).findByText(
+        "No se pudo eliminar la ronda. Inténtalo de nuevo.",
+      ),
+    ).toBeInTheDocument();
+    const confirm = within(dialog).getByRole("button", {
+      name: "Eliminar ronda",
+    });
+    expect(confirm).not.toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(confirm);
+    await vi.waitFor(() =>
+      expect(callsOf(fetchMock, "DELETE")).toHaveLength(2),
+    );
+  });
+
+  it("disables the delete button while a status change is pending", async () => {
+    const patch = deferred();
+    mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "PATCH /api/applications/a1/status": () => patch.promise,
+    });
+    renderDetail();
+    await userEvent.selectOptions(
+      await screen.findByRole("combobox", { name: "Cambiar estado" }),
+      "rechazada",
+    );
+
+    const button = await deleteButton(1);
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    await userEvent.click(button);
+    expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument();
+
+    patch.resolve(jsonResponse(threeRounds({ status: "rechazada" })));
+    await vi.waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Eliminar ronda 1" }),
+      ).toHaveAttribute("aria-disabled", "false"),
+    );
   });
 });

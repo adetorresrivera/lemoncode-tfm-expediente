@@ -51,6 +51,25 @@ export function applicationsRoutes(service: ApplicationsService): Hono {
     return c.json(await service.addInterview(id, input), 201);
   });
 
+  // The round id is a plain string compared by equality, never parsed as an ObjectId: an unknown or
+  // malformed one answers «Ronda no encontrada».
+  routes.put("/:id/interviews/:interviewId", async (c) => {
+    const id = parseObjectId(c.req.param("id"));
+    const input = interviewInputSchema.parse(await c.req.json());
+    return c.json(
+      await service.updateInterview(id, c.req.param("interviewId"), input),
+    );
+  });
+
+  routes.delete("/:id/interviews/:interviewId", async (c) =>
+    c.json(
+      await service.removeInterview(
+        parseObjectId(c.req.param("id")),
+        c.req.param("interviewId"),
+      ),
+    ),
+  );
+
   routes.delete("/:id", async (c) => {
     await service.remove(parseObjectId(c.req.param("id")));
     return c.body(null, 204);

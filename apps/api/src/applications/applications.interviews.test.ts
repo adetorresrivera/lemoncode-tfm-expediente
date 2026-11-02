@@ -462,3 +462,360 @@ describe("POST /api/applications/:id/interviews", () => {
     ).toHaveLength(1);
   });
 });
+
+function putInterview(
+  app: Hono,
+  id: string,
+  interviewId: string,
+  body: unknown,
+  headers: Record<string, string> = JSON_HEADERS,
+): Promise<Response> | Response {
+  return app.request(`/api/applications/${id}/interviews/${interviewId}`, {
+    method: "PUT",
+    headers,
+    body: typeof body === "string" ? body : JSON.stringify(body),
+  });
+}
+
+function deleteInterview(
+  app: Hono,
+  id: string,
+  interviewId: string,
+): Promise<Response> | Response {
+  return app.request(`/api/applications/${id}/interviews/${interviewId}`, {
+    method: "DELETE",
+  });
+}
+
+async function addRounds(
+  app: Hono,
+  id: string,
+  count: number,
+): Promise<Application> {
+  for (let index = 0; index < count; index += 1) {
+    const res = await postInterview(app, id, TECNICA);
+    expect(res.status).toBe(201);
+  }
+  return get(app, id);
+}
+
+const EDITED = {
+  type: "manager",
+  round: 5,
+  scheduledAt: "2026-11-06T08:00:00.000Z",
+  mode: "presencial",
+  outcome: "superada",
+  notes: "Bien",
+};
+
+describe("PUT /api/applications/:id/interviews/:interviewId", () => {
+  it("replaces the fields of one round, keeps its id and the other rounds, and sets updatedAt", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    const before = await addRounds(app, created.id, 2);
+    const first = before.interviews[0];
+    const second = before.interviews[1];
+    expect(first).toBeDefined();
+    expect(second).toBeDefined();
+
+    tick("2026-10-05T12:00:00.000Z");
+    const res = await putInterview(app, created.id, second?.id ?? "", EDITED);
+
+    expect(res.status).toBe(200);
+    const body = applicationSchema.parse(await res.json());
+    expect(body.interviews).toStrictEqual([
+      first,
+      { id: second?.id, ...EDITED },
+    ]);
+    expect(body.updatedAt).toBe("2026-10-05T12:00:00.000Z");
+    expect(body.status).toBe(before.status);
+    expect(body.statusHistory).toStrictEqual(before.statusHistory);
+    expect(await get(app, created.id)).toStrictEqual(body);
+  });
+
+  it("clears notes and date with null", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    await postInterview(app, created.id, {
+      ...TECNICA,
+      notes: "Algo",
+      scheduledAt: "2026-11-05T09:30:00.000Z",
+    });
+    const stored = await get(app, created.id);
+    const target = stored.interviews[0]?.id ?? "";
+
+    const res = await putInterview(app, created.id, target, {
+      ...TECNICA,
+      round: 1,
+      notes: null,
+      scheduledAt: null,
+    });
+
+    expect(res.status).toBe(200);
+    const body = applicationSchema.parse(await res.json());
+    expect(body.interviews[0]?.notes).toBeNull();
+    expect(body.interviews[0]?.scheduledAt).toBeNull();
+  });
+
+  it("keeps the stored round when the body has none", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    const before = await addRounds(app, created.id, 2);
+    const second = before.interviews[1]?.id ?? "";
+
+    const res = await putInterview(app, created.id, second, {
+      type: "cultural",
+      mode: "presencial",
+    });
+
+    expect(res.status).toBe(200);
+    const body = applicationSchema.parse(await res.json());
+    expect(body.interviews[1]).toStrictEqual({
+      id: second,
+      round: 2,
+      type: "cultural",
+      scheduledAt: null,
+      mode: "presencial",
+      notes: null,
+      outcome: "pendiente",
+    });
+  });
+
+  it("ignores an id in the body and stores operator-looking notes verbatim", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    const before = await addRounds(app, created.id, 1);
+    const target = before.interviews[0]?.id ?? "";
+
+    const res = await putInterview(app, created.id, target, {
+      ...TECNICA,
+      round: 1,
+      id: "zzz",
+      notes: "$title",
+    });
+
+    expect(res.status).toBe(200);
+    const body = applicationSchema.parse(await res.json());
+    expect(body.interviews[0]?.id).toBe(target);
+    expect(body.interviews[0]?.notes).toBe("$title");
+  });
+
+  it("keeps status enviada and the history length on an application moved back to enviada", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    await change(app, created.id, "enviada");
+    await postInterview(app, created.id, TECNICA);
+    await change(app, created.id, "enviada");
+    const before = await get(app, created.id);
+    expect(before.status).toBe("enviada");
+
+    const res = await putInterview(
+      app,
+      created.id,
+      before.interviews[0]?.id ?? "",
+      { ...TECNICA, round: 1, outcome: "superada" },
+    );
+
+    expect(res.status).toBe(200);
+    const body = applicationSchema.parse(await res.json());
+    expect(body.status).toBe("enviada");
+    expect(body.statusHistory).toHaveLength(before.statusHistory.length);
+  });
+
+  it("answers 404 «Candidatura no encontrada» for an unknown or malformed application id", async () => {
+    const app = buildApp();
+    for (const id of [new ObjectId().toString(), "abc"]) {
+      const res = await putInterview(app, id, "nope", {
+        ...TECNICA,
+        round: 1,
+      });
+      expect(res.status).toBe(404);
+      expect(await res.json()).toStrictEqual({
+        error: { code: "NOT_FOUND", message: "Candidatura no encontrada" },
+      });
+    }
+  });
+
+  it("answers 404 «Ronda no encontrada» for an unknown or malformed round id", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    await addRounds(app, created.id, 1);
+    for (const interviewId of ["nope", new ObjectId().toString()]) {
+      const res = await putInterview(app, created.id, interviewId, {
+        ...TECNICA,
+        round: 1,
+      });
+      expect(res.status).toBe(404);
+      expect(await res.json()).toStrictEqual({
+        error: { code: "NOT_FOUND", message: "Ronda no encontrada" },
+      });
+    }
+  });
+
+  it.each([
+    ["round 0", { type: "tecnica", mode: "online", round: 0 }],
+    ["an unknown type", { type: "x", mode: "online", round: 1 }],
+    ["no mode", { type: "tecnica", round: 1 }],
+  ])("answers 400 and writes nothing for %s", async (_name, body) => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    const before = await addRounds(app, created.id, 1);
+
+    tick("2026-10-05T12:00:00.000Z");
+    const res = await putInterview(
+      app,
+      created.id,
+      before.interviews[0]?.id ?? "",
+      body,
+    );
+
+    expect(res.status).toBe(400);
+    expect(await get(app, created.id)).toStrictEqual(before);
+  });
+
+  it("answers 400 for a text/plain body", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    const before = await addRounds(app, created.id, 1);
+
+    const res = await putInterview(
+      app,
+      created.id,
+      before.interviews[0]?.id ?? "",
+      JSON.stringify({ ...TECNICA, round: 1 }),
+      { "content-type": "text/plain" },
+    );
+
+    expect(res.status).toBe(400);
+    expect(await get(app, created.id)).toStrictEqual(before);
+  });
+
+  it("leaves the same round values when the same PUT is sent twice and moves only updatedAt", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    const before = await addRounds(app, created.id, 1);
+    const target = before.interviews[0]?.id ?? "";
+
+    tick("2026-10-05T12:00:00.000Z");
+    const first = applicationSchema.parse(
+      await (await putInterview(app, created.id, target, EDITED)).json(),
+    );
+    tick("2026-10-06T12:00:00.000Z");
+    const second = applicationSchema.parse(
+      await (await putInterview(app, created.id, target, EDITED)).json(),
+    );
+
+    expect(second.interviews).toStrictEqual(first.interviews);
+    expect(second.updatedAt).toBe("2026-10-06T12:00:00.000Z");
+  });
+});
+
+describe("DELETE /api/applications/:id/interviews/:interviewId", () => {
+  it("pulls one round, keeps the other numbers, answers 200 with the application and the next round is 4", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    const before = await addRounds(app, created.id, 3);
+    const [one, two, three] = before.interviews;
+
+    tick("2026-10-05T12:00:00.000Z");
+    const res = await deleteInterview(app, created.id, two?.id ?? "");
+
+    expect(res.status).toBe(200);
+    const body = applicationSchema.parse(await res.json());
+    expect(body.interviews).toStrictEqual([one, three]);
+    expect(body.interviews.map((interview) => interview.round)).toStrictEqual([
+      1, 3,
+    ]);
+    expect(body.updatedAt).toBe("2026-10-05T12:00:00.000Z");
+    expect(await get(app, created.id)).toStrictEqual(body);
+
+    const next = await postInterview(app, created.id, TECNICA);
+    expect(next.status).toBe(201);
+    const afterAdd = applicationSchema.parse(await next.json());
+    expect(afterAdd.interviews.at(-1)?.round).toBe(4);
+  });
+
+  it("keeps status enviada and the history length on an application moved back to enviada", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    await change(app, created.id, "enviada");
+    await postInterview(app, created.id, TECNICA);
+    await change(app, created.id, "enviada");
+    const before = await get(app, created.id);
+    expect(before.status).toBe("enviada");
+
+    const res = await deleteInterview(
+      app,
+      created.id,
+      before.interviews[0]?.id ?? "",
+    );
+
+    expect(res.status).toBe(200);
+    const body = applicationSchema.parse(await res.json());
+    expect(body.interviews).toHaveLength(0);
+    expect(body.status).toBe("enviada");
+    expect(body.statusHistory).toHaveLength(before.statusHistory.length);
+  });
+
+  it("answers 404 «Ronda no encontrada» to a second DELETE and changes nothing", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    const before = await addRounds(app, created.id, 2);
+    const target = before.interviews[0]?.id ?? "";
+    expect((await deleteInterview(app, created.id, target)).status).toBe(200);
+    const afterFirst = await get(app, created.id);
+
+    tick("2026-10-09T12:00:00.000Z");
+    const res = await deleteInterview(app, created.id, target);
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toStrictEqual({
+      error: { code: "NOT_FOUND", message: "Ronda no encontrada" },
+    });
+    expect(await get(app, created.id)).toStrictEqual(afterFirst);
+  });
+
+  it("answers 404 «Candidatura no encontrada» for an unknown or malformed application id", async () => {
+    const app = buildApp();
+    for (const id of [new ObjectId().toString(), "abc"]) {
+      const res = await deleteInterview(app, id, "nope");
+      expect(res.status).toBe(404);
+      expect(await res.json()).toStrictEqual({
+        error: { code: "NOT_FOUND", message: "Candidatura no encontrada" },
+      });
+    }
+  });
+
+  it("does not bring a deleted round back with a later PUT", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    const before = await addRounds(app, created.id, 3);
+    const target = before.interviews[1]?.id ?? "";
+    await deleteInterview(app, created.id, target);
+
+    const res = await putInterview(app, created.id, target, EDITED);
+
+    expect(res.status).toBe(404);
+    expect(await res.json()).toStrictEqual({
+      error: { code: "NOT_FOUND", message: "Ronda no encontrada" },
+    });
+    expect((await get(app, created.id)).interviews).toHaveLength(2);
+  });
+
+  it("ends with the round deleted when a PUT and a DELETE run together", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    const before = await addRounds(app, created.id, 2);
+    const target = before.interviews[0]?.id ?? "";
+
+    const [put, del] = await Promise.all([
+      putInterview(app, created.id, target, EDITED),
+      deleteInterview(app, created.id, target),
+    ]);
+
+    expect(del.status).toBe(200);
+    expect([200, 404]).toContain(put.status);
+    const stored = await get(app, created.id);
+    expect(stored.interviews.some((i) => i.id === target)).toBe(false);
+  });
+});
