@@ -160,10 +160,10 @@ Plans:
   2. The user can edit and delete an existing round from the detail.
   3. The detail lists rounds ordered by round number, each showing type, date, mode and outcome.
   4. Adding a round while the status is `enviada` moves the application to `en_entrevistas` with a history entry; in any other status the status is left alone, and any round change updates the application's `updatedAt`.
-**Plans**: 4 plans
+**Plans**: 1/4 plans executed
 Plans:
 **Wave 1**
-- [ ] 04-01-PLAN.md — Tracer: «Añadir ronda» dialog → POST /api/applications/:id/interviews → one atomic pipeline update (max + 1, rule 3, updatedAt) → view replaced by the response; then the limits, failures and busy guard of the same path (wave 1)
+- [x] 04-01-PLAN.md — Tracer: «Añadir ronda» dialog → POST /api/applications/:id/interviews → one atomic pipeline update (max + 1, rule 3, updatedAt) → view replaced by the response; then the limits, failures and busy guard of the same path (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 04-02-PLAN.md — Fecha y hora (datetime-local ↔ ISO UTC), Modalidad, Resultado and Notas in the dialog; each round row with date, mode, neutral outcome badge and folded notes in D-07 order (wave 2)
@@ -240,7 +240,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 1. Fundaciones y walking skeleton | 6/6 | Complete    | 2026-10-29 |
 | 2. Candidaturas | 12/12 | Complete    | 2026-10-31 |
 | 3. Autocompletado con IA | 12/12 | Complete    | 2026-11-01 |
-| 4. Rondas de entrevista | 0/4 | Planned | - |
+| 4. Rondas de entrevista | 1/4 | In Progress | - |
 | 5. Documentos en S3 | 0/TBD | Not started | - |
 | 6. Pulido de demo | 0/TBD | Not started | - |
 | 7. Documentación y defensa | 0/TBD | Not started | - |
