@@ -21,7 +21,7 @@
     {
       "number": "4",
       "name": "Rondas de entrevista",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "5",
@@ -41,8 +41,8 @@
   ],
   "next": {
     "command": "/gsd-progress --next",
-    "label": "Advance to the next step (plan phase 4)",
-    "reason": "Phase 4 of 7 — needs a plan"
+    "label": "Advance to the next step",
+    "reason": "Phase 4 of 7 · 43% · executing"
   },
-  "updated_at": "2026-11-01T21:53:38.390Z"
+  "updated_at": "2026-11-02T19:14:57.991Z"
 }
