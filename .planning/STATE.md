@@ -4,10 +4,10 @@ current_phase: 5
 current_phase_name: Documentos en S3
 status: planning
 stopped_at: Phase 04 complete, ready to plan Phase 5
-last_updated: "2026-11-03T20:54:17.691Z"
+last_updated: "2026-11-03T21:21:21.756Z"
 last_activity: 2026-11-03
-last_activity_desc: Phase 04 complete, transitioned to Phase 5
-state_head: 94b750b1a81a048651a07b40e04a3b9988d76b07
+last_activity_desc: "Phase 04 shipped as PR #4 (stacked on #1-#3)"
+state_head: d1d8a6edcd2383a982ffef93645254bb1e84e878
 progress:
   total_phases: 7
   completed_phases: 4
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-03)
 Phase: 5 — Documentos en S3
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-11-03 — Phase 04 complete, transitioned to Phase 5
+Last activity: 2026-11-03 -- Phase 04 shipped as PR #4 (stacked on #1-#3)
 
 Progress: [██████░░░░] 57%
 
@@ -82,7 +82,7 @@ None yet.
 ### Blockers/Concerns
 
 - [Schedule]: 7 phases must fit before the 9 Nov defense; MVP finished beats features half done.
-- [Phase 1→2]: `.planning/config.json` still has `branching_strategy` = `none` and `phase_branch_template` = `gsd/phase-{phase}-{slug}`, while CLAUDE.md requires `phase/NN-nombre`; Phase 2 work was put on `phase/02-candidaturas` by hand. The repo has no `main`/`master`; GitHub default is `phase/01-fundaciones`. Reconcile before `/gsd-ship`.
+- [Ship]: Phases 1-4 shipped 2026-11-03 as stacked PRs #1 (01→main), #2 (02→01), #3 (03→02), #4 (04→03); merge in order. GitHub default branch is `main` (only "First commit"). `.planning/config.json` still has `branching_strategy` = `none`; phase branches are created by hand. PR #1 carries the committed `.claude/` GSD install (~320k lines).
 - [Phase 1]: Web tests (`@tfm/web`) intermittently fail with `Failed to start forks worker` on a cold start; not seen during Phase 2 but not fixed either.
 - [Phase 1]: Open code-review findings that can hurt a live demo: API startup hangs or dies when Mongo/S3 is slow, and `pingS3` has no abort (see `01-REVIEW-DISPOSITION.md`, ids carried from the first review). `server.host: true` in `apps/web/vite.config.ts` exposes the dev server on all interfaces.
 - [Phase 2]: Code review 0 critical / 4 warnings / 9 info, all `open` in `02-REVIEW-DISPOSITION.md`. Demo-relevant: WR-01 no request-body limit + unbounded `sourceUrl`/document ids; WR-02 compose smoke has no cleanup trap; WR-03 stale delete error; WR-04 empty state flashes during refetch. `/gsd-code-review 02 --fix` applies them.
