@@ -5,11 +5,11 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Editing a round silently rewrites a stored `scheduledAt` that the form cannot represent"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Busy flag and success timer are not scoped to the application or to unmount"
   - id: IN-01
     severity: info
@@ -27,17 +27,17 @@ findings:
     severity: info
     disposition: open
     title: "PUT semantics are inconsistent between `round` and the other fields"
-open: 6
+open: 4
 total: 6
-recorded: 2026-11-03T06:44:53.292Z
+recorded: 2026-11-03T08:22:43.529Z
 ---
 
 # Phase 04: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
+| WR-01 | warning | fixed | 04-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 04-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
