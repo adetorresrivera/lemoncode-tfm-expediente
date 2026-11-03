@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Concurrent mutations on two applications now share single-slot feedback state and one timer ref"
   - id: IN-01
     severity: info
@@ -27,16 +27,16 @@ findings:
     severity: info
     disposition: open
     title: "PUT semantics are inconsistent between `round` and the other fields"
-open: 5
+open: 4
 total: 6
-recorded: 2026-11-03T11:02:34.968Z
+recorded: 2026-11-03T18:50:14.381Z
 ---
 
 # Phase 04: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
+| WR-01 | warning | fixed | 04-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | WR-02 | warning | fixed | 04-REVIEW-FIX.md (not in the current review) |
