@@ -1,10 +1,10 @@
 ---
 phase: 04-rondas-de-entrevista
-fixed_at: 2026-11-03T08:30:00Z
+fixed_at: 2026-11-03T18:55:00Z
 review_path: .planning/phases/04-rondas-de-entrevista/04-REVIEW.md
 iteration: 1
-findings_in_scope: 2
-fixed: 2
+findings_in_scope: 1
+fixed: 1
 skipped: 0
 status: all_fixed
 ---
@@ -12,45 +12,41 @@ status: all_fixed
 # Phase 4: Code Review Fix Report
 
 **Fixed at:** 2026-11-03
-**Source review:** .planning/phases/04-rondas-de-entrevista/04-REVIEW.md
+**Source review:** .planning/phases/04-rondas-de-entrevista/04-REVIEW.md (incremental re-review)
 **Iteration:** 1
 
 **Summary:**
-- Findings in scope: 2 (fix_scope `critical_warning`: 0 critical, 2 warning; the 4 Info findings IN-01 to IN-04 are out of scope)
-- Fixed: 2
+- Findings in scope: 1 (WR-01; IN-01 and IN-02 are Info and out of scope)
+- Fixed: 1
 - Skipped: 0
-
-**Verification:** `npm run typecheck && npm run test` ran in the main checkout (no isolated worktree, as the caller asked), on branch `phase/04-rondas-entrevista`. Typecheck is clean in all three workspaces. Tests: contracts 55, api 317, web 496, all passing. The pre-commit hook (lint-staged and typecheck) ran on both commits.
 
 ## Fixed Issues
 
-### WR-01: Editing a round silently rewrites a stored `scheduledAt` that the form cannot represent
-
-**Files modified:** `apps/web/src/pods/application-detail/application-detail.mapper.ts`, `apps/web/src/pods/application-detail/application-detail.hooks.ts`, `apps/web/src/pods/application-detail/application-detail.interviews.test.tsx`
-**Commit:** 57aa1db
-**Status:** fixed: requires human verification (date and DST logic)
-**Applied fix:** `mapInterviewFormToApiInput` takes an optional `LoadedScheduledAt` (`{ local, iso }`). While the date control still holds the loaded local value, the stored ISO is sent back untouched. A changed or cleared control behaves as before. The `updateRound` action in the hook looks the round up in the current view model and passes `editValues.scheduledAt` and `scheduledAt` as that pair. This needed no view-model change. Three tests were added:
-- A UI test that edits only the outcome of a round stored as `2026-10-25T01:30:15.250Z` (Madrid overlap, with seconds) and asserts the PUT body carries the stored value.
-- A UI test that changing the date control sends the new instant.
-- A mapper unit test of the keep, change and clear cases.
-
-### WR-02: Busy flag and success timer are not scoped to the application or to unmount
+### WR-01: Concurrent mutations on two applications now share single-slot feedback state and one timer ref
 
 **Files modified:** `apps/web/src/pods/application-detail/application-detail.hooks.ts`, `apps/web/src/pods/application-detail/application-detail.interviews.test.tsx`
-**Commit:** 501d46f
-**Status:** fixed: requires human verification (concurrency and lifecycle logic)
-**Applied fix:**
-- `busy` state is now `busyKey`, and `busy` is derived as `busyKey === key`. `busyRef` stores the key it was started for, and the guards use `isBusy()` (`busyRef.current === key`).
-- `endBusy` releases only its own lock.
-- A `mountedRef` is set to false in the unmount cleanup, and `scheduleSuccessClear` returns early when unmounted, so no 5 s timer is armed after unmount.
+**Commit:** 2ea14e0
+**Applied fix:** The reviewer offered two options (a guard on the single slot, or keying the state by application). I chose keying, because the guard has a hole for `interviewFeedback`. A finished slot of one application would make the guard drop the next application's message.
+- `mutation` is now `mutations: Record<string, Mutation>`, and `interviewFeedback` is now `interviewFeedbacks: Record<string, string>`. Both are keyed by `applicationId#attempt`, like `busyKey` and `replaceResult`. Each request writes only its own entry, so a late settle of `a1` cannot touch what `a2` shows.
+- `successTimerRef` is now `successTimersRef: Map<key, timer>`. `scheduleSuccessClear` clears any previous timer of the same key before arming a new one, so no timer is orphaned. A timer clears only the success message of its own key (`dropSuccess(key)`).
+- `clearSuccess` now acts on the current key only. The unmount cleanup clears every timer in the map.
+- The `Mutation.key` and `InterviewFeedback` interfaces became redundant and were removed or simplified.
 
-Two hook tests were added, and both fail without the fix:
-- A status change in flight on `a1` does not lock `a2`; a round add on `a2` sends its POST.
-- A change that settles after unmount arms no 5000 ms timer.
+**Tests added (both fail on the pre-fix hook, verified by stashing the hook):**
+- "keeps the feedback of the application on screen when another one settles late": the `a1` PATCH settles while `a2` is saving. `a2` keeps `pendingStatus` and "Guardando…", then shows success after its own settle.
+- "keeps one success timer per application so an earlier one never clears a later message": `a1` and `a2` settle in turn, which arms two separate 5 s timers. Firing the `a1` timer leaves the `a2` message in place, and unmount calls `clearTimeout`.
 
-## Skipped Issues
+Status: fixed. The change touches state logic, so a human glance at the per-key semantics is worthwhile, although the new tests cover the traced scenario. One behavior difference to know about: a success message for an application now lives until its own timer or its next mutation, rather than being cleared when a mutation starts on a different application.
 
-None. IN-01 to IN-04 were not attempted because they are outside `critical_warning` scope.
+## Verification
+
+Ran in the main checkout on `phase/04-rondas-de-entrevista`, with no worktree.
+- `npm run typecheck && npm run test`: passed. contracts 55, api 317, web 498 tests. The web count includes the 2 new tests.
+- `npx eslint apps/web/src/pods/application-detail` and `prettier --check`: clean. The pre-commit hook (lint-staged and typecheck) also passed.
+- Both new tests were confirmed failing without the fix (2 failed, 65 passed in the interviews test file), then passing with it.
+- Note: the intermediate `application-detail.hooks.ts` had a `no-unused-vars` lint error (`_removed`), fixed before commit.
+
+`.planning/STATE.md` and `.planning/state.json` were not staged.
 
 ---
 
