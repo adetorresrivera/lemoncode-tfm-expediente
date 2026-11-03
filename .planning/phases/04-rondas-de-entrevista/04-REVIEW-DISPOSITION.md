@@ -5,42 +5,42 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: fixed
-    title: "Concurrent mutations on two applications now share single-slot feedback state and one timer ref"
+    disposition: open
+    title: "Busy lock is single-slot while the rest of the state is per-key, so an in-flight mutation can lose its lock"
+  - id: WR-02
+    severity: warning
+    disposition: open
+    title: "The unmount-cancels-timers assertion cannot detect an orphaned timer"
   - id: IN-01
     severity: info
     disposition: open
-    title: "The \"releases only its own lock\" guard in `endBusy` has no test"
+    title: "`endBusy` own-lock guard is still not covered (carried forward)"
   - id: IN-02
     severity: info
     disposition: open
-    title: "`deletingRef` and `onDeleted` are still not scoped to the application"
-  - id: WR-02
-    severity: warning
-    disposition: fixed
-    title: "Busy flag and success timer are not scoped to the application or to unmount"
+    title: "`deletingRef` and `onDeleted` are not scoped per application (carried forward)"
   - id: IN-03
     severity: info
     disposition: open
-    title: "Duplicated literals and near-identical shapes"
+    title: "Per-key feedback is never pruned, so old status messages reappear when the user returns"
   - id: IN-04
     severity: info
     disposition: open
     title: "PUT semantics are inconsistent between `round` and the other fields"
-open: 4
+open: 6
 total: 6
-recorded: 2026-11-03T18:50:14.381Z
+recorded: 2026-11-03T20:50:48.870Z
 ---
 
 # Phase 04: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | fixed | 04-REVIEW-FIX.md |
+| WR-01 | warning | open | - |
+| WR-02 | warning | open | - |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
-| WR-02 | warning | fixed | 04-REVIEW-FIX.md (not in the current review) |
-| IN-03 | info | open | - (not in the current review) |
+| IN-03 | info | open | - |
 | IN-04 | info | open | - (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
