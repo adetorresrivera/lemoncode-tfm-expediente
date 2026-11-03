@@ -7,7 +7,7 @@
 
 | capability | decision | reason |
 |---|---|---|
-| ollama:POST /api/chat non-streaming with format = JSON Schema (structured output) | INTEGRATE | |
+| ollama:POST /api/chat non-streaming, format = JSON Schema (structured output) | INTEGRATE | |
 | ollama:think false on /api/chat (thinking models such as gemma4:e2b) | INTEGRATE | |
 | ollama:options.temperature and options.num_ctx | INTEGRATE | |
 | ollama:GET /api/version as health ping | INTEGRATE | |

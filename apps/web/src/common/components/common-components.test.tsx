@@ -2,6 +2,7 @@ import { applicationStatusSchema } from "@tfm/contracts";
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
+import { AiMark } from "./ai-mark";
 import { RequestStatus } from "./request-status";
 import { StatusBadge } from "./status-badge";
 import { TagChip } from "./tag-chip";
@@ -95,6 +96,41 @@ describe("TagChip", () => {
     expect(on).toHaveClass("bg-primary", "text-primary-foreground");
   });
 
+  it("marks an AI tag with a decorative Sparkles icon and a screen-reader note outside the truncating span", () => {
+    render(<TagChip label="React" aiSuggested />);
+
+    const chip = screen.getByText("React").parentElement;
+    const icon = chip?.querySelector("svg");
+    expect(icon).toHaveAttribute("aria-hidden", "true");
+    expect(icon).toHaveClass("size-3", "text-primary");
+    expect(chip?.firstElementChild).toBe(icon);
+    expect(screen.getByText("React")).toHaveClass("truncate");
+    expect(screen.getByText("(propuesta por IA)")).toHaveClass("sr-only");
+    expect(screen.getByText("(propuesta por IA)").parentElement).toBe(chip);
+    expect(chip).toHaveTextContent("React(propuesta por IA)");
+  });
+
+  it("keeps the remove button name on an AI tag", () => {
+    render(<TagChip label="React" aiSuggested onRemove={() => {}} />);
+    expect(
+      screen.getByRole("button", { name: "Quitar React" }),
+    ).toBeInTheDocument();
+  });
+
+  it("draws no AI mark unless aiSuggested is set", () => {
+    const { container } = render(
+      <>
+        <TagChip label="Uno" />
+        <TagChip label="Dos" soft />
+        <TagChip label="Tres" onRemove={() => {}} />
+        <TagChip label="Cuatro" selected={false} onToggle={() => {}} />
+      </>,
+    );
+    expect(screen.queryByText("(propuesta por IA)")).not.toBeInTheDocument();
+    // Only the X icon of the removable chip.
+    expect(container.querySelectorAll("svg")).toHaveLength(1);
+  });
+
   it("renders a hostile label as text, never as markup", () => {
     render(<TagChip label="<img src=x onerror=alert(1)>" />);
 
@@ -163,5 +199,28 @@ describe("RequestStatus", () => {
     ).toBeInTheDocument();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+});
+
+describe("AiMark", () => {
+  it("renders the navy badge with a visible «IA» hidden from assistive tech and an sr-only reading", () => {
+    render(<AiMark id="field-title-ai" />);
+
+    const badge = document.getElementById("field-title-ai");
+    expect(badge).not.toBeNull();
+    expect(badge).toHaveClass(
+      "inline-flex",
+      "h-5",
+      "items-center",
+      "rounded-sm",
+      "bg-brand-navy",
+      "px-1.5",
+      "text-[11px]",
+      "font-bold",
+      "tracking-wide",
+      "text-brand-parchment",
+    );
+    expect(screen.getByText("IA")).toHaveAttribute("aria-hidden", "true");
+    expect(screen.getByText("Rellenado por la IA")).toHaveClass("sr-only");
   });
 });

@@ -82,6 +82,18 @@ describe("mapFormValuesToApiInput", () => {
     });
   });
 
+  it("sends offerText as text, and blank text as null", () => {
+    expect(
+      mapFormValuesToApiInput(values({ offerText: "Texto" })).offerText,
+    ).toBe("Texto");
+    expect(
+      mapFormValuesToApiInput(values({ offerText: "" })).offerText,
+    ).toBeNull();
+    expect(
+      mapFormValuesToApiInput(values({ offerText: "  \n " })).offerText,
+    ).toBeNull();
+  });
+
   it("keeps the chosen currency when at least one salary is filled", () => {
     const input = mapFormValuesToApiInput(values({ salaryMin: "52000" }));
     expect(input.salaryMin).toBe(52000);
@@ -507,6 +519,7 @@ describe("ApplicationEditContainer conditions and tracking", () => {
       .getAllByRole("heading", { level: 2 })
       .map((heading) => heading.textContent);
     expect(headings).toStrictEqual([
+      "Pegar oferta",
       "Puesto y empresa",
       "Condiciones",
       "Etiquetas",
@@ -759,10 +772,15 @@ describe("ApplicationEditContainer tags", () => {
   it("shows three labelled groups, the counter and always-mounted status lines", () => {
     renderForm();
 
+    const placeholders: Record<string, string> = {
+      [GROUPS.stack]: "Ej.: React",
+      [GROUPS.nice]: "Ej.: Docker",
+      [GROUPS.language]: "Ej.: Inglés B2",
+    };
     for (const legend of Object.values(GROUPS)) {
       const group = groupOf(legend);
       const input = tagInput(legend);
-      expect(input).toHaveAttribute("placeholder", "Ej.: React");
+      expect(input).toHaveAttribute("placeholder", placeholders[legend]);
       expect(input).toHaveAttribute("maxlength", "40");
       const status = group.querySelector("[role='status']");
       expect(status).toHaveAttribute("aria-live", "polite");
@@ -989,7 +1007,15 @@ describe("mapApplicationFromApiToFormValues", () => {
       appliedAt: toLocalDateInput(AUTO_APPLIED_AT),
       sourceUrl: "",
       notes: "",
+      offerText: "",
     });
+  });
+
+  it("carries a stored offerText into the form values", () => {
+    const mapped = mapApplicationFromApiToFormValues(
+      stored({ offerText: "Oferta guardada" }),
+    );
+    expect(mapped.offerText).toBe("Oferta guardada");
   });
 
   it("keeps a stored currency and the optional enums", () => {

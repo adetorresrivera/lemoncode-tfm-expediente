@@ -4,11 +4,23 @@ import { createMockProvider } from "./mock.provider.js";
 import { createOllamaProvider } from "./ollama.provider.js";
 import { createOpenAiProvider } from "./openai.provider.js";
 
+export interface LlmCallOptions {
+  /** Aborts the upstream call, e.g. when the HTTP client goes away. */
+  signal?: AbortSignal;
+  /**
+   * Schema the model is shown (Ollama `format` / OpenAI `response_format`). Defaults to
+   * the parsing schema. Pass it when the raw answer must be validated more leniently
+   * than the contract the model is asked to follow, so the caller can normalize it first.
+   */
+  responseSchema?: z.ZodType<unknown>;
+}
+
 export interface LlmClient {
   extractStructured<T>(
     system: string,
     input: string,
     schema: z.ZodType<T>,
+    options?: LlmCallOptions,
   ): Promise<T>;
   ping(): Promise<boolean>; // used by /api/health
 }

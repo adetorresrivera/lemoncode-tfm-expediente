@@ -1,0 +1,40 @@
+Desarrollador/a Frontend Senior
+Nimbo Software · Teletrabajo 100% · Contrato indefinido
+
+Sobre Nimbo Software
+Somos una empresa de producto con sede en España y un equipo distribuido de unas 60 personas. Construimos una plataforma de gestión de flotas para pequeñas empresas de transporte: rutas, mantenimiento, costes y facturación en una sola herramienta. Trabajamos en remoto desde 2019 y nos organizamos en equipos pequeños y autónomos, con ciclos de dos semanas y mucha comunicación asíncrona.
+
+El puesto
+Buscamos un desarrollador o desarrolladora frontend senior para unirte al equipo de Operaciones, que se encarga del panel principal que usan a diario más de 4.000 profesionales del transporte. Te encargarás de diseñar e implementar nuevas funcionalidades, de mejorar el rendimiento de la aplicación y de acompañar al resto del equipo en las decisiones técnicas del frontend.
+
+Qué harás
+- Diseñar e implementar interfaces accesibles y rápidas junto a producto y diseño.
+- Revisar código, proponer mejoras de arquitectura y mentorizar a compañeros con menos experiencia.
+- Escribir tests automáticos y mantener la integración continua en buen estado.
+- Participar en las decisiones de producto y en la planificación de cada ciclo.
+- Colaborar con el equipo de backend para definir contratos de API claros.
+
+Requisitos
+- Más de 5 años de experiencia desarrollando aplicaciones web con React.
+- Dominio de TypeScript y de herramientas modernas de build como Vite.
+- Experiencia escribiendo tests con Vitest y Testing Library.
+- Conocimientos de AWS (S3, CloudFront y Lambda) para desplegar y operar tu propio código.
+- Nivel de inglés B2 para comunicarte con el equipo y leer documentación.
+
+Se valora
+- Experiencia con GraphQL.
+- Haber trabajado con Storybook y sistemas de diseño.
+- Contribuciones a proyectos de código abierto.
+
+Qué ofrecemos
+- Salario de 45.000 - 55.000 € brutos anuales, según experiencia.
+- Contrato indefinido desde el primer día.
+- Horario flexible y 25 días de vacaciones al año.
+- Presupuesto anual de 1.500 € para formación y conferencias.
+- Equipo informático a tu elección y ayuda para montar tu espacio de trabajo en casa.
+- Encuentros presenciales opcionales dos veces al año.
+
+Proceso de selección
+Una primera conversación con el equipo de personas, una entrevista técnica con dos compañeros y una última charla con la dirección de producto. Respondemos a todas las candidaturas en un máximo de dos semanas.
+
+Si quieres formar parte de Nimbo Software, envíanos tu CV y cuéntanos en pocas líneas qué proyecto de los que has hecho te hace más ilusión.

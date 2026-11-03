@@ -11,6 +11,9 @@ import { createApplicationsRepository } from "./applications/applications.reposi
 import { applicationsRoutes } from "./applications/applications.routes.js";
 import { createApplicationsService } from "./applications/applications.service.js";
 import { ApiError } from "./errors.js";
+import type { LlmClient } from "./llm/llm.client.js";
+import { offersRoutes } from "./offers/extract.routes.js";
+import { createExtractService } from "./offers/extract.service.js";
 import { tagsRoutes } from "./tags/tags.routes.js";
 
 export type AppDeps = {
@@ -19,6 +22,7 @@ export type AppDeps = {
   pingLlm: () => Promise<boolean>;
   webDistDir?: string;
   db?: Db;
+  llm?: LlmClient;
   now?: () => Date;
 };
 
@@ -75,6 +79,11 @@ export function createApp(deps: AppDeps): Hono {
     app.route("/api/tags", tagsRoutes(service));
   }
 
+  // The extraction endpoint needs the LLM client only: it reads and writes no database.
+  if (deps.llm) {
+    app.route("/api/offers", offersRoutes(createExtractService(deps.llm)));
+  }
+
   if (deps.webDistDir) {
     app.use("*", serveStatic({ root: deps.webDistDir }));
   }
@@ -92,9 +101,15 @@ export function createApp(deps: AppDeps): Hono {
 
   // Single error handler. Mapping order matters: ApiError, ZodError, SyntaxError (Hono's
   // c.req.json() throws a plain SyntaxError on a malformed body), HTTPException, anything else.
-  // Only err.message is logged: never the stack, the request body or the offer text.
+  // Only err.message is logged: never the stack, the request body or the offer text. A JSON
+  // SyntaxError is the exception to the exception: V8 quotes a snippet of the body in its
+  // message, so it is logged as a fixed string instead.
   app.onError((err, c) => {
-    console.error(err.message);
+    console.error(
+      err instanceof SyntaxError
+        ? "SyntaxError (malformed JSON body)"
+        : err.message,
+    );
 
     if (err instanceof ApiError) {
       const body: ErrorResponse = {

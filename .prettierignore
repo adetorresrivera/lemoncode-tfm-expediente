@@ -10,3 +10,4 @@ gsd
 docs
 .devcontainer
 *.md
+.gsd

@@ -5,9 +5,11 @@ import { TagGroupInput } from "./tag-group-input";
 
 interface Props {
   form: ApplicationFormApi;
+  // Keys (tagKey) of the chips the AI proposed and the user has not removed (D-14, D-15).
+  aiTags?: ReadonlySet<string>;
 }
 
-export function TagsSection({ form }: Props) {
+export function TagsSection({ form, aiTags }: Props) {
   const headingId = useId();
   return (
     <section
@@ -37,20 +39,26 @@ export function TagsSection({ form }: Props) {
               <TagGroupInput
                 group="stack"
                 legend="Stack tecnológico"
+                placeholder="Ej.: React"
                 tags={tags}
+                aiTags={aiTags}
                 onChange={field.handleChange}
               />
               <TagGroupInput
                 group="nice_to_have"
                 legend="Se valora"
+                placeholder="Ej.: Docker"
                 soft
                 tags={tags}
+                aiTags={aiTags}
                 onChange={field.handleChange}
               />
               <TagGroupInput
                 group="language"
                 legend="Idiomas"
+                placeholder="Ej.: Inglés B2"
                 tags={tags}
+                aiTags={aiTags}
                 onChange={field.handleChange}
               />
               {error !== undefined ? (

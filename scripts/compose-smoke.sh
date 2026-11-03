@@ -165,6 +165,14 @@ expect_status "DELETE /api/applications/$app_id" 204 "$removed"
 gone="$(http_send GET "/api/applications/$app_id")" || true
 expect_status "GET /api/applications/$app_id after delete" 404 "$gone"
 
+echo "== offers route =="
+# A too-short text is rejected by the request schema before any model call, so this proves the route
+# is mounted in the image (no index.html fallthrough, no 404) without waiting on Ollama.
+extract="$(http_send POST /api/offers/extract '{"text":"Oferta demasiado corta"}')" \
+  || fail "POST /api/offers/extract did not answer"
+expect_status "POST /api/offers/extract" 400 "$extract"
+echo "$extract" | grep -q 'VALIDATION_ERROR' || fail "POST /api/offers/extract body lacks VALIDATION_ERROR: $extract"
+
 echo "== mongo stop/start =="
 docker compose stop mongo
 assert_health '"mongo":"error"'

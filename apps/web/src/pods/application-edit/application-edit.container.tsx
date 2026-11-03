@@ -1,8 +1,10 @@
 import { createApplication, updateApplication } from "./api/api";
 import { ApplicationEditComponent } from "./application-edit.component";
 import {
+  useAiMarks,
   useApplicationEditLoad,
   useApplicationForm,
+  useOfferExtraction,
 } from "./application-edit.hooks";
 import { keepStoredAppliedAt } from "./application-edit.mapper";
 import {
@@ -32,17 +34,51 @@ interface CreateProps {
 }
 
 function ApplicationCreate({ onSaved, renderCancelLink }: CreateProps) {
+  const marks = useAiMarks();
+  // `clearStatus` comes from the extraction hook, which needs the form: the callback only runs
+  // after a save, when both exist. Marks and summary clear on a successful save only (D-17).
   const { form, formMessage } = useApplicationForm({
     initialValues: EMPTY_FORM_VALUES,
     save: createApplication,
-    onSaved: (application) => onSaved(application.id),
+    onUserChange: marks.onUserChange,
+    onSaved: (application) => {
+      marks.clear();
+      clearStatus();
+      onSaved(application.id);
+    },
+  });
+  const {
+    draft,
+    setDraft,
+    open,
+    setOpen,
+    status,
+    analyze,
+    cancel,
+    clearStatus,
+  } = useOfferExtraction({
+    form,
+    initialDraft: "",
+    initialOpen: true,
+    getMarks: marks.getMarks,
+    onMerged: marks.setFromMerge,
   });
 
   return (
     <ApplicationEditComponent
       mode="create"
       form={form}
+      marks={marks.marks}
       formMessage={formMessage}
+      offerPanel={{
+        open,
+        onOpenChange: setOpen,
+        draft,
+        status,
+        onDraftChange: setDraft,
+        onAnalyze: analyze,
+        onCancel: cancel,
+      }}
       renderCancelLink={renderCancelLink}
     />
   );
@@ -63,6 +99,7 @@ function ApplicationEditForm({
   onSaved,
   renderCancelLink,
 }: EditFormProps) {
+  const marks = useAiMarks();
   const { form, formMessage } = useApplicationForm({
     initialValues: values,
     save: (input) =>
@@ -70,7 +107,28 @@ function ApplicationEditForm({
         applicationId,
         keepStoredAppliedAt(input, summary.appliedAt),
       ),
-    onSaved: (application) => onSaved(application.id),
+    onUserChange: marks.onUserChange,
+    onSaved: (application) => {
+      marks.clear();
+      clearStatus();
+      onSaved(application.id);
+    },
+  });
+  const {
+    draft,
+    setDraft,
+    open,
+    setOpen,
+    status,
+    analyze,
+    cancel,
+    clearStatus,
+  } = useOfferExtraction({
+    form,
+    initialDraft: values.offerText,
+    initialOpen: false,
+    getMarks: marks.getMarks,
+    onMerged: marks.setFromMerge,
   });
 
   return (
@@ -78,7 +136,17 @@ function ApplicationEditForm({
       mode="edit"
       summary={summary}
       form={form}
+      marks={marks.marks}
       formMessage={formMessage}
+      offerPanel={{
+        open,
+        onOpenChange: setOpen,
+        draft,
+        status,
+        onDraftChange: setDraft,
+        onAnalyze: analyze,
+        onCancel: cancel,
+      }}
       renderCancelLink={renderCancelLink}
     />
   );

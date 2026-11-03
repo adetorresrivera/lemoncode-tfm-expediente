@@ -1,4 +1,4 @@
-import { MAX_TAGS, normalizeTags, type TagGroup } from "@tfm/contracts";
+import { MAX_TAGS, normalizeTags, tagKey, type TagGroup } from "@tfm/contracts";
 import { useEffect, useId, useRef, useState } from "react";
 import { TagChip } from "@/common/components/tag-chip";
 import { Button } from "@/common/components/ui/button";
@@ -9,16 +9,28 @@ import type { ApplicationFormTag } from "../application-edit.vm";
 interface Props {
   group: TagGroup;
   legend: string;
+  // Example shown in the empty input; each group sets its own (D-27).
+  placeholder: string;
   soft?: boolean;
   // The full tag list of the form (every group); `onChange` receives the full normalized list.
   tags: ApplicationFormTag[];
+  // Keys (tagKey) of the chips the AI proposed: those chips show the AI mark.
+  aiTags?: ReadonlySet<string>;
   onChange: (next: ApplicationFormTag[]) => void;
 }
 
 // Where focus goes after a removal: the remove button of a chip (by label) or the group input.
 type PendingFocus = { kind: "chip"; label: string } | { kind: "input" };
 
-export function TagGroupInput({ group, legend, soft, tags, onChange }: Props) {
+export function TagGroupInput({
+  group,
+  legend,
+  placeholder,
+  soft,
+  tags,
+  aiTags,
+  onChange,
+}: Props) {
   const inputId = useId();
   const [draft, setDraft] = useState("");
   const [feedback, setFeedback] = useState("");
@@ -88,7 +100,7 @@ export function TagGroupInput({ group, legend, soft, tags, onChange }: Props) {
           ref={inputRef}
           value={draft}
           maxLength={40}
-          placeholder="Ej.: React"
+          placeholder={placeholder}
           autoComplete="off"
           onChange={(event) => setDraft(event.target.value)}
           onKeyDown={(event) => {
@@ -120,6 +132,7 @@ export function TagGroupInput({ group, legend, soft, tags, onChange }: Props) {
             <TagChip
               label={tag.label}
               soft={soft}
+              aiSuggested={aiTags?.has(tagKey(tag.label)) === true}
               onRemove={() => remove(index)}
             />
           </li>

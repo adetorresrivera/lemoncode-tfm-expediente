@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Fundaciones y walking skeleton** - Monorepo, contracts, API health, themed shell and `docker compose up` working end to end (target 29 Oct) (completed 2026-10-29)
 - [x] **Phase 2: Candidaturas** - Listado, detalle, alta/edición manual, estado e historial (target 31 Oct) (completed 2026-10-31)
-- [ ] **Phase 3: Autocompletado con IA** - Paste an offer and get a reviewable draft that never overwrites user data (target 2 Nov)
+- [x] **Phase 3: Autocompletado con IA** - Paste an offer and get a reviewable draft that never overwrites user data (target 2 Nov) (completed 2026-11-01)
 - [ ] **Phase 4: Rondas de entrevista** - Create, edit and delete interview rounds with the automatic move to `en_entrevistas` (target 3 Nov)
 - [ ] **Phase 5: Documentos en S3** - Upload CV and cover letters, link them to applications, download them (target 5 Nov)
 - [ ] **Phase 6: Pulido de demo** - Seed, README, responsive and accessibility pass, pending tests (target 7 Nov)
@@ -114,30 +114,39 @@ Plans:
   3. A model timeout answers 504 `LLM_TIMEOUT` after `LLM_TIMEOUT_MS`, and unparseable or schema-invalid output is retried once and then answers 502 `LLM_ERROR`; in the form the user sees a non-blocking «Analizando la oferta…» state or a clear error and can keep editing.
   4. The «Pegar oferta» panel is open when creating and collapsed when editing; «Autocompletar con IA» fills only empty fields, merges tags without duplicates, and persists nothing until the user saves.
   5. Fields filled by the AI show the «IA» mark that disappears when the user edits them, relevant fields still empty (title, company, work mode, seniority) are highlighted with «Complétalo tú», and the pasted text is stored as `offerText` on save.
-**Plans**: 9 plans
+**Plans**: 12/12 plans complete (9 executed, 3 gap closure from UAT 2026-11-01)
 Plans:
 **Wave 1**
-- [ ] 03-01-PLAN.md — Tracer: «Pegar oferta» panel → POST /api/offers/extract → extract service (literal prompt, verified against the doc) → LlmClient (mock end to end) → fill-only-empty merge of the text/enum fields; then limits, errors, the wait and edit mode on the same path (wave 1)
+- [x] 03-01-PLAN.md — Tracer: «Pegar oferta» panel → POST /api/offers/extract → extract service (literal prompt, verified against the doc) → LlmClient (mock end to end) → fill-only-empty merge of the text/enum fields; then limits, errors, the wait and edit mode on the same path (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 03-02-PLAN.md — LlmCallOptions (abort signal), callStructured (one LLM_TIMEOUT_MS budget, one retry, 502/504) and the real Ollama (think:false, num_ctx 8192) and OpenAI-compatible (json_schema strict) providers (wave 2)
-- [ ] 03-04-PLAN.md — Salary/currency merge rules and missing fields, merge unit tests, «Te falta completar» in the summary (wave 2)
+- [x] 03-02-PLAN.md — LlmCallOptions (abort signal), callStructured (one LLM_TIMEOUT_MS budget, one retry, 502/504) and the real Ollama (think:false, num_ctx 8192) and OpenAI-compatible (json_schema strict) providers (wave 2)
+- [x] 03-04-PLAN.md — Salary/currency merge rules and missing fields, merge unit tests, «Te falta completar» in the summary (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 03-03-PLAN.md — normalizeExtraction, length/duration-only logging, request signal route → service → model, body limit, the three fixtures with expectations, dev-only `npm run try-extract` (wave 3)
-- [ ] 03-05-PLAN.md — «IA» badge (AiMark) and «Complétalo tú» on the fields, with the mark lifecycle via the form listener (wave 3)
+- [x] 03-03-PLAN.md — normalizeExtraction, length/duration-only logging, request signal route → service → model, body limit, the three fixtures with expectations, dev-only `npm run try-extract` (wave 3)
+- [x] 03-05-PLAN.md — «IA» badge (AiMark) and «Complétalo tú» on the fields, with the mark lifecycle via the form listener (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 03-06-PLAN.md — Tag union without duplicates and the per-chip AI mark; tag counts in the summary (wave 4)
+- [x] 03-06-PLAN.md — Tag union without duplicates and the per-chip AI mark; tag counts in the summary (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 03-07-PLAN.md — offerText stored on POST and PUT, set only by a successful analysis, prefilled in edit mode (wave 5)
+- [x] 03-07-PLAN.md — offerText stored on POST and PUT, set only by a successful analysis, prefilled in edit mode (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 03-08-PLAN.md — OFFER_TEXT_MIN/MAX in contracts, panel limits, counter and length message, read-only while analysing, «Cancelar análisis» (wave 6)
+- [x] 03-08-PLAN.md — OFFER_TEXT_MIN/MAX in contracts, panel limits, counter and length message, read-only while analysing, «Cancelar análisis» (wave 6)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 03-09-PLAN.md — Phase gate (compose smoke + full suite), D-24 manual run against gemma4:e2b as manual evidence, blocking human review and D-25 decision (wave 7, not autonomous)
+- [x] 03-09-PLAN.md — Phase gate (compose smoke + full suite), D-24 manual run against gemma4:e2b as manual evidence, blocking human review and D-25 decision (wave 7, not autonomous)
+
+**Gap closure wave 1** *(UAT 2026-11-01)*
+- [x] 03-10-PLAN.md — G-03-2: group guard in normalizeExtraction (programming languages → stack, D-26), the model sees «idioma» through a provider-facing schema and the approved prompt line (D-01, D-25 amended, new fingerprint), manual rerun against gemma4:e2b
+
+**Gap closure wave 2** *(blocked on gap wave 1: shared 03-CONTEXT.md)*
+- [x] 03-11-PLAN.md — G-03-2b: per-group tag placeholders «Ej.: React» / «Ej.: Docker» / «Ej.: Inglés B2» (D-27), 02-UI-SPEC copy amended
+
+**Gap closure wave 3** *(blocked on gap wave 2: shared 03-CONTEXT.md)*
+- [x] 03-12-PLAN.md — G-03-3: the «Pegar oferta» panel folds after a successful analysis on create and edit, focus rule, keep-open cases, D-12 amended in CONTEXT, UI-SPEC, DESIGN and AI-05
 **UI hint**: yes
 
 ### Phase 4: Rondas de entrevista
@@ -151,7 +160,19 @@ Plans:
   2. The user can edit and delete an existing round from the detail.
   3. The detail lists rounds ordered by round number, each showing type, date, mode and outcome.
   4. Adding a round while the status is `enviada` moves the application to `en_entrevistas` with a history entry; in any other status the status is left alone, and any round change updates the application's `updatedAt`.
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+**Wave 1**
+- [ ] 04-01-PLAN.md — Tracer: «Añadir ronda» dialog → POST /api/applications/:id/interviews → one atomic pipeline update (max + 1, rule 3, updatedAt) → view replaced by the response; then the limits, failures and busy guard of the same path (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 04-02-PLAN.md — Fecha y hora (datetime-local ↔ ISO UTC), Modalidad, Resultado and Notas in the dialog; each round row with date, mode, neutral outcome badge and folded notes in D-07 order (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 04-03-PLAN.md — PUT (arrayFilters) and DELETE ($pull, no renumbering) round endpoints; edit from its row with «Ronda» required (D-28) and delete with confirmation and focus handling (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 04-04-PLAN.md — Status select waits while a round is saving (D-16); compose smoke round trip of the round endpoints, ARCHITECTURE rows and phase gate (wave 4)
 **UI hint**: yes
 
 ### Phase 5: Documentos en S3
@@ -218,8 +239,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 |-------|----------------|--------|-----------|
 | 1. Fundaciones y walking skeleton | 6/6 | Complete    | 2026-10-29 |
 | 2. Candidaturas | 12/12 | Complete    | 2026-10-31 |
-| 3. Autocompletado con IA | 0/9 | Planned | - |
-| 4. Rondas de entrevista | 0/TBD | Not started | - |
+| 3. Autocompletado con IA | 12/12 | Complete    | 2026-11-01 |
+| 4. Rondas de entrevista | 0/4 | Planned | - |
 | 5. Documentos en S3 | 0/TBD | Not started | - |
 | 6. Pulido de demo | 0/TBD | Not started | - |
 | 7. Documentación y defensa | 0/TBD | Not started | - |

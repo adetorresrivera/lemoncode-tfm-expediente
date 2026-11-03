@@ -39,15 +39,15 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### AI extraction (AI)
 
-- [ ] **AI-01**: API exposes `POST /api/offers/extract { text }` validating 50–20,000 characters and returning an `OfferExtraction`
-- [ ] **AI-02**: `LlmClient` is swappable by `LLM_PROVIDER` between `ollama`, `openai` (OpenAI-compatible) and `mock`, with `ping()` feeding `/api/health`
-- [ ] **AI-03**: Extraction returns 504 `LLM_TIMEOUT` after `LLM_TIMEOUT_MS`, and 502 `LLM_ERROR` after one retry when the output does not parse or fails the schema
-- [ ] **AI-04**: API normalizes the draft (trim, empty → `null`, swap inverted salary range, dedupe and truncate tags) and never logs the full offer text
-- [ ] **AI-05**: User sees a «Pegar oferta» panel in the form (open on create, collapsed on edit) with an «Autocompletar con IA» action and a non-blocking «Analizando la oferta…» / error state
-- [ ] **AI-06**: Applying a draft fills only empty fields, merges tags without duplicates, and never persists anything until the user saves
-- [ ] **AI-07**: Fields filled by the AI show the «IA» mark, which disappears when the user edits the field
-- [ ] **AI-08**: Relevant fields still empty after extraction (title, company, work mode, seniority) are highlighted with «Complétalo tú»
-- [ ] **AI-09**: The pasted text is stored as the application's `offerText` when the user saves
+- [x] **AI-01**: API exposes `POST /api/offers/extract { text }` validating 50–20,000 characters and returning an `OfferExtraction`
+- [x] **AI-02**: `LlmClient` is swappable by `LLM_PROVIDER` between `ollama`, `openai` (OpenAI-compatible) and `mock`, with `ping()` feeding `/api/health`
+- [x] **AI-03**: Extraction returns 504 `LLM_TIMEOUT` after `LLM_TIMEOUT_MS`, and 502 `LLM_ERROR` after one retry when the output does not parse or fails the schema
+- [x] **AI-04**: API normalizes the draft (trim, empty → `null`, swap inverted salary range, dedupe and truncate tags) and never logs the full offer text
+- [x] **AI-05**: User sees a «Pegar oferta» panel in the form (open on create, collapsed on edit, folded after a successful analysis) with an «Autocompletar con IA» action and a non-blocking «Analizando la oferta…» / error state
+- [x] **AI-06**: Applying a draft fills empty fields and fields still marked «IA» (replacing or clearing them), never touches user-typed or user-edited values, merges tags without duplicates (AI chips not edited are replaced), and never persists anything until the user saves
+- [x] **AI-07**: Fields filled by the AI show the «IA» mark, which disappears when the user edits the field
+- [x] **AI-08**: Relevant fields still empty after extraction (title, company, work mode, seniority) are highlighted with «Complétalo tú»
+- [x] **AI-09**: The pasted text is stored as the application's `offerText` when the user saves
 
 ### Interviews (INT)
 
@@ -140,15 +140,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | APP-12 | Phase 2 | Complete |
 | APP-13 | Phase 2 | Complete |
 | APP-14 | Phase 2 | Complete |
-| AI-01 | Phase 3 | Pending |
-| AI-02 | Phase 3 | Pending |
-| AI-03 | Phase 3 | Pending |
-| AI-04 | Phase 3 | Pending |
-| AI-05 | Phase 3 | Pending |
-| AI-06 | Phase 3 | Pending |
-| AI-07 | Phase 3 | Pending |
-| AI-08 | Phase 3 | Pending |
-| AI-09 | Phase 3 | Pending |
+| AI-01 | Phase 3 | Complete |
+| AI-02 | Phase 3 | Complete |
+| AI-03 | Phase 3 | Complete |
+| AI-04 | Phase 3 | Complete |
+| AI-05 | Phase 3 | Complete |
+| AI-06 | Phase 3 | Complete |
+| AI-07 | Phase 3 | Complete |
+| AI-08 | Phase 3 | Complete |
+| AI-09 | Phase 3 | Complete |
 | INT-01 | Phase 4 | Pending |
 | INT-02 | Phase 4 | Pending |
 | INT-03 | Phase 4 | Pending |

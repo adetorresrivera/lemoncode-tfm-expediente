@@ -1,4 +1,4 @@
-import { Check, X } from "lucide-react";
+import { Check, Sparkles, X } from "lucide-react";
 import { cn } from "@/common/lib/utils";
 
 const BASE =
@@ -10,9 +10,19 @@ interface Props {
   onRemove?: () => void;
   selected?: boolean;
   onToggle?: () => void;
+  // The AI proposed this tag and the user has not removed it yet (D-14). Static and removable
+  // chips only; the toggle chip is a filter and never carries the mark.
+  aiSuggested?: boolean;
 }
 
-export function TagChip({ label, soft, onRemove, selected, onToggle }: Props) {
+export function TagChip({
+  label,
+  soft,
+  onRemove,
+  selected,
+  onToggle,
+  aiSuggested,
+}: Props) {
   if (onToggle) {
     return (
       <button
@@ -29,7 +39,11 @@ export function TagChip({ label, soft, onRemove, selected, onToggle }: Props) {
         )}
       >
         {selected ? (
-          <Check aria-hidden="true" className="size-4 shrink-0" />
+          <Check
+            aria-hidden="true"
+            strokeWidth={1.5}
+            className="size-4 shrink-0"
+          />
         ) : null}
         <span className="truncate" title={label}>
           {label}
@@ -46,9 +60,19 @@ export function TagChip({ label, soft, onRemove, selected, onToggle }: Props) {
         onRemove !== undefined && "pr-1",
       )}
     >
+      {aiSuggested === true ? (
+        <Sparkles
+          aria-hidden="true"
+          strokeWidth={1.5}
+          className="size-3 shrink-0 text-primary"
+        />
+      ) : null}
       <span className="truncate" title={label}>
         {label}
       </span>
+      {aiSuggested === true ? (
+        <span className="sr-only">(propuesta por IA)</span>
+      ) : null}
       {onRemove ? (
         <button
           type="button"
@@ -56,7 +80,7 @@ export function TagChip({ label, soft, onRemove, selected, onToggle }: Props) {
           onClick={onRemove}
           className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
-          <X aria-hidden="true" className="size-4" />
+          <X aria-hidden="true" strokeWidth={1.5} className="size-4" />
         </button>
       ) : null}
     </span>

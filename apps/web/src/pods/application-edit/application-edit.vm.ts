@@ -31,6 +31,9 @@ export interface ApplicationFormValues {
   appliedAt: string;
   sourceUrl: string;
   notes: string;
+  // The analyzed offer, "" when there is none. Only a successful analysis sets it (D-10); the
+  // textarea draft lives in the extraction hook and never reaches this value by typing.
+  offerText: string;
 }
 
 export type FormFieldName = keyof ApplicationFormValues;
@@ -50,6 +53,7 @@ export const EMPTY_FORM_VALUES: ApplicationFormValues = {
   appliedAt: "",
   sourceUrl: "",
   notes: "",
+  offerText: "",
 };
 
 // Form-level message shown in the always-mounted polite status slot above the actions.
@@ -75,4 +79,72 @@ export interface ApplicationEditSummary {
   company: string;
   status: ApplicationStatus;
   appliedAt: string | null;
+}
+
+// Fields the AI analysis can fill. The merge lists the ones it wrote; the hook applies them
+// without running the field listeners.
+export type AiFillableField =
+  | "title"
+  | "company"
+  | "location"
+  | "workMode"
+  | "seniority"
+  | "contractType"
+  | "salaryMin"
+  | "salaryMax"
+  | "currency";
+
+// The four fields that matter to find and compare an application, in form order. The merge reports
+// the ones that are still empty so the user knows what to complete (AI-08).
+export type RelevantField = "title" | "company" | "workMode" | "seniority";
+
+export const RELEVANT_FIELDS: readonly RelevantField[] = [
+  "title",
+  "company",
+  "workMode",
+  "seniority",
+];
+
+// Result of merging an extraction into the current form values: the new values, the fields the AI
+// filled (in form order), the keys (tagKey) of the tags it added and the relevant fields still
+// empty afterwards.
+export interface ExtractionMerge {
+  values: ApplicationFormValues;
+  aiFields: AiFillableField[];
+  aiTags: string[];
+  missingFields: RelevantField[];
+}
+
+// The session view of a merge's lists, what the form marks: «IA» next to fields, «Complétalo tú»
+// on relevant fields still empty and the AI mark on the tag chips (keys from tagKey).
+export interface AiMarks {
+  aiFields: ReadonlySet<AiFillableField>;
+  aiTags: ReadonlySet<string>;
+  missingFields: ReadonlySet<RelevantField>;
+}
+
+export type OfferErrorReason = "timeout" | "model" | "network" | "length";
+
+export type OfferAnalysisStatus =
+  | { kind: "idle" }
+  | { kind: "analysing" }
+  | {
+      kind: "success";
+      filled: number;
+      tagsAdded: number;
+      missing: RelevantField[];
+    }
+  | { kind: "error"; reason: OfferErrorReason }
+  | { kind: "cancelled" };
+
+// What the «Pegar oferta» panel needs: the container owns the draft, the analysis state and the
+// open state (the hook folds the panel after an analysis that filled something, D-12).
+export interface OfferPanelModel {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  draft: string;
+  status: OfferAnalysisStatus;
+  onDraftChange: (draft: string) => void;
+  onAnalyze: () => void;
+  onCancel: () => void;
 }

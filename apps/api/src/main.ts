@@ -33,6 +33,7 @@ const app = createApp({
   pingLlm: () => llm.ping(),
   webDistDir,
   db,
+  llm,
 });
 
 const server = serve({ fetch: app.fetch, port: config.PORT });

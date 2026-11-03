@@ -1,22 +1,34 @@
 import {
+  OFFER_TEXT_MIN,
   applicationInputSchema,
+  tagKey,
   type Application,
   type ApplicationInput,
 } from "@tfm/contracts";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { HttpError, type HttpErrorCode } from "@/core/http/http-client";
-import { getApplication } from "./api/api";
+import { extractOffer, getApplication } from "./api/api";
 import {
   mapApplicationFromApiToFormValues,
   mapFormValuesToApiInput,
   mapServerErrorToFields,
+  mergeExtractionIntoForm,
   validateApplicationForm,
 } from "./application-edit.mapper";
-import type {
-  ApplicationEditSummary,
-  ApplicationFormValues,
-  FormMessage,
+import {
+  EMPTY_FORM_VALUES,
+  RELEVANT_FIELDS,
+  type AiFillableField,
+  type AiMarks,
+  type ApplicationEditSummary,
+  type ApplicationFormValues,
+  type ExtractionMerge,
+  type FormFieldName,
+  type FormMessage,
+  type OfferAnalysisStatus,
+  type OfferErrorReason,
+  type RelevantField,
 } from "./application-edit.vm";
 
 const INVALID_SUBMIT_MESSAGE = "Revisa los campos marcados.";
@@ -36,18 +48,35 @@ interface Options {
   initialValues: ApplicationFormValues;
   save: (input: ApplicationInput) => Promise<Application>;
   onSaved: (application: Application) => void;
+  // A user edit of a top-level field. The merge writes without running listeners, so an AI fill
+  // never reaches this.
+  onUserChange?: (name: FormFieldName, value: unknown) => void;
 }
+
+const isFormFieldName = (name: string): name is FormFieldName =>
+  Object.hasOwn(EMPTY_FORM_VALUES, name);
 
 // Errors appear on the first submit and then update while typing (`revalidateLogic`). The
 // validators read the form values (strings), so the contracts schema runs through
 // `validateApplicationForm`. The save happens in `onSubmitAsync` so a server 400 can come back as
 // field errors in the same channel as the client ones.
-export function useApplicationForm({ initialValues, save, onSaved }: Options) {
+export function useApplicationForm({
+  initialValues,
+  save,
+  onSaved,
+  onUserChange,
+}: Options) {
   const [formMessage, setFormMessage] = useState<FormMessage | null>(null);
   const savingRef = useRef(false);
 
   const form = useForm({
     defaultValues: initialValues,
+    listeners: {
+      onChange: ({ fieldApi }) => {
+        const name = fieldApi.name;
+        if (isFormFieldName(name)) onUserChange?.(name, fieldApi.state.value);
+      },
+    },
     validationLogic: revalidateLogic({
       mode: "submit",
       modeAfterSubmission: "change",
@@ -101,6 +130,292 @@ export function useApplicationForm({ initialValues, save, onSaved }: Options) {
 }
 
 export type ApplicationFormApi = ReturnType<typeof useApplicationForm>["form"];
+
+const EMPTY_MARKS: AiMarks = {
+  aiFields: new Set(),
+  aiTags: new Set(),
+  missingFields: new Set(),
+};
+
+const isAiFillable = (name: FormFieldName): name is AiFillableField => {
+  switch (name) {
+    case "title":
+    case "company":
+    case "location":
+    case "workMode":
+    case "seniority":
+    case "contractType":
+    case "salaryMin":
+    case "salaryMax":
+    case "currency":
+      return true;
+    default:
+      return false;
+  }
+};
+
+const isRelevant = (name: FormFieldName): name is RelevantField =>
+  RELEVANT_FIELDS.some((field) => field === name);
+
+const without = <T>(set: ReadonlySet<T>, value: T): ReadonlySet<T> => {
+  if (!set.has(value)) return set;
+  const next = new Set(set);
+  next.delete(value);
+  return next;
+};
+
+const hasLabel = (item: unknown): item is { label: string } =>
+  typeof item === "object" &&
+  item !== null &&
+  "label" in item &&
+  typeof item.label === "string";
+
+// A chip loses its AI mark for good once it leaves the list: a later chip with the same key, added
+// by hand, is the user's (D-15). Anything that is not a tag list leaves the marks as they were.
+const keepPresentTags = (
+  aiTags: ReadonlySet<string>,
+  value: unknown,
+): ReadonlySet<string> => {
+  if (!Array.isArray(value)) return aiTags;
+  const present = new Set(
+    value.filter(hasLabel).map((tag) => tagKey(tag.label)),
+  );
+  const kept = [...aiTags].filter((key) => present.has(key));
+  return kept.length === aiTags.size ? aiTags : new Set(kept);
+};
+
+export interface AiMarksControl {
+  marks: AiMarks;
+  getMarks: () => AiMarks;
+  setFromMerge: (merge: ExtractionMerge) => void;
+  onUserChange: (name: FormFieldName, value: unknown) => void;
+  clear: () => void;
+}
+
+// Session state of the «IA» and «Complétalo tú» marks (D-17): never persisted, never set on load.
+// A merge replaces the field marks with the fields it filled and the chip marks with the chips it
+// added (each earlier mark was filled again, replaced or cleared), and replaces the missing list
+// (D-11, amended 2026-11-01). A chip that leaves the list loses its mark for good (D-15). Any user
+// change drops the field's «IA» mark, even when the value ends up the same (D-13); the «Complétalo
+// tú» mark goes only when the field gets a non-blank value and is not restored by clearing it again
+// (D-16). A ref is the source of truth, written synchronously, so `getMarks` returns the marks as
+// they are at response time, edits made while a request is in flight included (D-20). The state
+// only feeds the render. The callbacks are stable, so a listener holding the first reference stays
+// correct.
+export function useAiMarks(): AiMarksControl {
+  const [marks, setMarks] = useState<AiMarks>(EMPTY_MARKS);
+  const marksRef = useRef<AiMarks>(EMPTY_MARKS);
+
+  const commit = useCallback((next: AiMarks) => {
+    if (next === marksRef.current) return;
+    marksRef.current = next;
+    setMarks(next);
+  }, []);
+
+  const getMarks = useCallback(() => marksRef.current, []);
+
+  const setFromMerge = useCallback(
+    (merge: ExtractionMerge) => {
+      commit({
+        aiFields: new Set(merge.aiFields),
+        aiTags: new Set(merge.aiTags),
+        missingFields: new Set(merge.missingFields),
+      });
+    },
+    [commit],
+  );
+
+  const onUserChange = useCallback(
+    (name: FormFieldName, value: unknown) => {
+      const current = marksRef.current;
+      const filled = typeof value === "string" && value.trim() !== "";
+      const aiFields = isAiFillable(name)
+        ? without(current.aiFields, name)
+        : current.aiFields;
+      const aiTags =
+        name === "tags"
+          ? keepPresentTags(current.aiTags, value)
+          : current.aiTags;
+      const missingFields =
+        filled && isRelevant(name)
+          ? without(current.missingFields, name)
+          : current.missingFields;
+      if (
+        aiFields === current.aiFields &&
+        aiTags === current.aiTags &&
+        missingFields === current.missingFields
+      ) {
+        return;
+      }
+      commit({ aiFields, aiTags, missingFields });
+    },
+    [commit],
+  );
+
+  const clear = useCallback(() => commit(EMPTY_MARKS), [commit]);
+
+  return { marks, getMarks, setFromMerge, onUserChange, clear };
+}
+
+const errorReasonOf = (error: unknown): OfferErrorReason => {
+  if (error instanceof HttpError) {
+    if (error.code === "LLM_TIMEOUT") return "timeout";
+    if (error.code === "LLM_ERROR") return "model";
+    if (error.code === "VALIDATION_ERROR") return "length";
+  }
+  return "network";
+};
+
+interface OfferExtractionOptions {
+  form: ApplicationFormApi;
+  initialDraft: string;
+  // Open on create, collapsed on edit (D-05); after that the hook owns the state (D-12).
+  initialOpen: boolean;
+  getMarks: () => AiMarks;
+  onMerged?: (merge: ExtractionMerge) => void;
+}
+
+// State of the «Pegar oferta» panel. The draft text lives here, not in the textarea, so closing
+// and re-opening the panel keeps it. The merge reads the form values and the «IA» marks when the
+// response arrives (not when the request left), so what the user typed during the wait is kept
+// (D-20). Fields are written without running their listeners: an AI fill is not a user edit.
+// The panel folds after a success that filled at least one field or tag (D-12 as amended
+// 2026-11-01, G-03-3); an error, a cancel or a success with nothing new keep it open. The draft
+// stays here, so reopening the panel keeps the text.
+export function useOfferExtraction({
+  form,
+  initialDraft,
+  initialOpen,
+  getMarks,
+  onMerged,
+}: OfferExtractionOptions) {
+  const [draft, setDraft] = useState(initialDraft);
+  const [open, setOpen] = useState(initialOpen);
+  const [status, setStatus] = useState<OfferAnalysisStatus>({ kind: "idle" });
+  const controllerRef = useRef<AbortController | null>(null);
+
+  // Leaving the page aborts the request silently: no state is written afterwards.
+  useEffect(
+    () => () => {
+      controllerRef.current?.abort();
+      controllerRef.current = null;
+    },
+    [],
+  );
+
+  // One explicit call per field: TypeScript cannot correlate a union key with its value type.
+  const applyField = (
+    field: AiFillableField,
+    values: ApplicationFormValues,
+  ): void => {
+    const options = { dontRunListeners: true };
+    switch (field) {
+      case "title":
+        form.setFieldValue("title", values.title, options);
+        break;
+      case "company":
+        form.setFieldValue("company", values.company, options);
+        break;
+      case "location":
+        form.setFieldValue("location", values.location, options);
+        break;
+      case "workMode":
+        form.setFieldValue("workMode", values.workMode, options);
+        break;
+      case "seniority":
+        form.setFieldValue("seniority", values.seniority, options);
+        break;
+      case "contractType":
+        form.setFieldValue("contractType", values.contractType, options);
+        break;
+      case "salaryMin":
+        form.setFieldValue("salaryMin", values.salaryMin, options);
+        break;
+      case "salaryMax":
+        form.setFieldValue("salaryMax", values.salaryMax, options);
+        break;
+      case "currency":
+        form.setFieldValue("currency", values.currency, options);
+        break;
+    }
+  };
+
+  const analyze = (): void => {
+    if (controllerRef.current !== null) return;
+    if (draft.trim().length < OFFER_TEXT_MIN) return;
+    const controller = new AbortController();
+    controllerRef.current = controller;
+    setStatus({ kind: "analysing" });
+
+    const analyzedText = draft.trim();
+    extractOffer(analyzedText, controller.signal)
+      .then((extraction) => {
+        if (controller.signal.aborted) return;
+        const previous = getMarks();
+        const merge = mergeExtractionIntoForm(
+          form.state.values,
+          extraction,
+          analyzedText,
+          previous,
+        );
+        // A previously marked field was either filled again or reset, so it is written either way.
+        const written = new Set([...previous.aiFields, ...merge.aiFields]);
+        for (const field of written) applyField(field, merge.values);
+        // The analyzed offer is stored with the application (D-10). It has no mounted field, and
+        // typing in the textarea never reaches it: only a successful analysis writes it.
+        form.setFieldValue("offerText", merge.values.offerText, {
+          dontRunListeners: true,
+        });
+        // When the AI added chips or an earlier AI chip was replaced or removed; the tag list stays
+        // untouched otherwise.
+        if (merge.aiTags.length > 0 || previous.aiTags.size > 0) {
+          form.setFieldValue("tags", merge.values.tags, {
+            dontRunListeners: true,
+          });
+        }
+        onMerged?.(merge);
+        setStatus({
+          kind: "success",
+          filled: merge.aiFields.length,
+          tagsAdded: merge.aiTags.length,
+          missing: merge.missingFields,
+        });
+        if (merge.aiFields.length > 0 || merge.aiTags.length > 0) {
+          setOpen(false);
+        }
+      })
+      .catch((error: unknown) => {
+        if (controller.signal.aborted) return;
+        setStatus({ kind: "error", reason: errorReasonOf(error) });
+      })
+      .finally(() => {
+        if (controllerRef.current === controller) controllerRef.current = null;
+      });
+  };
+
+  // Aborting makes a late response or rejection a no-op (the handlers check the signal), and
+  // releasing the ref lets the user analyse again right away.
+  const cancel = (): void => {
+    const controller = controllerRef.current;
+    if (controller === null) return;
+    controller.abort();
+    controllerRef.current = null;
+    setStatus({ kind: "cancelled" });
+  };
+
+  const clearStatus = (): void => setStatus({ kind: "idle" });
+
+  return {
+    draft,
+    setDraft,
+    open,
+    setOpen,
+    status,
+    analyze,
+    cancel,
+    clearStatus,
+  };
+}
 
 type LoadOk = {
   key: string;

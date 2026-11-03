@@ -1,14 +1,16 @@
 import { useId } from "react";
 import { Input } from "@/common/components/ui/input";
 import type { ApplicationFormApi } from "../application-edit.hooks";
+import type { AiMarks } from "../application-edit.vm";
 import { controlProps, firstFieldError } from "./field-props";
 import { FormField } from "./form-field";
 
 interface Props {
   form: ApplicationFormApi;
+  marks?: AiMarks;
 }
 
-export function JobSection({ form }: Props) {
+export function JobSection({ form, marks }: Props) {
   const headingId = useId();
   return (
     <section
@@ -24,10 +26,25 @@ export function JobSection({ form }: Props) {
       <form.Field name="title">
         {(field) => {
           const error = firstFieldError(field.state.meta.errors);
+          const aiFilled = marks?.aiFields.has("title") === true;
+          const missing = marks?.missingFields.has("title") === true;
           return (
-            <FormField id="field-title" label="Puesto" required error={error}>
+            <FormField
+              id="field-title"
+              label="Puesto"
+              required
+              error={error}
+              aiFilled={aiFilled}
+              missing={missing}
+            >
               <Input
-                {...controlProps({ id: "field-title", error, required: true })}
+                {...controlProps({
+                  id: "field-title",
+                  error,
+                  required: true,
+                  aiFilled,
+                  missing,
+                })}
                 name={field.name}
                 value={field.state.value}
                 autoComplete="off"
@@ -41,18 +58,24 @@ export function JobSection({ form }: Props) {
       <form.Field name="company">
         {(field) => {
           const error = firstFieldError(field.state.meta.errors);
+          const aiFilled = marks?.aiFields.has("company") === true;
+          const missing = marks?.missingFields.has("company") === true;
           return (
             <FormField
               id="field-company"
               label="Empresa"
               required
               error={error}
+              aiFilled={aiFilled}
+              missing={missing}
             >
               <Input
                 {...controlProps({
                   id: "field-company",
                   error,
                   required: true,
+                  aiFilled,
+                  missing,
                 })}
                 name={field.name}
                 value={field.state.value}
