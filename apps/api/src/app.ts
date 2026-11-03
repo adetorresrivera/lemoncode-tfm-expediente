@@ -5,14 +5,21 @@ import type { ErrorResponse, Health, HealthStatus } from "@tfm/contracts";
 import { Hono } from "hono";
 import { HTTPException } from "hono/http-exception";
 import { secureHeaders } from "hono/secure-headers";
+import type { Db } from "mongodb";
 import { z } from "zod";
+import { createApplicationsRepository } from "./applications/applications.repository.js";
+import { applicationsRoutes } from "./applications/applications.routes.js";
+import { createApplicationsService } from "./applications/applications.service.js";
 import { ApiError } from "./errors.js";
+import { tagsRoutes } from "./tags/tags.routes.js";
 
 export type AppDeps = {
   pingMongo: () => Promise<boolean>;
   pingS3: () => Promise<boolean>;
   pingLlm: () => Promise<boolean>;
   webDistDir?: string;
+  db?: Db;
+  now?: () => Date;
 };
 
 // Bounds a dependency probe so /api/health can never hang: a rejection or a timeout is "error".
@@ -57,6 +64,16 @@ export function createApp(deps: AppDeps): Hono {
     const body: Health = { status: "ok", mongo, s3, llm };
     return c.json(body, 200);
   });
+
+  // Mounted before serveStatic so the production image never answers index.html for an API path.
+  if (deps.db) {
+    const service = createApplicationsService(
+      createApplicationsRepository(deps.db),
+      deps.now,
+    );
+    app.route("/api/applications", applicationsRoutes(service));
+    app.route("/api/tags", tagsRoutes(service));
+  }
 
   if (deps.webDistDir) {
     app.use("*", serveStatic({ root: deps.webDistDir }));

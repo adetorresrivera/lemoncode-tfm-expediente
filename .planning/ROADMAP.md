@@ -13,7 +13,7 @@ Expediente is built as seven vertical slices, one per pull request, in the order
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Fundaciones y walking skeleton** - Monorepo, contracts, API health, themed shell and `docker compose up` working end to end (target 29 Oct) (completed 2026-10-29)
-- [ ] **Phase 2: Candidaturas** - Listado, detalle, alta/edición manual, estado e historial (target 31 Oct)
+- [x] **Phase 2: Candidaturas** - Listado, detalle, alta/edición manual, estado e historial (target 31 Oct) (completed 2026-10-31)
 - [ ] **Phase 3: Autocompletado con IA** - Paste an offer and get a reviewable draft that never overwrites user data (target 2 Nov)
 - [ ] **Phase 4: Rondas de entrevista** - Create, edit and delete interview rounds with the automatic move to `en_entrevistas` (target 3 Nov)
 - [ ] **Phase 5: Documentos en S3** - Upload CV and cover letters, link them to applications, download them (target 5 Nov)
@@ -67,39 +67,39 @@ Plans:
   3. The user can filter by free text (title/company), status (multi), stack tags picked from `GET /api/tags` ordered by count, work mode and seniority, and sort by last update or applied date; filters and sort live in the URL, survive a reload, and «Limpiar filtros» resets them.
   4. The detail shows offer data, tags grouped by type, status history, notes and a collapsible original offer text; the interview and linked-documents sections are not rendered until Phases 4 and 5 (no placeholders); the user can delete the application after a confirmation dialog and its documents are not deleted.
   5. The user can change status to any of the 7 states from the detail; each change appends `{ status, at }` to the history, re-selecting the same status adds nothing, the first move to `enviada` sets `appliedAt` when empty, and `updatedAt` changes on every modification.
-**Plans**: 12 plans
+**Plans**: 12/12 plans complete
 Plans:
 **Wave 1**
-- [ ] 02-01-PLAN.md — Tracer: POST/GET applications on real Mongo listed at /applications through the list pod (wave 1)
+- [x] 02-01-PLAN.md — Tracer: POST/GET applications on real Mongo listed at /applications through the list pod (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 02-02-PLAN.md — List loading, error-with-retry and empty states, counter and layout carry-over (wave 2)
+- [x] 02-02-PLAN.md — List loading, error-with-retry and empty states, counter and layout carry-over (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 02-03-PLAN.md — Tags normalized in contracts and stored with a key, GET /api/tags; DS cards with StatusBadge, TagChip, salary and date (wave 3)
+- [x] 02-03-PLAN.md — Tags normalized in contracts and stored with a key, GET /api/tags; DS cards with StatusBadge, TagChip, salary and date (wave 3)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 02-04-PLAN.md — API filters and sort on Mongo with hardened query parsing (wave 4)
-- [ ] 02-05-PLAN.md — Filter state in the URL; search field, «Limpiar filtros» and empty-by-filters (wave 4)
+- [x] 02-04-PLAN.md — API filters and sort on Mongo with hardened query parsing (wave 4)
+- [x] 02-05-PLAN.md — Filter state in the URL; search field, «Limpiar filtros» and empty-by-filters (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 02-06-PLAN.md — Status, work mode, seniority and sort controls, mobile disclosure, stack tag filter from /api/tags (wave 5)
-- [ ] 02-07-PLAN.md — GET /api/applications/:id with strict id handling (wave 5)
+- [x] 02-06-PLAN.md — Status, work mode, seniority and sort controls, mobile disclosure, stack tag filter from /api/tags (wave 5)
+- [x] 02-07-PLAN.md — GET /api/applications/:id with strict id handling (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 02-08-PLAN.md — Card link (supplied by the scene) and the read-only detail with every Phase 2 section; APP-09 partial, documents in Phase 5 (wave 6, after 02-06: shared list pod files)
+- [x] 02-08-PLAN.md — Card link (supplied by the scene) and the read-only detail with every Phase 2 section; APP-09 partial, documents in Phase 5 (wave 6, after 02-06: shared list pod files)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 02-09-PLAN.md — Atomic PATCH status with optimistic selector and rollback; DELETE behind a confirmation dialog with a notice on the list; APP-13 partial (wave 7)
+- [x] 02-09-PLAN.md — Atomic PATCH status with optimistic selector and rollback; DELETE behind a confirmation dialog with a notice on the list; APP-13 partial (wave 7)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 02-10-PLAN.md — Legitimacy checkpoint and install of @tanstack/react-form; create form path and entry points (wave 8, not autonomous)
+- [x] 02-10-PLAN.md — Legitimacy checkpoint and install of @tanstack/react-form; create form path and entry points (wave 8, not autonomous)
 
 **Wave 9** *(blocked on Wave 8 completion)*
-- [ ] 02-11-PLAN.md — Form sections Condiciones, Seguimiento and Etiquetas by group with normalization feedback (wave 9)
+- [x] 02-11-PLAN.md — Form sections Condiciones, Seguimiento and Etiquetas by group with normalization feedback (wave 9)
 
 **Wave 10** *(blocked on Wave 9 completion)*
-- [ ] 02-12-PLAN.md — PUT whitelist and edit mode from the detail (stored appliedAt kept unless edited); phase gate with a CRUD round trip in the compose smoke; APP-13 partial, interview changes in Phase 4 (wave 10)
+- [x] 02-12-PLAN.md — PUT whitelist and edit mode from the detail (stored appliedAt kept unless edited); phase gate with a CRUD round trip in the compose smoke; APP-13 partial, interview changes in Phase 4 (wave 10)
 **UI hint**: yes
 
 ### Phase 3: Autocompletado con IA
@@ -114,7 +114,30 @@ Plans:
   3. A model timeout answers 504 `LLM_TIMEOUT` after `LLM_TIMEOUT_MS`, and unparseable or schema-invalid output is retried once and then answers 502 `LLM_ERROR`; in the form the user sees a non-blocking «Analizando la oferta…» state or a clear error and can keep editing.
   4. The «Pegar oferta» panel is open when creating and collapsed when editing; «Autocompletar con IA» fills only empty fields, merges tags without duplicates, and persists nothing until the user saves.
   5. Fields filled by the AI show the «IA» mark that disappears when the user edits them, relevant fields still empty (title, company, work mode, seniority) are highlighted with «Complétalo tú», and the pasted text is stored as `offerText` on save.
-**Plans**: TBD
+**Plans**: 9 plans
+Plans:
+**Wave 1**
+- [ ] 03-01-PLAN.md — Tracer: «Pegar oferta» panel → POST /api/offers/extract → extract service (literal prompt, verified against the doc) → LlmClient (mock end to end) → fill-only-empty merge of the text/enum fields; then limits, errors, the wait and edit mode on the same path (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 03-02-PLAN.md — LlmCallOptions (abort signal), callStructured (one LLM_TIMEOUT_MS budget, one retry, 502/504) and the real Ollama (think:false, num_ctx 8192) and OpenAI-compatible (json_schema strict) providers (wave 2)
+- [ ] 03-04-PLAN.md — Salary/currency merge rules and missing fields, merge unit tests, «Te falta completar» in the summary (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 03-03-PLAN.md — normalizeExtraction, length/duration-only logging, request signal route → service → model, body limit, the three fixtures with expectations, dev-only `npm run try-extract` (wave 3)
+- [ ] 03-05-PLAN.md — «IA» badge (AiMark) and «Complétalo tú» on the fields, with the mark lifecycle via the form listener (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 03-06-PLAN.md — Tag union without duplicates and the per-chip AI mark; tag counts in the summary (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 03-07-PLAN.md — offerText stored on POST and PUT, set only by a successful analysis, prefilled in edit mode (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 03-08-PLAN.md — OFFER_TEXT_MIN/MAX in contracts, panel limits, counter and length message, read-only while analysing, «Cancelar análisis» (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 03-09-PLAN.md — Phase gate (compose smoke + full suite), D-24 manual run against gemma4:e2b as manual evidence, blocking human review and D-25 decision (wave 7, not autonomous)
 **UI hint**: yes
 
 ### Phase 4: Rondas de entrevista
@@ -194,8 +217,8 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Fundaciones y walking skeleton | 6/6 | Complete    | 2026-10-29 |
-| 2. Candidaturas | 0/12 | Planned | - |
-| 3. Autocompletado con IA | 0/TBD | Not started | - |
+| 2. Candidaturas | 12/12 | Complete    | 2026-10-31 |
+| 3. Autocompletado con IA | 0/9 | Planned | - |
 | 4. Rondas de entrevista | 0/TBD | Not started | - |
 | 5. Documentos en S3 | 0/TBD | Not started | - |
 | 6. Pulido de demo | 0/TBD | Not started | - |

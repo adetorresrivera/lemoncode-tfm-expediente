@@ -22,20 +22,20 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Applications (APP)
 
-- [ ] **APP-01**: User can create an application with title (2–120) and company (1–120) required and the remaining offer fields optional, validated by the contracts schema
-- [ ] **APP-02**: User can edit an application with the same form used to create it
-- [ ] **APP-03**: User can delete an application after a confirmation dialog; its documents are not deleted
-- [ ] **APP-04**: User can view the list of applications as cards with title, company · location, status badge, up to 3 tags plus `+N`, salary and last-updated date
-- [ ] **APP-05**: User sees loading, error-with-retry, empty and empty-by-filters states in the list
-- [ ] **APP-06**: User can filter the list by free text (title/company), status (multi), stack tags (multi), work mode and seniority
-- [ ] **APP-07**: Filters and sort live in URL search params, survive reload and can be cleared with «Limpiar filtros»
-- [ ] **APP-08**: User can sort the list by last update or by applied date
-- [ ] **APP-09**: User can open an application detail with offer data, grouped tags, status history, notes, linked documents and collapsible original offer text
-- [ ] **APP-10**: User can change status to any of the 7 states from the detail; each change appends `{ status, at }` to the history and an unchanged status adds nothing
-- [ ] **APP-11**: First move to `enviada` sets `appliedAt` to now when it is empty
-- [ ] **APP-12**: User can add tags by group (stack / se valora / idiomas) with normalization (trim, collapsed spaces, case-insensitive dedupe, max 20, first spelling kept)
-- [ ] **APP-13**: `updatedAt` changes on any modification, including status and interview changes
-- [ ] **APP-14**: User can pick stack filters from existing tags served by `GET /api/tags` ordered by count
+- [x] **APP-01**: User can create an application with title (2–120) and company (1–120) required and the remaining offer fields optional, validated by the contracts schema
+- [x] **APP-02**: User can edit an application with the same form used to create it
+- [x] **APP-03**: User can delete an application after a confirmation dialog; its documents are not deleted
+- [x] **APP-04**: User can view the list of applications as cards with title, company · location, status badge, up to 3 tags plus `+N`, salary and last-updated date
+- [x] **APP-05**: User sees loading, error-with-retry, empty and empty-by-filters states in the list
+- [x] **APP-06**: User can filter the list by free text (title/company), status (multi), stack tags (multi), work mode and seniority
+- [x] **APP-07**: Filters and sort live in URL search params, survive reload and can be cleared with «Limpiar filtros»
+- [x] **APP-08**: User can sort the list by last update or by applied date
+- [x] **APP-09**: User can open an application detail with offer data, grouped tags, status history, notes, linked documents and collapsible original offer text
+- [x] **APP-10**: User can change status to any of the 7 states from the detail; each change appends `{ status, at }` to the history and an unchanged status adds nothing
+- [x] **APP-11**: First move to `enviada` sets `appliedAt` to now when it is empty
+- [x] **APP-12**: User can add tags by group (stack / se valora / idiomas) with normalization (trim, collapsed spaces, case-insensitive dedupe, max 20, first spelling kept)
+- [x] **APP-13**: `updatedAt` changes on any modification, including status and interview changes
+- [x] **APP-14**: User can pick stack filters from existing tags served by `GET /api/tags` ordered by count
 
 ### AI extraction (AI)
 
@@ -126,20 +126,20 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FND-08 | Phase 1 | Complete |
 | FND-09 | Phase 1 | Complete |
 | FND-10 | Phase 1 | Complete |
-| APP-01 | Phase 2 | Pending |
-| APP-02 | Phase 2 | Pending |
-| APP-03 | Phase 2 | Pending |
-| APP-04 | Phase 2 | Pending |
-| APP-05 | Phase 2 | Pending |
-| APP-06 | Phase 2 | Pending |
-| APP-07 | Phase 2 | Pending |
-| APP-08 | Phase 2 | Pending |
-| APP-09 | Phase 2 | Pending |
-| APP-10 | Phase 2 | Pending |
-| APP-11 | Phase 2 | Pending |
-| APP-12 | Phase 2 | Pending |
-| APP-13 | Phase 2 | Pending |
-| APP-14 | Phase 2 | Pending |
+| APP-01 | Phase 2 | Complete |
+| APP-02 | Phase 2 | Complete |
+| APP-03 | Phase 2 | Complete |
+| APP-04 | Phase 2 | Complete |
+| APP-05 | Phase 2 | Complete |
+| APP-06 | Phase 2 | Complete |
+| APP-07 | Phase 2 | Complete |
+| APP-08 | Phase 2 | Complete |
+| APP-09 | Phase 2 | Complete |
+| APP-10 | Phase 2 | Complete |
+| APP-11 | Phase 2 | Complete |
+| APP-12 | Phase 2 | Complete |
+| APP-13 | Phase 2 | Complete |
+| APP-14 | Phase 2 | Complete |
 | AI-01 | Phase 3 | Pending |
 | AI-02 | Phase 3 | Pending |
 | AI-03 | Phase 3 | Pending |

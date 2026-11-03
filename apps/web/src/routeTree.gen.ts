@@ -11,6 +11,9 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApplicationsIndexRouteImport } from './routes/applications/index'
+import { Route as ApplicationsNewRouteImport } from './routes/applications/new'
+import { Route as ApplicationsApplicationIdIndexRouteImport } from './routes/applications/$applicationId/index'
+import { Route as ApplicationsApplicationIdEditRouteImport } from './routes/applications/$applicationId/edit'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +25,76 @@ const ApplicationsIndexRoute = ApplicationsIndexRouteImport.update({
   path: '/applications/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApplicationsNewRoute = ApplicationsNewRouteImport.update({
+  id: '/applications/new',
+  path: '/applications/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApplicationsApplicationIdIndexRoute =
+  ApplicationsApplicationIdIndexRouteImport.update({
+    id: '/applications/$applicationId/',
+    path: '/applications/$applicationId/',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApplicationsApplicationIdEditRoute =
+  ApplicationsApplicationIdEditRouteImport.update({
+    id: '/applications/$applicationId/edit',
+    path: '/applications/$applicationId/edit',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/applications/new': typeof ApplicationsNewRoute
   '/applications/': typeof ApplicationsIndexRoute
+  '/applications/$applicationId/edit': typeof ApplicationsApplicationIdEditRoute
+  '/applications/$applicationId/': typeof ApplicationsApplicationIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/applications/new': typeof ApplicationsNewRoute
   '/applications': typeof ApplicationsIndexRoute
+  '/applications/$applicationId/edit': typeof ApplicationsApplicationIdEditRoute
+  '/applications/$applicationId': typeof ApplicationsApplicationIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/applications/new': typeof ApplicationsNewRoute
   '/applications/': typeof ApplicationsIndexRoute
+  '/applications/$applicationId/edit': typeof ApplicationsApplicationIdEditRoute
+  '/applications/$applicationId/': typeof ApplicationsApplicationIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/applications/'
+  fullPaths:
+    | '/'
+    | '/applications/new'
+    | '/applications/'
+    | '/applications/$applicationId/edit'
+    | '/applications/$applicationId/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/applications'
-  id: '__root__' | '/' | '/applications/'
+  to:
+    | '/'
+    | '/applications/new'
+    | '/applications'
+    | '/applications/$applicationId/edit'
+    | '/applications/$applicationId'
+  id:
+    | '__root__'
+    | '/'
+    | '/applications/new'
+    | '/applications/'
+    | '/applications/$applicationId/edit'
+    | '/applications/$applicationId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApplicationsNewRoute: typeof ApplicationsNewRoute
   ApplicationsIndexRoute: typeof ApplicationsIndexRoute
+  ApplicationsApplicationIdEditRoute: typeof ApplicationsApplicationIdEditRoute
+  ApplicationsApplicationIdIndexRoute: typeof ApplicationsApplicationIdIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +113,36 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApplicationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/applications/new': {
+      id: '/applications/new'
+      path: '/applications/new'
+      fullPath: '/applications/new'
+      preLoaderRoute: typeof ApplicationsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/applications/$applicationId/': {
+      id: '/applications/$applicationId/'
+      path: '/applications/$applicationId'
+      fullPath: '/applications/$applicationId/'
+      preLoaderRoute: typeof ApplicationsApplicationIdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/applications/$applicationId/edit': {
+      id: '/applications/$applicationId/edit'
+      path: '/applications/$applicationId/edit'
+      fullPath: '/applications/$applicationId/edit'
+      preLoaderRoute: typeof ApplicationsApplicationIdEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApplicationsNewRoute: ApplicationsNewRoute,
   ApplicationsIndexRoute: ApplicationsIndexRoute,
+  ApplicationsApplicationIdEditRoute: ApplicationsApplicationIdEditRoute,
+  ApplicationsApplicationIdIndexRoute: ApplicationsApplicationIdIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,2 +1,1 @@
-// Phase 2 adds the application-detail container.
-export {};
+export { ApplicationDetailContainer } from "./application-detail.container";

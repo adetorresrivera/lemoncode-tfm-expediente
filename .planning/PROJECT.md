@@ -15,10 +15,10 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 ### Validated
 
 - ✓ **FND**: monorepo npm workspaces, `packages/contracts`, API `/api/health` real, web con router + shell + tema + fuentes, Dockerfile y compose, calidad (lint, typecheck, test, pre-commit) — Fase 1 (FND-01..FND-10, verificado y UAT 4/4)
+- ✓ **APP**: CRUD de candidaturas (crear, editar con lista blanca, borrar sin tocar documentos), listado con tarjetas y filtros/orden sincronizados con la URL, `GET /api/tags`, detalle, cambio de estado atómico con historial y `appliedAt` — Fase 2 (APP-01..APP-14, verificado 5/5, UAT 4/4, seguridad 30/30). Parciales por diseño: APP-09 (documentos → Fase 5, rondas → Fase 4) y APP-13 (`updatedAt` por rondas → Fase 4)
 
 ### Active
 
-- [ ] **APP**: CRUD de candidaturas, listado con filtros sincronizados con la URL, detalle, cambio de estado con historial y reglas de negocio de `docs/DOMAIN.md`
 - [ ] **AI**: extracción de oferta con `LlmClient` intercambiable (ollama / openai-compatible / mock), panel «Pegar oferta», fusión que no pisa datos del usuario, marcas «IA» y campos faltantes
 - [ ] **INT**: rondas de entrevista (crear, editar, borrar) con la regla de paso automático a `en_entrevistas`
 - [ ] **DOC**: subir PDF/DOCX ≤5 MB a S3, vincular CV y carta, descargar, bloquear borrado si está en uso
@@ -41,6 +41,7 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 - Desarrollo en devcontainer (`.devcontainer/`) con servicios `mongo`, `s3`, `ollama`. Hoja de estilos lista en `docs/design/expediente.css`.
 - Frontend con la arquitectura del curso: `core/`, `common/`, `layouts/`, `scenes/`, `pods/` (API model + view model + mapper por pod). Datos con hooks propios y `fetch` + `AbortController`, sin React Query.
 - Fase 1 cerrada (29 oct): esqueleto andante con monorepo, contratos Zod, API Hono con `/api/health`, shell web con tema y compose funcionando. Metodología GSD + Claude Code; rama por fase (`phase/NN-nombre`), una PR por fase.
+- Fase 2 cerrada (31 oct, rama `phase/02-candidaturas`): CRUD completo de candidaturas en API y web, filtros en la URL, detalle con historial, formulario compartido crear/editar con TanStack Form; 471 tests y smoke de compose con ida y vuelta CRUD.
 
 ## Constraints
 
@@ -60,10 +61,13 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 | Monorepo npm workspaces (`apps/web`, `apps/api`, `packages/contracts`) | Contratos Zod compartidos entre web y API sin duplicar modelos | ✓ Fase 1: web y API importan de `@tfm/contracts` |
 | Hono + driver oficial `mongodb` (sin ODM) | Ligero, tipado, suficiente para dos colecciones | ✓ Fase 1: health real contra Mongo |
 | Silo (`pgsty/minio`) como S3 local | Fork mantenido de MinIO, compatible con AWS SDK | ✓ Fase 1: health real contra S3 con AWS SDK |
-| Estados fijos con transiciones libres e historial | Refleja procesos reales sin imponer un flujo rígido | — Pending |
+| Estados fijos con transiciones libres e historial | Refleja procesos reales sin imponer un flujo rígido | ✓ Fase 2: PATCH de estado atómico (un `findOneAndUpdate`), idempotente para el mismo estado |
 | Borrador IA nunca se persiste solo; solo rellena campos vacíos | El usuario conserva el control y revisa antes de guardar | — Pending |
 | `LlmClient` intercambiable por `LLM_PROVIDER` | Ollama local por defecto, cloud barato o mock como plan B de la demo | ✓ Fase 1: tres proveedores con tests; `gemma4:e2b` descargado en el smoke |
-| Datos con hooks propios (`fetch` + `AbortController`), sin React Query | Alineado con el curso y con el alcance del MVP | — Pending |
+| Datos con hooks propios (`fetch` + `AbortController`), sin React Query | Alineado con el curso y con el alcance del MVP | ✓ Fase 2: hooks de lista, detalle y formulario con abort y respuestas obsoletas ignoradas |
+| Etiquetas normalizadas en `@tfm/contracts` con `key` almacenada | Una sola normalización para servicio, filtros y agregación de `GET /api/tags` | ✓ Fase 2: datos de dev anteriores a 02-03 no tienen `key` (re-guardar o borrar); el seed de Fase 6 debe pasar por el servicio |
+| Edición con lista blanca explícita en `PUT` | Estado, historial, rondas, texto de oferta y documentos solo cambian por su propio camino | ✓ Fase 2; Fase 3 añade `offerText` y Fase 5 los ids de documento a `toEditableFields` |
+| `@tanstack/react-form` 1.33.5 fijado exacto | Mandado por el stack; única dependencia nueva de la Fase 2, aprobada en checkpoint humano | ✓ Fase 2 |
 | Roadmap de 7 fases fijado por el autor | MVP completo y demostrable antes que funcionalidades a medias | — Pending |
 
 ## Evolution
@@ -84,4 +88,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-29 after Phase 1*
+*Last updated: 2026-10-31 after Phase 2*

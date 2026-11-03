@@ -50,6 +50,20 @@ describe("AppLayout", () => {
     ).toBeInTheDocument();
   });
 
+  it("clears the 256 px sidebar and centres a width-limited content column", async () => {
+    await renderShell();
+
+    const main = screen.getByRole("main");
+
+    expect(main).toHaveClass("lg:pl-64");
+    expect(main).not.toHaveClass("lg:pl-72");
+    expect(main.firstElementChild).toHaveClass(
+      "mx-auto",
+      "w-full",
+      "max-w-5xl",
+    );
+  });
+
   it("opens the menu sheet with navigation and theme switch", async () => {
     const user = userEvent.setup();
     await renderShell();
