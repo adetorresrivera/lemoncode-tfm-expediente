@@ -82,13 +82,16 @@ export const useApplicationDetail = (
     key: string;
     state: "deleting" | "error";
   } | null>(null);
-  const [busy, setBusy] = useState(false);
+  // The key of the application a mutation is running for: the lock never leaks into another one.
+  const [busyKey, setBusyKey] = useState<string | null>(null);
   const [interviewFeedback, setInterviewFeedback] =
     useState<InterviewFeedback | null>(null);
-  const busyRef = useRef(false);
+  const busyRef = useRef<string | null>(null);
   const deletingRef = useRef(false);
+  const mountedRef = useRef(true);
   const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const key = `${applicationId}#${attempt}`;
+  const busy = busyKey === key;
 
   useEffect(() => {
     const controller = new AbortController();
@@ -116,14 +119,15 @@ export const useApplicationDetail = (
     return () => controller.abort();
   }, [applicationId, key]);
 
-  useEffect(
-    () => () => {
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
       if (successTimerRef.current !== null) {
         clearTimeout(successTimerRef.current);
       }
-    },
-    [],
-  );
+    };
+  }, []);
 
   const current = result?.key === key ? result : null;
   const currentMutation = mutation?.key === key ? mutation : null;
@@ -134,15 +138,18 @@ export const useApplicationDetail = (
 
   // The mutation is never aborted on unmount and nothing is refetched: the PATCH answer is the
   // new truth. One request in flight (busy ref); the snapshot comes from this render's closure.
-  // One mutation at a time, shared by the status change and the rounds. The ref blocks a second
-  // call in the same tick; the state lets the buttons render `aria-disabled`.
+  // One mutation at a time per application, shared by the status change and the rounds. The ref
+  // blocks a second call in the same tick; the state lets the buttons render `aria-disabled`. Both
+  // hold the key they were started for, so a mutation that settles after the application changed
+  // releases only its own lock.
+  const isBusy = () => busyRef.current === key;
   const startBusy = () => {
-    busyRef.current = true;
-    setBusy(true);
+    busyRef.current = key;
+    setBusyKey(key);
   };
   const endBusy = () => {
-    busyRef.current = false;
-    setBusy(false);
+    if (busyRef.current === key) busyRef.current = null;
+    setBusyKey((previous) => (previous === key ? null : previous));
   };
 
   // Drops the pending 5 s timer and any success message (status slot and rounds slot).
@@ -161,6 +168,8 @@ export const useApplicationDetail = (
 
   // One timer for both slots: after SUCCESS_VISIBLE_MS no success message stays on screen.
   const scheduleSuccessClear = () => {
+    // A mutation that settles after unmount must not arm a timer nothing will clear.
+    if (!mountedRef.current) return;
     successTimerRef.current = setTimeout(() => {
       successTimerRef.current = null;
       setMutation((previous) =>
@@ -173,7 +182,7 @@ export const useApplicationDetail = (
   };
 
   const changeStatus = (next: ApplicationStatus) => {
-    if (busyRef.current || current?.outcome !== "ok") return;
+    if (isBusy() || current?.outcome !== "ok") return;
     if (current.vm.status === next) return;
     startBusy();
     clearSuccess();
@@ -224,7 +233,7 @@ export const useApplicationDetail = (
   // not parse; rejects after releasing the busy guard when the request fails, so the dialog can
   // stay open with its own error. The status move is read from the response, never guessed.
   const addInterview = async (values: InterviewFormValues): Promise<void> => {
-    if (busyRef.current || current?.outcome !== "ok") {
+    if (isBusy() || current?.outcome !== "ok") {
       throw new Error("Interview not added: another change is in progress");
     }
     const parsed = interviewInputSchema.safeParse(
@@ -262,7 +271,7 @@ export const useApplicationDetail = (
     interviewId: string,
     values: InterviewFormValues,
   ): Promise<void> => {
-    if (busyRef.current || current?.outcome !== "ok") {
+    if (isBusy() || current?.outcome !== "ok") {
       throw new Error("Interview not updated: another change is in progress");
     }
     if (values.round.trim() === "") {
@@ -310,7 +319,7 @@ export const useApplicationDetail = (
   // Same contract for the DELETE of one round: the answer replaces the view, the other rounds keep
   // their numbers and the status is whatever the server returns (D-08).
   const removeRound = async (interviewId: string): Promise<void> => {
-    if (busyRef.current || current?.outcome !== "ok") {
+    if (isBusy() || current?.outcome !== "ok") {
       throw new Error("Interview not deleted: another change is in progress");
     }
     startBusy();

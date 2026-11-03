@@ -1,5 +1,6 @@
 import { applicationSchema } from "@tfm/contracts";
 import {
+  act,
   fireEvent,
   render,
   renderHook,
@@ -1502,5 +1503,80 @@ describe("one change at a time across the detail", () => {
     ).toHaveAttribute("aria-disabled", "false");
     await userEvent.click(screen.getByRole("button", { name: "Añadir ronda" }));
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
+  });
+});
+
+describe("mutation lock scope", () => {
+  it("does not lock another application while a change of the previous one is in flight", async () => {
+    const patch = deferred();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "GET /api/applications/a2": makeApplication({ id: "a2" }),
+      "PATCH /api/applications/a1/status": () => patch.promise,
+    });
+    const { result, rerender } = renderHook(
+      ({ id }) => useApplicationDetail(id, { onDeleted: () => {} }),
+      { initialProps: { id: "a1" } },
+    );
+    await waitFor(() => expect(result.current.status).toBe("ok"));
+
+    act(() => result.current.changeStatus("rechazada"));
+    await waitFor(() =>
+      expect(result.current.interviewActions.busy).toBe(true),
+    );
+
+    rerender({ id: "a2" });
+    await waitFor(() => expect(result.current.vm?.id).toBe("a2"));
+
+    expect(result.current.interviewActions.busy).toBe(false);
+    const vm = result.current.vm;
+    if (vm === null) throw new Error("The application did not load");
+    const added = vi.fn();
+    fetchMock.mockClear();
+    await act(async () => {
+      await result.current.interviewActions
+        .add({ ...vm.newInterviewValues, type: "tecnica" })
+        .catch(added);
+    });
+    // Not rejected for being busy: the request went out (the unrouted POST answers 404).
+    expect(
+      fetchMock.mock.calls.filter(([, init]) => init?.method === "POST"),
+    ).toHaveLength(1);
+
+    await act(async () => {
+      patch.resolve(jsonResponse(makeApplication({ status: "rechazada" })));
+      await patch.promise;
+    });
+    expect(result.current.interviewActions.busy).toBe(false);
+  });
+
+  it("arms no success timer when a change settles after unmount", async () => {
+    const patch = deferred();
+    mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "PATCH /api/applications/a1/status": () => patch.promise,
+    });
+    const { result, unmount } = renderHook(() =>
+      useApplicationDetail("a1", { onDeleted: () => {} }),
+    );
+    await waitFor(() => expect(result.current.status).toBe("ok"));
+    act(() => result.current.changeStatus("rechazada"));
+    await waitFor(() =>
+      expect(result.current.interviewActions.busy).toBe(true),
+    );
+
+    unmount();
+    const timers = vi.spyOn(globalThis, "setTimeout");
+    try {
+      patch.resolve(jsonResponse(makeApplication({ status: "rechazada" })));
+      await patch.promise;
+      // Lets the response body parse and the hook's handlers run.
+      await new Promise((resolve) => setTimeout(resolve, 50));
+      expect(
+        timers.mock.calls.filter(([, delay]) => delay === 5000),
+      ).toHaveLength(0);
+    } finally {
+      timers.mockRestore();
+    }
   });
 });
