@@ -159,10 +159,24 @@ export interface InterviewInputDraft {
   notes: string | null;
 }
 
+// The stored date of a round next to the control value it was shown as. The control keeps only
+// minutes in the browser zone, so a stored instant it cannot represent (seconds, the second pass
+// of the autumn DST overlap) would move on save. While the control still holds the loaded value,
+// the stored instant goes back untouched.
+export interface LoadedScheduledAt {
+  local: string;
+  iso: string | null;
+}
+
 export const mapInterviewFormToApiInput = (
   values: InterviewFormValues,
+  loaded?: LoadedScheduledAt,
 ): InterviewInputDraft => {
   const round = values.round.trim();
+  const unchangedDate =
+    loaded !== undefined &&
+    loaded.iso !== null &&
+    values.scheduledAt === loaded.local;
   return {
     type: values.type,
     // An emptied «Ronda» is left out: the API assigns the next number (D-09).
@@ -172,7 +186,9 @@ export const mapInterviewFormToApiInput = (
     scheduledAt:
       values.scheduledAt === ""
         ? null
-        : (localInputToIso(values.scheduledAt) ?? values.scheduledAt),
+        : unchangedDate
+          ? loaded.iso
+          : (localInputToIso(values.scheduledAt) ?? values.scheduledAt),
     mode: values.mode,
     outcome: values.outcome,
     // The contract trims but keeps "": a blank note is sent as null.

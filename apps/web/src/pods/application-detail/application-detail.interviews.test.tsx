@@ -967,6 +967,84 @@ describe("edit a round", () => {
     ).toBeInTheDocument();
   });
 
+  it("sends the stored date untouched when only another field is edited", async () => {
+    // 01:30:15.250Z is the second pass of the Madrid autumn overlap and carries seconds: the
+    // control shows 02:30 and cannot hold either detail.
+    const stored = "2026-10-25T01:30:15.250Z";
+    const application = makeApplication({
+      interviews: [round({ id: "i1", round: 1, scheduledAt: stored })],
+    });
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": application,
+      "PUT /api/applications/a1/interviews/i1": () => jsonResponse(application),
+    });
+    renderDetail();
+    const { dialog } = await openEditDialog(1);
+    expect(within(dialog).getByLabelText("Fecha y hora")).toHaveValue(
+      "2026-10-25T02:30",
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole("radio", { name: "Superada" }),
+    );
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Guardar ronda" }),
+    );
+
+    await vi.waitFor(() => expect(callsOf(fetchMock, "PUT")).toHaveLength(1));
+    expect(
+      JSON.parse(String(callsOf(fetchMock, "PUT")[0]?.[1]?.body)),
+    ).toMatchObject({ scheduledAt: stored, outcome: "superada" });
+  });
+
+  it("sends the new date once the user changes the date control", async () => {
+    const stored = "2026-10-25T01:30:15.250Z";
+    const application = makeApplication({
+      interviews: [round({ id: "i1", round: 1, scheduledAt: stored })],
+    });
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": application,
+      "PUT /api/applications/a1/interviews/i1": () => jsonResponse(application),
+    });
+    renderDetail();
+    const { dialog } = await openEditDialog(1);
+
+    fireEvent.change(within(dialog).getByLabelText("Fecha y hora"), {
+      target: { value: "2026-11-05T10:30" },
+    });
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Guardar ronda" }),
+    );
+
+    await vi.waitFor(() => expect(callsOf(fetchMock, "PUT")).toHaveLength(1));
+    expect(
+      JSON.parse(String(callsOf(fetchMock, "PUT")[0]?.[1]?.body)),
+    ).toMatchObject({ scheduledAt: "2026-11-05T09:30:00.000Z" });
+  });
+
+  it("keeps the stored instant in the mapper only while the control holds the loaded value", () => {
+    const loaded = {
+      local: "2026-10-25T02:30",
+      iso: "2026-10-25T01:30:15.250Z",
+    };
+    expect(
+      mapInterviewFormToApiInput(
+        baseValues({ scheduledAt: "2026-10-25T02:30" }),
+        loaded,
+      ).scheduledAt,
+    ).toBe("2026-10-25T01:30:15.250Z");
+    expect(
+      mapInterviewFormToApiInput(
+        baseValues({ scheduledAt: "2026-10-26T02:30" }),
+        loaded,
+      ).scheduledAt,
+    ).toBe("2026-10-26T01:30:00.000Z");
+    expect(
+      mapInterviewFormToApiInput(baseValues({ scheduledAt: "" }), loaded)
+        .scheduledAt,
+    ).toBeNull();
+  });
+
   it("keeps the dialog open with the values and an error when the PUT fails", async () => {
     const fetchMock = mockFetch({
       "GET /api/applications/a1": threeRounds(),

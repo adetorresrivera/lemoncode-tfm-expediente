@@ -268,8 +268,21 @@ export const useApplicationDetail = (
     if (values.round.trim() === "") {
       throw new Error("Interview not updated: the round is required");
     }
+    // The stored date goes back as it is while the date control was not touched (it only holds
+    // minutes in local time).
+    const stored = current.vm.interviews.find(
+      (interview) => interview.id === interviewId,
+    );
     const parsed = interviewInputSchema.safeParse(
-      mapInterviewFormToApiInput(values),
+      mapInterviewFormToApiInput(
+        values,
+        stored === undefined
+          ? undefined
+          : {
+              local: stored.editValues.scheduledAt,
+              iso: stored.scheduledAt,
+            },
+      ),
     );
     if (!parsed.success) {
       throw new Error("Interview not updated: invalid values");
