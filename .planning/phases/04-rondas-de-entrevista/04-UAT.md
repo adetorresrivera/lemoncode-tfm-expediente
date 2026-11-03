@@ -3,7 +3,7 @@ status: testing
 phase: 04-rondas-de-entrevista
 source: [04-VERIFICATION.md]
 started: 2026-11-03T06:48:13Z
-updated: 2026-11-03T06:48:13Z
+updated: 2026-11-03T12:10:50Z
 ---
 
 ## Current Test
@@ -28,16 +28,20 @@ result: [pending]
 expected: Focus returns to the right control after each dialog closes, focus is always visible, and contrast meets AA in both themes.
 result: [pending]
 
-### 4. Confirm the judgment-tier prohibitions
+### 4. Edit only the outcome of a round whose stored date has seconds or falls in the autumn DST overlap
+expected: After a reload, the round keeps its exact date and time (review fix 57aa1db).
+result: [pending]
+
+### 5. Confirm the judgment-tier prohibitions
 expected: Status changes only from exactly enviada; no optimistic render; notes are never logged; delete never renumbers; no delete without confirmation; one mutation at a time.
 result: [pending]
 
 ## Summary
 
-total: 4
+total: 5
 passed: 0
 issues: 0
-pending: 4
+pending: 5
 skipped: 0
 blocked: 0
 
