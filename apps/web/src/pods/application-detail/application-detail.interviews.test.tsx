@@ -1550,6 +1550,121 @@ describe("mutation lock scope", () => {
     expect(result.current.interviewActions.busy).toBe(false);
   });
 
+  it("keeps the feedback of the application on screen when another one settles late", async () => {
+    const patch1 = deferred();
+    const patch2 = deferred();
+    mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "GET /api/applications/a2": makeApplication({ id: "a2" }),
+      "PATCH /api/applications/a1/status": () => patch1.promise,
+      "PATCH /api/applications/a2/status": () => patch2.promise,
+    });
+    const { result, rerender } = renderHook(
+      ({ id }) => useApplicationDetail(id, { onDeleted: () => {} }),
+      { initialProps: { id: "a1" } },
+    );
+    await waitFor(() => expect(result.current.status).toBe("ok"));
+    act(() => result.current.changeStatus("rechazada"));
+    await waitFor(() => expect(result.current.pendingStatus).toBe("rechazada"));
+
+    rerender({ id: "a2" });
+    await waitFor(() => expect(result.current.vm?.id).toBe("a2"));
+    expect(result.current.pendingStatus).toBeNull();
+    act(() => result.current.changeStatus("descartada"));
+    await waitFor(() =>
+      expect(result.current.pendingStatus).toBe("descartada"),
+    );
+
+    // The a1 request settles while a2 is on screen and still saving.
+    await act(async () => {
+      patch1.resolve(jsonResponse(makeApplication({ status: "rechazada" })));
+      await patch1.promise;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(result.current.vm?.id).toBe("a2");
+    expect(result.current.pendingStatus).toBe("descartada");
+    expect(result.current.statusFeedback).toStrictEqual({
+      kind: "loading",
+      message: "Guardando…",
+    });
+
+    await act(async () => {
+      patch2.resolve(
+        jsonResponse(makeApplication({ id: "a2", status: "descartada" })),
+      );
+      await patch2.promise;
+      await new Promise((resolve) => setTimeout(resolve, 50));
+    });
+    expect(result.current.pendingStatus).toBeNull();
+    expect(result.current.statusFeedback?.kind).toBe("success");
+  });
+
+  it("keeps one success timer per application so an earlier one never clears a later message", async () => {
+    const patch1 = deferred();
+    const patch2 = deferred();
+    mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "GET /api/applications/a2": makeApplication({ id: "a2" }),
+      "PATCH /api/applications/a1/status": () => patch1.promise,
+      "PATCH /api/applications/a2/status": () => patch2.promise,
+    });
+    const timers = vi.spyOn(globalThis, "setTimeout");
+    const clears = vi.spyOn(globalThis, "clearTimeout");
+    try {
+      const { result, rerender, unmount } = renderHook(
+        ({ id }) => useApplicationDetail(id, { onDeleted: () => {} }),
+        { initialProps: { id: "a1" } },
+      );
+      await waitFor(() => expect(result.current.status).toBe("ok"));
+      act(() => result.current.changeStatus("rechazada"));
+      await waitFor(() =>
+        expect(result.current.pendingStatus).toBe("rechazada"),
+      );
+      rerender({ id: "a2" });
+      await waitFor(() => expect(result.current.vm?.id).toBe("a2"));
+      act(() => result.current.changeStatus("descartada"));
+      await waitFor(() =>
+        expect(result.current.pendingStatus).toBe("descartada"),
+      );
+
+      const settle = async (
+        patch: ReturnType<typeof deferred>,
+        application: ReturnType<typeof makeApplication>,
+      ) => {
+        await act(async () => {
+          patch.resolve(jsonResponse(application));
+          await patch.promise;
+          await new Promise((resolve) => setTimeout(resolve, 50));
+        });
+      };
+      await settle(patch1, makeApplication({ status: "rechazada" }));
+      await settle(patch2, makeApplication({ id: "a2", status: "descartada" }));
+      expect(result.current.statusFeedback?.kind).toBe("success");
+
+      const successTimers = timers.mock.calls.filter(
+        ([, delay]) => delay === 5000,
+      );
+      expect(successTimers).toHaveLength(2);
+      // The a1 timer firing late must leave the a2 message alone.
+      const [firstCallback] = successTimers[0] ?? [];
+      if (typeof firstCallback !== "function") {
+        throw new Error("The first success timer was not armed");
+      }
+      act(() => firstCallback());
+      expect(result.current.statusFeedback?.kind).toBe("success");
+
+      // Unmount cancels every timer still pending (none is left orphaned).
+      const pendingBefore = clears.mock.calls.length;
+      unmount();
+      expect(clears.mock.calls.length - pendingBefore).toBeGreaterThanOrEqual(
+        1,
+      );
+    } finally {
+      timers.mockRestore();
+      clears.mockRestore();
+    }
+  });
+
   it("arms no success timer when a change settles after unmount", async () => {
     const patch = deferred();
     mockFetch({

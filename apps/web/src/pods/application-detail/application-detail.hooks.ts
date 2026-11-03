@@ -34,17 +34,11 @@ type Result =
   | { key: string; outcome: "notFound" }
   | { key: string; outcome: "error"; code: HttpErrorCode };
 
-// Status-change state, keyed like the result so it never leaks into another application.
+// Status-change state. It is stored per application key (see `mutations`), so a request that
+// settles late can only write its own slot and never the one of the application on screen.
 interface Mutation {
-  key: string;
   pendingStatus: ApplicationStatus | null;
   feedback: StatusFeedback | null;
-}
-
-// Round feedback lives in its own slot (the section's polite region), keyed like the result.
-interface InterviewFeedback {
-  key: string;
-  message: string;
 }
 
 const SUCCESS_VISIBLE_MS = 5000;
@@ -77,19 +71,24 @@ export const useApplicationDetail = (
 ): ApplicationDetailState => {
   const [result, setResult] = useState<Result | null>(null);
   const [attempt, setAttempt] = useState(0);
-  const [mutation, setMutation] = useState<Mutation | null>(null);
+  const [mutations, setMutations] = useState<Record<string, Mutation>>({});
   const [deletion, setDeletion] = useState<{
     key: string;
     state: "deleting" | "error";
   } | null>(null);
   // The key of the application a mutation is running for: the lock never leaks into another one.
   const [busyKey, setBusyKey] = useState<string | null>(null);
-  const [interviewFeedback, setInterviewFeedback] =
-    useState<InterviewFeedback | null>(null);
+  // Round feedback (the section's polite region), one message per application key.
+  const [interviewFeedbacks, setInterviewFeedbacks] = useState<
+    Record<string, string>
+  >({});
   const busyRef = useRef<string | null>(null);
   const deletingRef = useRef(false);
   const mountedRef = useRef(true);
-  const successTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // One success timer per application key: two applications never share (or orphan) a timer.
+  const successTimersRef = useRef(
+    new Map<string, ReturnType<typeof setTimeout>>(),
+  );
   const key = `${applicationId}#${attempt}`;
   const busy = busyKey === key;
 
@@ -121,16 +120,16 @@ export const useApplicationDetail = (
 
   useEffect(() => {
     mountedRef.current = true;
+    const timers = successTimersRef.current;
     return () => {
       mountedRef.current = false;
-      if (successTimerRef.current !== null) {
-        clearTimeout(successTimerRef.current);
-      }
+      for (const timer of timers.values()) clearTimeout(timer);
+      timers.clear();
     };
   }, []);
 
   const current = result?.key === key ? result : null;
-  const currentMutation = mutation?.key === key ? mutation : null;
+  const currentMutation = mutations[key] ?? null;
 
   // Writes only while the result still belongs to the application the request was sent for.
   const replaceResult = (next: OkResult) =>
@@ -152,34 +151,54 @@ export const useApplicationDetail = (
     setBusyKey((previous) => (previous === key ? null : previous));
   };
 
-  // Drops the pending 5 s timer and any success message (status slot and rounds slot).
-  const clearSuccess = () => {
-    if (successTimerRef.current !== null) {
-      clearTimeout(successTimerRef.current);
-      successTimerRef.current = null;
-    }
-    setMutation((previous) =>
-      previous?.feedback?.kind === "success"
-        ? { ...previous, feedback: null }
-        : previous,
-    );
-    setInterviewFeedback(null);
+  // Writes the status slot of the application the request was sent for, never another one.
+  const writeMutation = (next: Mutation) =>
+    setMutations((previous) => ({ ...previous, [key]: next }));
+
+  // Removes the success message (status slot and rounds slot) of the given application key only.
+  const dropSuccess = (target: string) => {
+    setMutations((previous) => {
+      const slot = previous[target];
+      return slot?.feedback?.kind === "success"
+        ? { ...previous, [target]: { ...slot, feedback: null } }
+        : previous;
+    });
+    setInterviewFeedbacks((previous) => {
+      if (!(target in previous)) return previous;
+      const rest = { ...previous };
+      delete rest[target];
+      return rest;
+    });
   };
 
-  // One timer for both slots: after SUCCESS_VISIBLE_MS no success message stays on screen.
+  // Drops this application's pending 5 s timer and its success message.
+  const clearSuccess = () => {
+    const timer = successTimersRef.current.get(key);
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      successTimersRef.current.delete(key);
+    }
+    dropSuccess(key);
+  };
+
+  // One timer per application key: after SUCCESS_VISIBLE_MS no success message stays on screen,
+  // and a later settlement of the same application replaces its timer instead of orphaning it.
   const scheduleSuccessClear = () => {
     // A mutation that settles after unmount must not arm a timer nothing will clear.
     if (!mountedRef.current) return;
-    successTimerRef.current = setTimeout(() => {
-      successTimerRef.current = null;
-      setMutation((previous) =>
-        previous?.feedback?.kind === "success"
-          ? { ...previous, feedback: null }
-          : previous,
-      );
-      setInterviewFeedback(null);
-    }, SUCCESS_VISIBLE_MS);
+    const previous = successTimersRef.current.get(key);
+    if (previous !== undefined) clearTimeout(previous);
+    successTimersRef.current.set(
+      key,
+      setTimeout(() => {
+        successTimersRef.current.delete(key);
+        dropSuccess(key);
+      }, SUCCESS_VISIBLE_MS),
+    );
   };
+
+  const writeInterviewFeedback = (message: string) =>
+    setInterviewFeedbacks((previous) => ({ ...previous, [key]: message }));
 
   const changeStatus = (next: ApplicationStatus) => {
     if (isBusy() || current?.outcome !== "ok") return;
@@ -195,8 +214,7 @@ export const useApplicationDetail = (
         formatDate(new Date().toISOString()),
       ),
     });
-    setMutation({
-      key,
+    writeMutation({
       pendingStatus: next,
       feedback: { kind: "loading", message: "Guardando…" },
     });
@@ -207,8 +225,7 @@ export const useApplicationDetail = (
           outcome: "ok",
           vm: mapApplicationFromApiToDetailVm(application),
         });
-        setMutation({
-          key,
+        writeMutation({
           pendingStatus: null,
           feedback: {
             kind: "success",
@@ -219,8 +236,7 @@ export const useApplicationDetail = (
       })
       .catch(() => {
         replaceResult(snapshot);
-        setMutation({
-          key,
+        writeMutation({
           pendingStatus: null,
           feedback: { kind: "error", message: STATUS_ERROR_MESSAGE },
         });
@@ -253,12 +269,11 @@ export const useApplicationDetail = (
       const moved =
         snapshot.vm.status !== application.status &&
         application.status === "en_entrevistas";
-      setInterviewFeedback({
-        key,
-        message: moved
+      writeInterviewFeedback(
+        moved
           ? `Ronda añadida. Estado cambiado a ${STATUS_LABELS.en_entrevistas}.`
           : "Ronda añadida.",
-      });
+      );
       scheduleSuccessClear();
     } finally {
       endBusy();
@@ -309,7 +324,7 @@ export const useApplicationDetail = (
         outcome: "ok",
         vm: mapApplicationFromApiToDetailVm(application),
       });
-      setInterviewFeedback({ key, message: "Ronda actualizada." });
+      writeInterviewFeedback("Ronda actualizada.");
       scheduleSuccessClear();
     } finally {
       endBusy();
@@ -331,7 +346,7 @@ export const useApplicationDetail = (
         outcome: "ok",
         vm: mapApplicationFromApiToDetailVm(application),
       });
-      setInterviewFeedback({ key, message: "Ronda eliminada." });
+      writeInterviewFeedback("Ronda eliminada.");
       scheduleSuccessClear();
     } finally {
       endBusy();
@@ -364,8 +379,7 @@ export const useApplicationDetail = (
     deleteState: deletion?.key === key ? deletion.state : "idle",
     interviewActions: {
       busy,
-      feedback:
-        interviewFeedback?.key === key ? interviewFeedback.message : null,
+      feedback: interviewFeedbacks[key] ?? null,
       add: addInterview,
       update: updateRound,
       remove: removeRound,
