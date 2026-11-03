@@ -8,12 +8,10 @@
     "ghcr.io/devcontainers/features/docker-outside-of-docker:1": {},
     "ghcr.io/anthropics/devcontainer-features/claude-code:1": {}
   },
-  "forwardPorts": [5173, 3000, 8080, "mongo:27017", "s3:9000", "s3:9001", "ollama:11434"],
+  "forwardPorts": [5173, 3000, "mongo:27017", "s3:9000", "ollama:11434"],
   "portsAttributes": {
     "5173": { "label": "web (vite)" },
-    "3000": { "label": "api" },
-    "8080": { "label": "app (docker compose)" },
-    "s3:9001": { "label": "consola Silo" }
+    "3000": { "label": "api" }
   },
   "remoteEnv": {
     "PORT": "3000",
@@ -27,9 +25,10 @@
     "LLM_PROVIDER": "ollama",
     "LLM_BASE_URL": "http://ollama:11434",
     "LLM_MODEL": "gemma4:e2b",
-    "LLM_TIMEOUT_MS": "90000"
+    "LLM_TIMEOUT_MS": "90000",
+    "CLAUDE_CONFIG_DIR": "/home/node/.claude"
   },
-  "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder}",
+  "postCreateCommand": "git config --global --add safe.directory ${containerWorkspaceFolder} && sudo chown -R node:node /home/node/.claude && ([ -f /home/node/.claude/.claude.json ] || echo '{\"hasCompletedOnboarding\": true}' > /home/node/.claude/.claude.json)",
   "customizations": {
     "vscode": {
       "extensions": [

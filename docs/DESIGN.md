@@ -42,7 +42,7 @@ Tuteo, frases cortas, verbos de acción («Añadir candidatura», «Autocompleta
 ### Alta / edición (`/applications/new`, `/applications/$id/edit`)
 - Panel «Pegar oferta» arriba (abierto en alta, plegado en edición): textarea + botón IA + estado (carga «Analizando la oferta…», error amable sin bloquear el formulario).
 - Formulario en secciones: Puesto y empresa · Condiciones (modalidad, seniority, contrato, ubicación, salario min/max, moneda) · Etiquetas (input por grupo con chips removibles) · Seguimiento (estado inicial, fecha de envío, URL, notas) · Documentos (elegir existente o subir: CV y carta).
-- Acciones: primary «Guardar candidatura», «Cancelar». Validación con el esquema de contracts; errores junto al campo.
+- Acciones: primary «Guardar candidatura», «Descartar cambios». Validación con el esquema de contracts; errores junto al campo.
 
 ## Accesibilidad y responsive
 Mobile-first desde 360 px sin scroll horizontal. Labels en todos los campos, foco visible (`ring`), `aria-live="polite"` en carga/errores/resultado de IA, contraste AA (los tokens ya lo cumplen; `brand-gold` nunca como texto pequeño, usar `brand-gold-ink`). Todo operable con teclado; diálogos de shadcn con foco atrapado.

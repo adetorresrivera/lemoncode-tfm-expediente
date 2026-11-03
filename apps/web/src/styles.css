@@ -1,0 +1,176 @@
+/* Expediente — apps/web/src/styles.css (Tailwind v4 + shadcn, adaptado a Vite con @fontsource) */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/eb-garamond";
+@import "@fontsource-variable/source-sans-3";
+@import "@fontsource-variable/jetbrains-mono";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  --radius: 0.25rem;
+  --background: #f6f1e6;
+  --foreground: #1c2333;
+  --card: #fffdf8;
+  --card-foreground: var(--foreground);
+  --popover: #fffdf8;
+  --popover-foreground: var(--foreground);
+  --primary: #1f3a5f;
+  --primary-foreground: #f6f1e6;
+  --secondary: #eae2cf;
+  --secondary-foreground: #1f3a5f;
+  --muted: #efe8d9;
+  --muted-foreground: #5a5e6a;
+  --accent: #e7ddc6;
+  --accent-foreground: #1f3a5f;
+  --destructive: #9b2c2c;
+  --destructive-foreground: #fffdf8;
+  --border: #dcd2bd;
+  --input: #8c7f64;
+  --ring: #1f3a5f;
+  --sidebar: #182b47;
+  --sidebar-foreground: #ece5d5;
+  --sidebar-primary: #c9a961;
+  --sidebar-primary-foreground: #182b47;
+  --sidebar-accent: #233a5c;
+  --sidebar-accent-foreground: #f6f1e6;
+  --sidebar-border: #2c4366;
+  --sidebar-ring: #c9a961;
+  --brand-navy: #1f3a5f;
+  --brand-oxblood: #6b1e2e;
+  --brand-gold: #b08d3c;
+  --brand-gold-ink: #7a5410;
+  --brand-parchment: #f6f1e6;
+  --ai-missing-bg: #fbf6e9;
+  --status-saved: #4a4f5c;
+  --status-saved-bg: #e9e6df;
+  --status-sent: #1f3a5f;
+  --status-sent-bg: #dde5ef;
+  --status-interview: #7a5410;
+  --status-interview-bg: #f4e8c8;
+  --status-offer: #2f5d3a;
+  --status-offer-bg: #dfeadb;
+  --status-rejected: #6b1e2e;
+  --status-rejected-bg: #f1dcdc;
+  --chart-1: #1f3a5f;
+  --chart-2: #b08d3c;
+  --chart-3: #4e7d59;
+  --chart-4: #6b1e2e;
+  --chart-5: #8c8f99;
+}
+
+.dark {
+  --background: #11151d;
+  --foreground: #ece5d5;
+  --card: #181e29;
+  --card-foreground: var(--foreground);
+  --popover: #181e29;
+  --popover-foreground: var(--foreground);
+  --primary: #afc2dd;
+  --primary-foreground: #11151d;
+  --secondary: #252d3b;
+  --secondary-foreground: #ece5d5;
+  --muted: #1f2633;
+  --muted-foreground: #a39e92;
+  --accent: #252d3b;
+  --accent-foreground: #ece5d5;
+  --destructive: #b23a3a;
+  --destructive-foreground: #fffdf8;
+  --border: #2a3240;
+  --input: #6a7387;
+  --ring: #afc2dd;
+  --sidebar: #0c1018;
+  --sidebar-foreground: #ece5d5;
+  --sidebar-primary: #d4b56a;
+  --sidebar-primary-foreground: #0c1018;
+  --sidebar-accent: #1a2130;
+  --sidebar-accent-foreground: #ece5d5;
+  --sidebar-border: #222a38;
+  --sidebar-ring: #d4b56a;
+  --brand-navy: #34557f;
+  --brand-oxblood: #8a2f40;
+  --brand-gold: #c9a961;
+  --brand-gold-ink: #d4b56a;
+  --brand-parchment: #e5dcc6;
+  --ai-missing-bg: #2a2416;
+  --status-saved: #c3c1ba;
+  --status-saved-bg: #2a2e36;
+  --status-sent: #afc2dd;
+  --status-sent-bg: #1d2a3d;
+  --status-interview: #e2c27a;
+  --status-interview-bg: #3a2f17;
+  --status-offer: #9cc7a4;
+  --status-offer-bg: #1c3022;
+  --status-rejected: #e7a3a9;
+  --status-rejected-bg: #3a1c21;
+  --chart-1: #afc2dd;
+  --chart-2: #d4b56a;
+  --chart-3: #7fb08a;
+  --chart-4: #c8707e;
+  --chart-5: #8f95a3;
+}
+
+@theme inline {
+  --font-serif: "EB Garamond Variable", "EB Garamond", Garamond, "Times New Roman", serif;
+  --font-sans: "Source Sans 3 Variable", "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --radius-sm: calc(var(--radius) - 2px);
+  --radius-md: var(--radius);
+  --radius-lg: calc(var(--radius) + 2px);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-brand-navy: var(--brand-navy);
+  --color-brand-oxblood: var(--brand-oxblood);
+  --color-brand-gold: var(--brand-gold);
+  --color-brand-gold-ink: var(--brand-gold-ink);
+  --color-brand-parchment: var(--brand-parchment);
+  --color-ai-missing-bg: var(--ai-missing-bg);
+  --color-status-saved: var(--status-saved);
+  --color-status-saved-bg: var(--status-saved-bg);
+  --color-status-sent: var(--status-sent);
+  --color-status-sent-bg: var(--status-sent-bg);
+  --color-status-interview: var(--status-interview);
+  --color-status-interview-bg: var(--status-interview-bg);
+  --color-status-offer: var(--status-offer);
+  --color-status-offer-bg: var(--status-offer-bg);
+  --color-status-rejected: var(--status-rejected);
+  --color-status-rejected-bg: var(--status-rejected-bg);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+}
+
+@layer base {
+  * { @apply border-border outline-ring/50; }
+  body { @apply bg-background text-foreground font-sans antialiased; }
+  h1, h2, h3 { @apply font-serif text-balance; }
+  .tabular { font-variant-numeric: tabular-nums; }
+}

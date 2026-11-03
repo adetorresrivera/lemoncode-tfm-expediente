@@ -1,0 +1,12 @@
+dist
+coverage
+node_modules
+package-lock.json
+apps/web/src/routeTree.gen.ts
+apps/web/src/styles.css
+.planning
+.claude
+gsd
+docs
+.devcontainer
+*.md
