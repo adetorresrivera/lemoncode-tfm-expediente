@@ -155,6 +155,30 @@ moved="$(http_send PATCH "/api/applications/$app_id/status" '{"status":"enviada"
 expect_status "PATCH /api/applications/$app_id/status" 200 "$moved"
 echo "$moved" | grep -q '"appliedAt":"' || fail "move to enviada did not fill appliedAt: $moved"
 
+echo "== interview rounds round trip =="
+# Adding a round to an enviada application moves it to en_entrevistas (rule 3). The round is
+# deleted here and the application right after, so nothing stays in the compose database.
+round_added="$(http_send POST "/api/applications/$app_id/interviews" '{"type":"tecnica","mode":"online"}')" \
+  || fail "POST /api/applications/$app_id/interviews did not answer"
+expect_status "POST /api/applications/$app_id/interviews" 201 "$round_added"
+echo "$round_added" | grep -q '"status":"en_entrevistas"' || fail "adding a round did not move the application to en_entrevistas: $round_added"
+echo "$round_added" | grep -q '"round":1' || fail "the first round was not numbered 1: $round_added"
+# The application's own id comes first in the body, so cut at the rounds array before taking an id.
+rounds_part="${round_added#*\"interviews\":[}"
+round_id="$(echo "$rounds_part" | grep -o '"id":"[0-9a-f]\{24\}"' | head -n 1 | cut -d'"' -f4)"
+[ -n "$round_id" ] || fail "POST interviews returned no round id: $round_added"
+[ "$round_id" != "$app_id" ] || fail "the round id equals the application id ($app_id): $round_added"
+
+round_edited="$(http_send PUT "/api/applications/$app_id/interviews/$round_id" '{"type":"tecnica","mode":"online","outcome":"superada"}')" \
+  || fail "PUT /api/applications/$app_id/interviews/$round_id did not answer"
+expect_status "PUT /api/applications/$app_id/interviews/$round_id" 200 "$round_edited"
+echo "$round_edited" | grep -q '"outcome":"superada"' || fail "PUT did not store the new outcome: $round_edited"
+
+round_removed="$(http_send DELETE "/api/applications/$app_id/interviews/$round_id")" \
+  || fail "DELETE /api/applications/$app_id/interviews/$round_id did not answer"
+expect_status "DELETE /api/applications/$app_id/interviews/$round_id" 200 "$round_removed"
+echo "$round_removed" | grep -qF '"interviews":[]' || fail "DELETE did not leave the rounds empty: $round_removed"
+
 tags="$(http_send GET /api/tags)" || fail "GET /api/tags did not answer"
 expect_status "GET /api/tags" 200 "$tags"
 

@@ -2,6 +2,7 @@ import {
   applicationSchema,
   type Application,
   type ApplicationStatus,
+  type InterviewInput,
 } from "@tfm/contracts";
 import { z } from "zod";
 import { request } from "@/core/http/http-client";
@@ -31,4 +32,38 @@ export const patchApplicationStatus = (
     `/api/applications/${encodeURIComponent(id)}/status`,
     applicationSchema,
     { method: "PATCH", body: { status } },
+  );
+
+// The server answers 200 with the whole application; the round id is encoded like the rest.
+export const updateInterview = (
+  id: string,
+  interviewId: string,
+  input: InterviewInput,
+): Promise<Application> =>
+  request(
+    `/api/applications/${encodeURIComponent(id)}/interviews/${encodeURIComponent(interviewId)}`,
+    applicationSchema,
+    { method: "PUT", body: input },
+  );
+
+// Unlike the DELETE of an application, the server answers 200 with the whole application.
+export const deleteInterview = (
+  id: string,
+  interviewId: string,
+): Promise<Application> =>
+  request(
+    `/api/applications/${encodeURIComponent(id)}/interviews/${encodeURIComponent(interviewId)}`,
+    applicationSchema,
+    { method: "DELETE" },
+  );
+
+// The server answers 201 with the whole updated application: rounds, status and history.
+export const createInterview = (
+  id: string,
+  input: InterviewInput,
+): Promise<Application> =>
+  request(
+    `/api/applications/${encodeURIComponent(id)}/interviews`,
+    applicationSchema,
+    { method: "POST", body: input },
   );

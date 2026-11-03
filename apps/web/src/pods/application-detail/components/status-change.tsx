@@ -15,13 +15,23 @@ import type { StatusFeedback } from "../application-detail.vm";
 interface Props {
   value: ApplicationStatus;
   pending: boolean;
+  // Another change of the detail (a round) is saving: the select is unavailable but not busy,
+  // because its own value is not what is being saved.
+  locked: boolean;
   feedback: StatusFeedback | null;
   onChange: (next: ApplicationStatus) => void;
 }
 
 // While pending the select is aria-busy and aria-disabled, never disabled: a disabled select
-// drops keyboard focus. The feedback slot is always mounted so its text change is announced.
-export function StatusChange({ value, pending, feedback, onChange }: Props) {
+// drops keyboard focus. While locked it is aria-disabled only. The feedback slot is always
+// mounted so its text change is announced.
+export function StatusChange({
+  value,
+  pending,
+  locked,
+  feedback,
+  onChange,
+}: Props) {
   const selectId = useId();
   return (
     <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:gap-4">
@@ -31,7 +41,7 @@ export function StatusChange({ value, pending, feedback, onChange }: Props) {
           id={selectId}
           value={value}
           aria-busy={pending}
-          aria-disabled={pending}
+          aria-disabled={pending || locked}
           onChange={(event) => {
             const parsed = applicationStatusSchema.safeParse(
               event.target.value,

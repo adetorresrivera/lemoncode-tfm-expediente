@@ -1,6 +1,9 @@
 import type {
   ApplicationStatus,
   ContractType,
+  InterviewMode,
+  InterviewOutcome,
+  InterviewType,
   Seniority,
   TagGroup,
   WorkMode,
@@ -35,6 +38,27 @@ export const CONTRACT_TYPE_LABELS: Record<ContractType, string> = {
   freelance: "Freelance",
   practicas: "Prácticas",
   otro: "Otro",
+};
+
+export const INTERVIEW_TYPE_LABELS: Record<InterviewType, string> = {
+  rrhh: "Recursos humanos",
+  tecnica: "Técnica",
+  prueba_tecnica: "Prueba técnica",
+  manager: "Manager",
+  cultural: "Cultural",
+  otra: "Otra",
+};
+
+export const INTERVIEW_MODE_LABELS: Record<InterviewMode, string> = {
+  online: "Online",
+  presencial: "Presencial",
+  telefono: "Teléfono",
+};
+
+export const INTERVIEW_OUTCOME_LABELS: Record<InterviewOutcome, string> = {
+  pendiente: "Pendiente",
+  superada: "Superada",
+  no_superada: "No superada",
 };
 
 /** Display order of tag groups: card, detail and filters. */

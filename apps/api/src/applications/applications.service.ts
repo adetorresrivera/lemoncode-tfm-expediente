@@ -6,15 +6,19 @@ import {
   type ApplicationQuery,
   type ApplicationInput,
   type ApplicationStatus,
+  type InterviewInput,
   type TagSummary,
 } from "@tfm/contracts";
-import type { ObjectId } from "mongodb";
+import { ObjectId } from "mongodb";
 import { ApiError } from "../errors.js";
 import { mapApplicationDocToApi } from "./applications.mapper.js";
 import type {
   ApplicationsRepository,
   EditableFields,
+  InterviewChanges,
+  InterviewStatusRule,
   NewApplicationDoc,
+  NewInterview,
 } from "./applications.repository.js";
 
 export interface ApplicationsService {
@@ -25,7 +29,21 @@ export interface ApplicationsService {
   update(id: ObjectId, input: ApplicationInput): Promise<Application>;
   changeStatus(id: ObjectId, status: ApplicationStatus): Promise<Application>;
   remove(id: ObjectId): Promise<void>;
+  addInterview(id: ObjectId, input: InterviewInput): Promise<Application>;
+  updateInterview(
+    id: ObjectId,
+    interviewId: string,
+    input: InterviewInput,
+  ): Promise<Application>;
+  removeInterview(id: ObjectId, interviewId: string): Promise<Application>;
 }
+
+// Rule 3 (D-04): a round created while the application is `enviada` moves it to `en_entrevistas`.
+// The rule lives here; the repository applies it inside the same atomic write.
+export const INTERVIEW_STATUS_RULE: InterviewStatusRule = {
+  from: "enviada",
+  to: "en_entrevistas",
+};
 
 // Copies the editable keys one by one (no rest, no spread): status, statusHistory, interviews,
 // ownerId, createdAt and the document links in the input can never reach Mongo. offerText is
@@ -64,6 +82,13 @@ export function createApplicationsService(
       throw new ApiError(404, "NOT_FOUND", "Candidatura no encontrada");
     }
     return mapApplicationDocToApi(doc);
+  }
+
+  // Null from the repository means the application or the round is missing: `get` throws the
+  // application message when the application is gone, otherwise the round is the missing one.
+  async function interviewMissing(id: ObjectId): Promise<never> {
+    await get(id);
+    throw new ApiError(404, "NOT_FOUND", "Ronda no encontrada");
   }
 
   return {
@@ -137,6 +162,65 @@ export function createApplicationsService(
       if (!(await repository.deleteById(id))) {
         throw new ApiError(404, "NOT_FOUND", "Candidatura no encontrada");
       }
+    },
+
+    async addInterview(id, input) {
+      const at = now();
+      // Built field by field (no spread): an id, status, statusHistory or interviews key sent by
+      // the client can never reach Mongo. The id is server-generated (D-02) and the date is stored
+      // as the same instant with millisecond precision.
+      const interview: NewInterview = {
+        id: new ObjectId().toString(),
+        round: input.round ?? null,
+        type: input.type,
+        scheduledAt:
+          input.scheduledAt !== null
+            ? new Date(input.scheduledAt).toISOString()
+            : null,
+        mode: input.mode,
+        notes: input.notes,
+        outcome: input.outcome,
+      };
+      const doc = await repository.addInterview(
+        id,
+        interview,
+        INTERVIEW_STATUS_RULE,
+        at,
+      );
+      if (doc === null) {
+        throw new ApiError(404, "NOT_FOUND", "Candidatura no encontrada");
+      }
+      return mapApplicationDocToApi(doc);
+    },
+
+    async updateInterview(id, interviewId, input) {
+      // Field by field (no spread): the element id and anything else in the body can never reach
+      // Mongo. No status rule is involved (D-04).
+      const changes: InterviewChanges = {
+        round: input.round ?? null,
+        type: input.type,
+        scheduledAt:
+          input.scheduledAt !== null
+            ? new Date(input.scheduledAt).toISOString()
+            : null,
+        mode: input.mode,
+        notes: input.notes,
+        outcome: input.outcome,
+      };
+      const doc = await repository.updateInterview(
+        id,
+        interviewId,
+        changes,
+        now(),
+      );
+      if (doc === null) return interviewMissing(id);
+      return mapApplicationDocToApi(doc);
+    },
+
+    async removeInterview(id, interviewId) {
+      const doc = await repository.removeInterview(id, interviewId, now());
+      if (doc === null) return interviewMissing(id);
+      return mapApplicationDocToApi(doc);
     },
 
     async listTags() {

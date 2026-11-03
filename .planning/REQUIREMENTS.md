@@ -51,11 +51,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Interviews (INT)
 
-- [ ] **INT-01**: User can add an interview round with type, date, mode, outcome and notes from a dialog in the detail
-- [ ] **INT-02**: Round number is assigned automatically (current max + 1) and can be edited
-- [ ] **INT-03**: User can edit and delete an interview round
-- [ ] **INT-04**: Adding a round while status is `enviada` moves the application to `en_entrevistas` with a history entry
-- [ ] **INT-05**: User sees rounds ordered by round number with type, date, mode and outcome
+- [x] **INT-01**: User can add an interview round with type, date, mode, outcome and notes from a dialog in the detail
+- [x] **INT-02**: Round number is assigned automatically (current max + 1) and can be edited
+- [x] **INT-03**: User can edit and delete an interview round
+- [x] **INT-04**: Adding a round while status is `enviada` moves the application to `en_entrevistas` with a history entry
+- [x] **INT-05**: User sees rounds ordered by round number with type, date, mode and outcome
 
 ### Documents (DOC)
 
@@ -149,11 +149,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AI-07 | Phase 3 | Complete |
 | AI-08 | Phase 3 | Complete |
 | AI-09 | Phase 3 | Complete |
-| INT-01 | Phase 4 | Pending |
-| INT-02 | Phase 4 | Pending |
-| INT-03 | Phase 4 | Pending |
-| INT-04 | Phase 4 | Pending |
-| INT-05 | Phase 4 | Pending |
+| INT-01 | Phase 4 | Complete |
+| INT-02 | Phase 4 | Complete |
+| INT-03 | Phase 4 | Complete |
+| INT-04 | Phase 4 | Complete |
+| INT-05 | Phase 4 | Complete |
 | DOC-01 | Phase 5 | Pending |
 | DOC-02 | Phase 5 | Pending |
 | DOC-03 | Phase 5 | Pending |
