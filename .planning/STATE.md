@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 04
-current_phase_name: Rondas de entrevista
-status: executing
-stopped_at: Phase 4 UI-SPEC approved
-last_updated: "2026-11-02T19:14:57.983Z"
-last_activity: 2026-11-02
-last_activity_desc: Phase 04 execution started
-state_head: 6d339faf0ac178b45521781691b505d2f3c40fa3
+current_phase: 5
+current_phase_name: Documentos en S3
+status: planning
+stopped_at: Phase 04 complete, ready to plan Phase 5
+last_updated: "2026-11-03T20:54:17.691Z"
+last_activity: 2026-11-03
+last_activity_desc: Phase 04 complete, transitioned to Phase 5
+state_head: 94b750b1a81a048651a07b40e04a3b9988d76b07
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 34
-  completed_plans: 30
-  percent: 43
+  completed_plans: 34
+  percent: 57
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-01)
+See: .planning/PROJECT.md (updated 2026-11-03)
 
 **Core value:** Pegar una oferta y obtener un expediente casi completo y revisable en segundos, con el flujo entero (pegar → guardar → ronda → CV → estado → filtrar) demostrable en menos de 2 minutos con `docker compose up`.
-**Current focus:** Phase 04 — Rondas de entrevista
+**Current focus:** Phase 5 — Documentos en S3
 
 ## Current Position
 
-Phase: 04 (Rondas de entrevista) — EXECUTING
-Plan: 1 of 4
-Status: Executing Phase 04
-Last activity: 2026-11-02 — Phase 04 execution started
+Phase: 5 — Documentos en S3
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-03 — Phase 04 complete, transitioned to Phase 5
 
-Progress: [████░░░░░░] 43%
+Progress: [██████░░░░] 57%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 30
+- Total plans completed: 34
 - Average duration: - min
 - Total execution time: 0.0 hours
 
@@ -48,6 +48,7 @@ Progress: [████░░░░░░] 43%
 | 01 | 6 | - | - |
 | 02 | 12 | - | - |
 | 03 | 12 | - | - |
+| 04 | 4 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - [Phase 3]: 12 plans (9 + 3 gap-closure) on `phase/03-autocompletado-con-ia`; verified 8/8 (regenerated after quick 261101-qh3), UAT pass, security 24/24 closed (2 accepted low), UI review 20/24 with its 3 top fixes applied in 261101-qh3. No new dependency.
 - [Phase 3]: Prompt changes need user approval and a new sha256 fingerprint (D-25); current approved fingerprint `deeed808…`. Spoken languages come through the model-only `idiomas` field; `@tfm/contracts` unchanged.
 
+- [Phase 4]: 4 plans on `phase/04-rondas-entrevista`; verified 4/4 (regenerated after review fix 2ea14e0), UAT 6/6, security 0 open threats, UI review done. No new dependency. Interview mutations go through the applications service; the `enviada → en_entrevistas` rule runs inside the same pipeline `findOneAndUpdate`.
+
 ### Pending Todos
 
 None yet.
@@ -89,6 +92,8 @@ None yet.
 - [Phase 3]: Open info findings in `03-REVIEW-DISPOSITION.md`: IN-01 ~12 lucide icons from earlier phases still at default stroke; IN-02 `idiomas` entries are trusted, so a technology the model puts there wins over its `stack` tag; IN-03 model-facing schema still offers the `idioma` tag group; IN-04 docs drift; IN-05 triple `LLM_BASE_URL` trailing-slash normalization.
 - [Phase 3]: `03-VALIDATION.md` still draft — `/gsd-validate-phase 03` (Nyquist) not run. `03-03-SUMMARY.md` lists `src/scripts/try-extract.ts` and `__fixtures__/fixtures.ts` without the `apps/api/` prefix.
 - [Phase 1]: `npm run format:check` flags the untracked GSD artifact `.gsd/dispatch-isolation-sentinel.json`; add `.gsd` to `.prettierignore` when convenient.
+
+- [Phase 4]: Open findings in `04-REVIEW-DISPOSITION.md`: WR-01 the `busy` lock (`busyRef`) is still one slot while feedback and timers are per application (a second mutation on A is possible after A → B → A with A pending); WR-02 the unmount-cancels-timers test only asserts `clearTimeout` ≥ 1; IN-01 `endBusy` own-lock guard untested; IN-02 `deletingRef`/`onDeleted` not scoped per application; IN-03 per-key error feedback never pruned. `/gsd-code-review 04 --fix` applies the warnings. `04-01/02-SUMMARY.md` key-files list paths without the `apps/web/src/` prefix.
 
 ### Quick Tasks Completed
 
@@ -109,6 +114,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-01T22:16:56.294Z
-Stopped at: Phase 4 UI-SPEC approved
-Resume file: .planning/phases/04-rondas-de-entrevista/04-UI-SPEC.md
+Last session: 2026-11-03T21:00:00Z
+Stopped at: Phase 04 complete, ready to plan Phase 5
+Resume file: None
