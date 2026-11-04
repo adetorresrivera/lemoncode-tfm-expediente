@@ -1,5 +1,6 @@
 import {
   applicationSchema,
+  documentSchema,
   errorResponseSchema,
   type Application,
   type ApplicationInput,
@@ -17,6 +18,7 @@ import {
   vi,
 } from "vitest";
 import { createApp, type AppDeps } from "../app.js";
+import { fakeStorage, pdfBytes, uploadForm } from "../test/documents.js";
 import { useTestDb, type TestDb } from "../test/mongo.js";
 
 const allUp: AppDeps = {
@@ -36,7 +38,12 @@ function tick(iso: string): void {
 }
 
 function buildApp(): Hono {
-  return createApp({ ...allUp, db: testDb.db, now: () => clock });
+  return createApp({
+    ...allUp,
+    db: testDb.db,
+    storage: fakeStorage().storage,
+    now: () => clock,
+  });
 }
 
 async function create(
@@ -209,40 +216,64 @@ describe("PUT /api/applications/:id", () => {
     expect(updated.interviews).toEqual([]);
   });
 
-  it("keeps the document links, whether the body omits them, sends null or sends other values", async () => {
+  it("writes the document links as sent: null or omitted clears them, real documents of the right type replace them", async () => {
     const app = buildApp();
     const created = await create(app, { title: "Dev", company: "Acme" });
-    await testDb.db
-      .collection("applications")
-      .updateOne(
-        { _id: new ObjectId(created.id) },
-        { $set: { cvDocumentId: "cv-1", coverLetterDocumentId: "carta-1" } },
-      );
 
-    const omitted = await update(app, created.id, {
+    async function upload(type: "cv" | "carta", name: string): Promise<string> {
+      const res = await app.request("/api/documents", {
+        method: "POST",
+        body: uploadForm(
+          { type, name, version: "v1" },
+          { bytes: pdfBytes(), name: `${name}.pdf` },
+        ),
+      });
+      expect(res.status).toBe(201);
+      return documentSchema.parse(await res.json()).id;
+    }
+    const cv1 = await upload("cv", "CV uno");
+    const cv2 = await upload("cv", "CV dos");
+    const carta1 = await upload("carta", "Carta uno");
+    const carta2 = await upload("carta", "Carta dos");
+
+    const linked = await update(app, created.id, {
       title: "Dev 2",
       company: "Acme",
+      cvDocumentId: cv1,
+      coverLetterDocumentId: carta1,
     });
-    expect(omitted.cvDocumentId).toBe("cv-1");
-    expect(omitted.coverLetterDocumentId).toBe("carta-1");
+    expect(linked.cvDocumentId).toBe(cv1);
+    expect(linked.coverLetterDocumentId).toBe(carta1);
+
+    const replaced = await update(app, created.id, {
+      title: "Dev 3",
+      company: "Acme",
+      cvDocumentId: cv2,
+      coverLetterDocumentId: carta2,
+    });
+    expect(replaced.cvDocumentId).toBe(cv2);
+    expect(replaced.coverLetterDocumentId).toBe(carta2);
 
     const nulls = await update(app, created.id, {
-      title: "Dev 3",
+      title: "Dev 4",
       company: "Acme",
       cvDocumentId: null,
       coverLetterDocumentId: null,
     });
-    expect(nulls.cvDocumentId).toBe("cv-1");
-    expect(nulls.coverLetterDocumentId).toBe("carta-1");
+    expect(nulls.cvDocumentId).toBeNull();
+    expect(nulls.coverLetterDocumentId).toBeNull();
 
-    const others = await update(app, created.id, {
-      title: "Dev 4",
+    await update(app, created.id, {
+      title: "Dev 5",
       company: "Acme",
-      cvDocumentId: "cv-2",
-      coverLetterDocumentId: "carta-2",
+      cvDocumentId: cv1,
     });
-    expect(others.cvDocumentId).toBe("cv-1");
-    expect(others.coverLetterDocumentId).toBe("carta-1");
+    const omitted = await update(app, created.id, {
+      title: "Dev 6",
+      company: "Acme",
+    });
+    expect(omitted.cvDocumentId).toBeNull();
+    expect(omitted.coverLetterDocumentId).toBeNull();
   });
 
   it("writes offerText exactly as sent and clears it with null or when omitted", async () => {
