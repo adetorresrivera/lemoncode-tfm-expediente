@@ -34,6 +34,10 @@ export interface ApplicationFormValues {
   // The analyzed offer, "" when there is none. Only a successful analysis sets it (D-10); the
   // textarea draft lives in the extraction hook and never reaches this value by typing.
   offerText: string;
+  // Ids of the linked CV and cover letter, "" = no document; the picker of the Documentos section
+  // writes them. They always travel back on save so an edit never wipes a link (D-13).
+  cvDocumentId: string;
+  coverLetterDocumentId: string;
 }
 
 export type FormFieldName = keyof ApplicationFormValues;
@@ -54,6 +58,8 @@ export const EMPTY_FORM_VALUES: ApplicationFormValues = {
   sourceUrl: "",
   notes: "",
   offerText: "",
+  cvDocumentId: "",
+  coverLetterDocumentId: "",
 };
 
 // Form-level message shown in the always-mounted polite status slot above the actions.
