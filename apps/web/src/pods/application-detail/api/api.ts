@@ -1,7 +1,9 @@
 import {
   applicationSchema,
+  documentSchema,
   type Application,
   type ApplicationStatus,
+  type Document,
   type InterviewInput,
 } from "@tfm/contracts";
 import { z } from "zod";
@@ -56,6 +58,15 @@ export const deleteInterview = (
     applicationSchema,
     { method: "DELETE" },
   );
+
+// A linked document of the application (D-23). The id comes from a stored link, so it is encoded.
+export const getDocument = (
+  id: string,
+  signal?: AbortSignal,
+): Promise<Document> =>
+  request(`/api/documents/${encodeURIComponent(id)}`, documentSchema, {
+    signal,
+  });
 
 // The server answers 201 with the whole updated application: rounds, status and history.
 export const createInterview = (

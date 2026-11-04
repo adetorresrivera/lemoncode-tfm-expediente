@@ -68,6 +68,30 @@ export interface InterviewActions {
   remove: (interviewId: string) => Promise<void>;
 }
 
+// One linked document as the aside shows it. Declared field by field, like every view model.
+export interface DetailDocumentVm {
+  id: string;
+  // «CV Frontend · v3 · 12 oct. 2026»
+  label: string;
+  // «230 KB»
+  sizeLabel: string;
+  downloadHref: string;
+  // «Descargar CV Frontend»
+  downloadLabel: string;
+}
+
+// What one of the two fixed rows shows: no link, the request in flight, its answer or its failure.
+export type DetailDocumentSlotVm =
+  | { kind: "none" }
+  | { kind: "loading" }
+  | { kind: "ok"; document: DetailDocumentVm }
+  | { kind: "error" };
+
+export interface DetailDocumentsVm {
+  cv: DetailDocumentSlotVm;
+  coverLetter: DetailDocumentSlotVm;
+}
+
 export interface ApplicationDetailVm {
   id: string;
   title: string;
@@ -87,6 +111,8 @@ export interface ApplicationDetailVm {
   interviews: InterviewVm[];
   // Defaults of the add dialog (next round number computed from the stored rounds).
   newInterviewValues: InterviewFormValues;
+  // Ids of the linked CV and cover letter; the hook requests each one.
+  documentLinks: { cv: string | null; coverLetter: string | null };
 }
 
 // Feedback of a mutation shown in an always-mounted polite status slot.

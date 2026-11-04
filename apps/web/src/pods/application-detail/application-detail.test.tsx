@@ -1,4 +1,4 @@
-import { applicationSchema } from "@tfm/contracts";
+import { applicationSchema, documentSchema } from "@tfm/contracts";
 import {
   act,
   fireEvent,
@@ -18,9 +18,11 @@ import { ApplicationDetailContainer } from "./application-detail.container";
 import { useApplicationDetail } from "./application-detail.hooks";
 import {
   mapApplicationFromApiToDetailVm,
+  mapDocumentFromApiToDetailVm,
   toSafeHttpUrl,
   withOptimisticStatus,
 } from "./application-detail.mapper";
+import type { DetailDocumentsVm } from "./application-detail.vm";
 
 // The scene supplies the real router link; pod tests use a plain anchor.
 const renderListLink = (link: { className?: string; children: ReactNode }) => (
@@ -54,6 +56,25 @@ const notFoundResponse = () =>
     { error: { code: "NOT_FOUND", message: "Candidatura no encontrada" } },
     404,
   );
+
+const makeDocument = (overrides: Record<string, unknown> = {}) =>
+  documentSchema.parse({
+    id: "d1",
+    type: "cv",
+    name: "CV Frontend",
+    version: "v3",
+    fileName: "CV Frontend.pdf",
+    s3Key: "documents/d1.pdf",
+    mimeType: "application/pdf",
+    size: 235520,
+    createdAt: "2026-10-12T10:00:00.000Z",
+    ...overrides,
+  });
+
+const noDocuments: DetailDocumentsVm = {
+  cv: { kind: "none" },
+  coverLetter: { kind: "none" },
+};
 
 describe("toSafeHttpUrl", () => {
   it.each([
@@ -95,6 +116,26 @@ describe("application-detail mapper", () => {
         outcome: "pendiente",
         notes: "",
       },
+      documentLinks: { cv: null, coverLetter: null },
+    });
+  });
+
+  it("maps the linked document ids to documentLinks", () => {
+    const vm = mapApplicationFromApiToDetailVm(
+      makeApplication({ cvDocumentId: "d1", coverLetterDocumentId: "d2" }),
+    );
+    expect(vm.documentLinks).toStrictEqual({ cv: "d1", coverLetter: "d2" });
+  });
+
+  it("maps a document to its label, size and download link", () => {
+    expect(
+      mapDocumentFromApiToDetailVm(makeDocument({ id: "d 1" })),
+    ).toStrictEqual({
+      id: "d 1",
+      label: "CV Frontend · v3 · 12 oct. 2026",
+      sizeLabel: "230 KB",
+      downloadHref: "/api/documents/d%201/download",
+      downloadLabel: "Descargar CV Frontend",
     });
   });
 
@@ -353,6 +394,7 @@ const renderOk = (overrides: Record<string, unknown> = {}) =>
       deleteState="idle"
       onDelete={() => {}}
       interviewActions={idleInterviewActions}
+      documents={noDocuments}
       renderListLink={renderListLink}
       renderEditLink={renderEditLink}
       notice=""
@@ -552,12 +594,24 @@ describe("detail sections", () => {
     expect(list.className).not.toMatch(/overflow|max-h/);
   });
 
-  it("never renders linked documents", () => {
+  it("renders the Documentos section under the history with its two fixed rows", () => {
     renderOk(FULL);
 
+    const section = screen.getByRole("region", { name: "Documentos" });
+    const history = screen.getByRole("region", {
+      name: "Historial de estados",
+    });
     expect(
-      screen.queryByRole("heading", { name: /documento|CV|carta/i }),
-    ).not.toBeInTheDocument();
+      history.compareDocumentPosition(section) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const rows = within(section).getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toHaveTextContent("CV");
+    expect(rows[0]).toHaveTextContent("Sin CV vinculado.");
+    expect(rows[1]).toHaveTextContent("Carta de presentación");
+    expect(rows[1]).toHaveTextContent("Sin carta vinculada.");
+    expect(within(section).queryByRole("link")).not.toBeInTheDocument();
   });
 
   it("wraps a long title and company instead of overflowing", () => {
@@ -590,6 +644,7 @@ const renderState = (
       deleteState="idle"
       onDelete={() => {}}
       interviewActions={idleInterviewActions}
+      documents={noDocuments}
       renderListLink={renderListLink}
       renderEditLink={renderEditLink}
       notice=""
@@ -648,6 +703,7 @@ describe("detail page states", () => {
         deleteState="idle"
         onDelete={() => {}}
         interviewActions={idleInterviewActions}
+        documents={noDocuments}
         renderListLink={renderListLink}
         renderEditLink={renderEditLink}
         notice=""
@@ -708,8 +764,9 @@ const renderDetail = (onDeleted: () => void = () => {}) =>
     />,
   );
 
-// The loaded view has three polite regions: the status-change feedback (inside the header), the
-// arrival notice line that follows the header and the rounds section's feedback line.
+// The loaded view has four polite regions: the status-change feedback (inside the header), the
+// arrival notice line that follows the header, the rounds section's feedback line and the
+// documents section's «Cargando documentos…» region.
 const feedbackLine = (): HTMLElement => {
   const [first] = screen.getAllByRole("status");
   if (first === undefined) throw new Error("No status region rendered");
@@ -1095,9 +1152,10 @@ describe("arrival notice", () => {
 
     await screen.findByRole("heading", { level: 1 });
     const regions = screen.getAllByRole("status");
-    expect(regions).toHaveLength(3);
+    expect(regions).toHaveLength(4);
     expect(regions[1]).toBeEmptyDOMElement();
     expect(regions[2]).toBeEmptyDOMElement();
+    expect(regions[3]).toBeEmptyDOMElement();
   });
 });
 
@@ -1564,5 +1622,217 @@ describe("interview rounds", () => {
       expect(result.current.interviewActions.busy).toBe(false);
       expect(result.current.vm?.interviews).toHaveLength(1);
     });
+  });
+});
+
+describe("documents section", () => {
+  const documentGets = (fetchMock: ReturnType<typeof mockFetch>) =>
+    fetchMock.mock.calls.filter(([input, init]) => {
+      const raw = typeof input === "string" ? input : String(input);
+      return (
+        (init?.method ?? "GET") === "GET" && raw.startsWith("/api/documents")
+      );
+    });
+
+  const documentGetsOf = (
+    fetchMock: ReturnType<typeof mockFetch>,
+    path: string,
+  ) =>
+    fetchMock.mock.calls.filter(([input, init]) => {
+      const raw = typeof input === "string" ? input : String(input);
+      return (init?.method ?? "GET") === "GET" && raw === path;
+    });
+
+  const documentsRegion = () =>
+    screen.findByRole("region", { name: "Documentos" });
+
+  it("shows both rows without a request when nothing is linked", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+    });
+    renderDetail();
+
+    const section = await documentsRegion();
+    expect(section).toHaveTextContent("Sin CV vinculado.");
+    expect(section).toHaveTextContent("Sin carta vinculada.");
+    expect(within(section).queryByRole("link")).not.toBeInTheDocument();
+    expect(documentGets(fetchMock)).toHaveLength(0);
+  });
+
+  it("requests each linked document once and shows label, size and a download link", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication({
+        cvDocumentId: "d1",
+        coverLetterDocumentId: "d2",
+      }),
+      "GET /api/documents/d1": makeDocument(),
+      "GET /api/documents/d2": makeDocument({
+        id: "d2",
+        type: "carta",
+        name: "Carta Lemoncode",
+        version: "v1",
+        fileName: "Carta.pdf",
+        size: 1536,
+        createdAt: "2026-10-14T10:00:00.000Z",
+      }),
+    });
+    renderDetail();
+
+    const cv = await screen.findByRole("link", {
+      name: "Descargar CV Frontend",
+    });
+    expect(cv).toHaveAttribute("href", "/api/documents/d1/download");
+    expect(cv).toHaveAttribute("download");
+    const letter = await screen.findByRole("link", {
+      name: "Descargar Carta Lemoncode",
+    });
+    expect(letter).toHaveAttribute("href", "/api/documents/d2/download");
+    const section = await documentsRegion();
+    expect(section).toHaveTextContent("CV Frontend · v3 · 12 oct. 2026");
+    expect(section).toHaveTextContent("230 KB");
+    expect(section).toHaveTextContent("Carta Lemoncode · v1 · 14 oct. 2026");
+    expect(section).toHaveTextContent("1,5 KB");
+    expect(documentGetsOf(fetchMock, "/api/documents/d1")).toHaveLength(1);
+    expect(documentGetsOf(fetchMock, "/api/documents/d2")).toHaveLength(1);
+    expect(section).not.toHaveAttribute("aria-busy", "true");
+  });
+
+  it("shows skeletons and a busy state for a loading row while the rest is rendered", async () => {
+    const pending = deferred();
+    mockFetch({
+      "GET /api/applications/a1": makeApplication({ cvDocumentId: "d1" }),
+      "GET /api/documents/d1": () => pending.promise,
+    });
+    renderDetail();
+
+    expect(await screen.findByRole("heading", { level: 1 })).toHaveTextContent(
+      "Frontend Developer",
+    );
+    const section = await documentsRegion();
+    expect(section).toHaveAttribute("aria-busy", "true");
+    expect(within(section).getByRole("status")).toHaveTextContent(
+      "Cargando documentos…",
+    );
+    expect(section.querySelectorAll('[data-slot="skeleton"]')).toHaveLength(2);
+    expect(section).toHaveTextContent("Sin carta vinculada.");
+    expect(
+      screen.getByRole("region", { name: "Historial de estados" }),
+    ).toBeInTheDocument();
+
+    pending.resolve(jsonResponse(makeDocument()));
+    expect(
+      await screen.findByRole("link", { name: "Descargar CV Frontend" }),
+    ).toBeInTheDocument();
+    expect(section).not.toHaveAttribute("aria-busy", "true");
+    expect(within(section).getByRole("status")).toBeEmptyDOMElement();
+  });
+
+  it("degrades only the row whose request answers 404", async () => {
+    mockFetch({
+      "GET /api/applications/a1": makeApplication({
+        cvDocumentId: "d1",
+        coverLetterDocumentId: "d2",
+      }),
+      "GET /api/documents/d1": () => notFoundResponse(),
+      "GET /api/documents/d2": makeDocument({
+        id: "d2",
+        name: "Carta Lemoncode",
+      }),
+    });
+    renderDetail();
+
+    expect(
+      await screen.findByRole("link", { name: "Descargar Carta Lemoncode" }),
+    ).toBeInTheDocument();
+    const section = await documentsRegion();
+    const [cvRow] = within(section).getAllByRole("listitem");
+    expect(cvRow).toHaveTextContent("No hemos podido cargar este documento.");
+    expect(within(cvRow as HTMLElement).queryByRole("link")).toBeNull();
+    expect(screen.getByRole("heading", { level: 1 })).toHaveTextContent(
+      "Frontend Developer",
+    );
+  });
+
+  it("degrades a row on a network failure too", async () => {
+    mockFetch({
+      "GET /api/applications/a1": makeApplication({
+        coverLetterDocumentId: "d2",
+      }),
+      "GET /api/documents/d2": () => {
+        throw new TypeError("Failed to fetch");
+      },
+    });
+    renderDetail();
+
+    const section = await documentsRegion();
+    await waitFor(() =>
+      expect(section).toHaveTextContent(
+        "No hemos podido cargar este documento.",
+      ),
+    );
+    expect(section).toHaveTextContent("Sin CV vinculado.");
+    expect(within(section).queryByRole("link")).not.toBeInTheDocument();
+  });
+
+  it("does not refetch the documents after a status change that keeps the links", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": makeApplication({ cvDocumentId: "d1" }),
+      "GET /api/documents/d1": makeDocument(),
+      "PATCH /api/applications/a1/status": makeApplication({
+        cvDocumentId: "d1",
+        status: "enviada",
+        statusHistory: [
+          { status: "guardada", at: "2026-10-12T10:00:00.000Z" },
+          { status: "enviada", at: "2026-10-14T10:00:00.000Z" },
+        ],
+      }),
+    });
+    renderDetail();
+    await screen.findByRole("link", { name: "Descargar CV Frontend" });
+
+    await userEvent.selectOptions(await statusSelect(), "enviada");
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([, init]) => init?.method === "PATCH"),
+      ).toHaveLength(1),
+    );
+    await waitFor(() =>
+      expect(feedbackLine()).toHaveTextContent("Estado cambiado a Enviada."),
+    );
+
+    expect(documentGets(fetchMock)).toHaveLength(1);
+    expect(
+      screen.getByRole("link", { name: "Descargar CV Frontend" }),
+    ).toBeInTheDocument();
+  });
+
+  it("never shows the rows of the previous application after the id changes", async () => {
+    mockFetch({
+      "GET /api/applications/a1": makeApplication({ cvDocumentId: "d1" }),
+      "GET /api/applications/a2": makeApplication({ id: "a2" }),
+      "GET /api/documents/d1": makeDocument(),
+    });
+    const detail = (id: string) => (
+      <ApplicationDetailContainer
+        applicationId={id}
+        onDeleted={() => {}}
+        renderListLink={renderListLink}
+        renderEditLink={renderEditLink}
+        notice=""
+        focusHeadingRef={() => {}}
+      />
+    );
+    const view = render(detail("a1"));
+    await screen.findByRole("link", { name: "Descargar CV Frontend" });
+
+    view.rerender(detail("a2"));
+
+    await waitFor(() =>
+      expect(
+        screen.queryByRole("link", { name: "Descargar CV Frontend" }),
+      ).not.toBeInTheDocument(),
+    );
+    const section = await documentsRegion();
+    expect(section).toHaveTextContent("Sin CV vinculado.");
   });
 });
