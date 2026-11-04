@@ -17,15 +17,47 @@ export interface DocumentDoc {
 
 export interface DocumentsRepository {
   insert(doc: DocumentDoc): Promise<DocumentDoc>;
+  /** Newest first; the id breaks ties between documents created at the same instant. */
+  list(type: DocumentType | undefined): Promise<DocumentDoc[]>;
+  findById(id: ObjectId): Promise<DocumentDoc | null>;
+  /** Applications linking each document (as CV or cover letter), keyed by the hex id. */
+  usageCounts(): Promise<Map<string, number>>;
 }
 
 export function createDocumentsRepository(db: Db): DocumentsRepository {
   const documents = db.collection<DocumentDoc>("documents");
+  const applications = db.collection("applications");
 
   return {
     async insert(doc) {
       await documents.insertOne({ ...doc });
       return doc;
+    },
+    async list(type) {
+      return documents
+        .find(type ? { type } : {})
+        .sort({ createdAt: -1, _id: -1 })
+        .toArray();
+    },
+    async findById(id) {
+      return documents.findOne({ _id: id });
+    },
+    async usageCounts() {
+      const rows = await applications
+        .aggregate<{ _id: string; count: number }>([
+          {
+            $project: {
+              _id: 0,
+              ids: ["$cvDocumentId", "$coverLetterDocumentId"],
+            },
+          },
+          { $unwind: "$ids" },
+          // Null and absent link fields are not documents.
+          { $match: { ids: { $type: "string" } } },
+          { $group: { _id: "$ids", count: { $sum: 1 } } },
+        ])
+        .toArray();
+      return new Map(rows.map((row) => [row._id, row.count]));
     },
   };
 }

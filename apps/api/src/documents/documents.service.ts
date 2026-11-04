@@ -1,8 +1,16 @@
-import type { Document, DocumentInput } from "@tfm/contracts";
+import type {
+  Document,
+  DocumentInput,
+  DocumentListItem,
+  DocumentQuery,
+} from "@tfm/contracts";
 import { ObjectId } from "mongodb";
 import { ApiError } from "../errors.js";
 import type { DocumentStorage } from "../storage/s3.js";
-import { mapDocumentDocToApi } from "./documents.mapper.js";
+import {
+  mapDocumentDocToApi,
+  mapDocumentDocToListItem,
+} from "./documents.mapper.js";
 import type {
   DocumentDoc,
   DocumentsRepository,
@@ -15,9 +23,20 @@ export interface UploadedFile {
   bytes: Uint8Array;
 }
 
+export interface OpenedDocument {
+  document: Document;
+  stream: ReadableStream<Uint8Array>;
+}
+
 export interface DocumentsService {
   upload(input: DocumentInput, file: UploadedFile): Promise<Document>;
+  list(query: DocumentQuery): Promise<DocumentListItem[]>;
+  get(id: ObjectId): Promise<Document>;
+  open(id: ObjectId): Promise<OpenedDocument>;
 }
+
+const documentNotFound = (): ApiError =>
+  new ApiError(404, "NOT_FOUND", "Documento no encontrado");
 
 // No logging in this module: file names, bytes and keys must never reach the logs.
 export function createDocumentsService(
@@ -68,6 +87,33 @@ export function createDocumentsService(
         await storage.delete(s3Key).catch(() => undefined);
         throw err;
       }
+    },
+
+    async list(query) {
+      const [docs, counts] = await Promise.all([
+        repository.list(query.type),
+        repository.usageCounts(),
+      ]);
+      return docs.map((doc) =>
+        mapDocumentDocToListItem(doc, counts.get(doc._id.toHexString()) ?? 0),
+      );
+    },
+
+    async get(id) {
+      const doc = await repository.findById(id);
+      if (doc === null) throw documentNotFound();
+      return mapDocumentDocToApi(doc);
+    },
+
+    async open(id) {
+      const doc = await repository.findById(id);
+      if (doc === null) throw documentNotFound();
+      // The record can outlive its object (deleted from outside, or a concurrent delete).
+      const stored = await storage.get(doc.s3Key);
+      if (stored === null) {
+        throw new ApiError(404, "NOT_FOUND", "Archivo no encontrado");
+      }
+      return { document: mapDocumentDocToApi(doc), stream: stored.stream };
     },
   };
 }
