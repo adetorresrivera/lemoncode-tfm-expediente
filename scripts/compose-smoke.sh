@@ -83,6 +83,46 @@ http_send() {
   return 1
 }
 
+# Multipart upload with the same probe: `http_upload PATH FILE_NAME TYPE SIZE_BYTES [PDF|TEXT]` prints
+# "<status>\n<body>". The bytes are built inside the container (PDF: "%PDF-1.4\n" padded with spaces to
+# SIZE_BYTES and ending in "\n%%EOF"; TEXT: SIZE_BYTES of "a"), so even the 6 MB body of the 413 check
+# travels as a real multipart request with its real Content-Length and never crosses the shell.
+http_upload() {
+  local out="" deadline=$((SECONDS + 60))
+  docker compose exec -T app rm -f /tmp/smoke.out
+  docker compose exec -T app node -e "
+    const fs = require('node:fs');
+    const [path, fileName, type, size, kind] = process.argv.slice(1);
+    const total = Number(size);
+    const done = (text) => { fs.writeFileSync('/tmp/smoke.tmp', text); fs.renameSync('/tmp/smoke.tmp', '/tmp/smoke.out'); };
+    let bytes;
+    if (kind === 'TEXT') {
+      bytes = Buffer.alloc(total, 'a');
+    } else {
+      const head = Buffer.from('%PDF-1.4\n');
+      const tail = Buffer.from('\n%%EOF');
+      bytes = Buffer.concat([head, Buffer.alloc(Math.max(0, total - head.length - tail.length), ' '), tail]);
+    }
+    const form = new FormData();
+    form.set('type', type);
+    form.set('name', 'Smoke CV');
+    form.set('version', 'v1');
+    form.set('file', new Blob([bytes], { type: 'application/pdf' }), fileName);
+    fetch('http://127.0.0.1:8080' + path, { method: 'POST', body: form })
+      .then(async (r) => done(r.status + '\n' + (await r.text())))
+      .catch(() => done('000\n'));
+  " "$1" "$2" "$3" "$4" "${5:-PDF}"
+  while [ "$SECONDS" -lt "$deadline" ]; do
+    out="$(docker compose exec -T app cat /tmp/smoke.out 2>/dev/null || true)"
+    if [ -n "$out" ]; then
+      printf '%s\n' "$out"
+      return 0
+    fi
+    sleep 0.5
+  done
+  return 1
+}
+
 # Asserts the status line of an http_send answer: `expect_status LABEL EXPECTED ANSWER`.
 expect_status() {
   echo "$3" | head -n 1 | grep -qx "$2" || fail "$1 answered '$(echo "$3" | head -n 1)', expected $2: $3"
@@ -188,6 +228,59 @@ expect_status "DELETE /api/applications/$app_id" 204 "$removed"
 
 gone="$(http_send GET "/api/applications/$app_id")" || true
 expect_status "GET /api/applications/$app_id after delete" 404 "$gone"
+
+echo "== documents round trip =="
+# Writes one object into Silo and one record into Mongo and removes both before finishing (T-05-34).
+# The application is deleted before the document: rule 4 refuses the reverse order with a 409. The
+# rejected uploads (415, 413) store nothing, so only the first document needs cleaning.
+doc_created="$(http_upload /api/documents smoke-cv.pdf cv 2048 PDF)" \
+  || fail "POST /api/documents did not answer"
+expect_status "POST /api/documents" 201 "$doc_created"
+doc_id="$(echo "$doc_created" | grep -o '"id":"[0-9a-f]\{24\}"' | head -n 1 | cut -d'"' -f4)"
+[ -n "$doc_id" ] || fail "POST /api/documents returned no id: $doc_created"
+
+doc_listed="$(http_send GET /api/documents)" || fail "GET /api/documents did not answer"
+expect_status "GET /api/documents" 200 "$doc_listed"
+echo "$doc_listed" | grep -q "$doc_id" || fail "GET /api/documents does not list $doc_id: $doc_listed"
+echo "$doc_listed" | grep -q '"usedBy":0' || fail "GET /api/documents does not report usedBy 0: $doc_listed"
+
+doc_read="$(http_send GET "/api/documents/$doc_id")" || fail "GET /api/documents/$doc_id did not answer"
+expect_status "GET /api/documents/$doc_id" 200 "$doc_read"
+
+doc_download="$(http_send GET "/api/documents/$doc_id/download")" \
+  || fail "GET /api/documents/$doc_id/download did not answer"
+expect_status "GET /api/documents/$doc_id/download" 200 "$doc_download"
+echo "$doc_download" | sed -n 2p | grep -q '^%PDF-' || fail "the download does not start with %PDF-: $doc_download"
+
+doc_app="$(http_send POST /api/applications "{\"title\":\"Smoke documentos\",\"company\":\"Smoke\",\"cvDocumentId\":\"$doc_id\"}")" \
+  || fail "POST /api/applications with a CV did not answer"
+expect_status "POST /api/applications with cvDocumentId" 201 "$doc_app"
+doc_app_id="$(echo "$doc_app" | grep -o '"id":"[0-9a-f]\{24\}"' | head -n 1 | cut -d'"' -f4)"
+[ -n "$doc_app_id" ] || fail "POST /api/applications returned no id: $doc_app"
+
+doc_blocked="$(http_send DELETE "/api/documents/$doc_id")" || fail "DELETE /api/documents/$doc_id did not answer"
+expect_status "DELETE /api/documents/$doc_id while linked" 409 "$doc_blocked"
+echo "$doc_blocked" | grep -q 'DOCUMENT_IN_USE' || fail "the 409 body lacks DOCUMENT_IN_USE: $doc_blocked"
+
+# Rule 5: deleting the application leaves the document in place.
+doc_app_removed="$(http_send DELETE "/api/applications/$doc_app_id")" \
+  || fail "DELETE /api/applications/$doc_app_id did not answer"
+expect_status "DELETE /api/applications/$doc_app_id" 204 "$doc_app_removed"
+doc_kept="$(http_send GET "/api/documents/$doc_id")" || fail "GET /api/documents/$doc_id did not answer"
+expect_status "GET /api/documents/$doc_id after deleting its application (rule 5)" 200 "$doc_kept"
+
+doc_removed="$(http_send DELETE "/api/documents/$doc_id")" || fail "DELETE /api/documents/$doc_id did not answer"
+expect_status "DELETE /api/documents/$doc_id" 204 "$doc_removed"
+doc_gone="$(http_send GET "/api/documents/$doc_id")" || true
+expect_status "GET /api/documents/$doc_id after delete" 404 "$doc_gone"
+
+doc_text="$(http_upload /api/documents notas.txt cv 64 TEXT)" || fail "POST /api/documents (.txt) did not answer"
+expect_status "POST /api/documents with a .txt" 415 "$doc_text"
+echo "$doc_text" | grep -q 'UNSUPPORTED_FILE_TYPE' || fail "the 415 body lacks UNSUPPORTED_FILE_TYPE: $doc_text"
+
+doc_big="$(http_upload /api/documents big.pdf cv 6291456 PDF)" || fail "POST /api/documents (6 MB) did not answer"
+expect_status "POST /api/documents with a 6 MB pdf" 413 "$doc_big"
+echo "$doc_big" | grep -q 'FILE_TOO_LARGE' || fail "the 413 body lacks FILE_TOO_LARGE: $doc_big"
 
 echo "== offers route =="
 # A too-short text is rejected by the request schema before any model call, so this proves the route
