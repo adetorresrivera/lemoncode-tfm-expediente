@@ -1,4 +1,4 @@
-import { documentSchema } from "@tfm/contracts";
+import { documentListItemSchema, documentSchema } from "@tfm/contracts";
 import {
   act,
   fireEvent,
@@ -13,7 +13,9 @@ import { HttpError } from "@/core/http/http-client";
 import { jsonResponse, mockFetch, type MockHandler } from "@/test/mock-fetch";
 import { DocumentUploadContainer } from "./document-upload.container";
 import {
+  documentLabel,
   hasAllowedExtension,
+  mapDocumentsToOptionsVm,
   mapUploadErrorToFeedback,
   nameFromFileName,
 } from "./document-upload.mapper";
@@ -587,5 +589,306 @@ describe("DocumentUploadContainer", () => {
     } finally {
       vi.useRealTimers();
     }
+  });
+});
+
+const listItem = (
+  id: string,
+  type: "cv" | "carta",
+  name: string,
+  version: string,
+  createdAt: string,
+) =>
+  documentListItemSchema.parse({
+    id,
+    type,
+    name,
+    version,
+    fileName: `${name}.pdf`,
+    s3Key: `documents/${id}/${name}.pdf`,
+    mimeType: "application/pdf",
+    size: 1024,
+    createdAt,
+    usedBy: 0,
+  });
+
+const cvNewer = listItem(
+  "d2",
+  "cv",
+  "CV Frontend",
+  "v3",
+  "2026-10-12T10:00:00.000Z",
+);
+const cvOlder = listItem(
+  "d1",
+  "cv",
+  "CV Backend",
+  "v1",
+  "2026-09-01T10:00:00.000Z",
+);
+const NEWER_LABEL = "CV Frontend · v3 · 12 oct. 2026";
+const OLDER_LABEL = "CV Backend · v1 · 1 sept. 2026";
+
+const documentRequests = (fetchMock: ReturnType<typeof mockFetch>) =>
+  fetchMock.mock.calls.filter(
+    ([input, init]) =>
+      (init?.method ?? "GET").toUpperCase() === "GET" &&
+      String(input).includes("/api/documents"),
+  );
+
+const optionTexts = (select: HTMLElement) =>
+  within(select)
+    .getAllByRole("option")
+    .map((option) => option.textContent);
+
+describe("document options mapper", () => {
+  it("builds the label from name, version and date", () => {
+    expect(
+      documentLabel({
+        name: "CV Frontend",
+        version: "v3",
+        createdAt: "2026-10-12T10:00:00.000Z",
+      }),
+    ).toBe(NEWER_LABEL);
+  });
+
+  it("keeps the order it receives and maps id and label only", () => {
+    expect(mapDocumentsToOptionsVm([cvNewer, cvOlder])).toStrictEqual([
+      { id: "d2", label: NEWER_LABEL },
+      { id: "d1", label: OLDER_LABEL },
+    ]);
+  });
+});
+
+describe("DocumentUploadContainer in picker mode", () => {
+  const serveCvs = (documents: unknown[]) =>
+    mockFetch({
+      "GET /api/documents": (url: URL) =>
+        jsonResponse(url.searchParams.get("type") === "cv" ? documents : []),
+    });
+
+  it("lists the CVs of the library after «Sin CV», newest first", async () => {
+    const fetchMock = serveCvs([cvNewer, cvOlder]);
+    render(
+      <DocumentUploadContainer type="cv" selectedId="" onSelected={vi.fn()} />,
+    );
+
+    const select = await screen.findByRole("combobox", { name: "CV" });
+    await waitFor(() =>
+      expect(optionTexts(select)).toStrictEqual([
+        "Sin CV",
+        NEWER_LABEL,
+        OLDER_LABEL,
+      ]),
+    );
+    expect(select).toHaveValue("");
+    expect(documentRequests(fetchMock)).toHaveLength(1);
+    expect(String(documentRequests(fetchMock)[0]?.[0])).toContain("type=cv");
+  });
+
+  it("asks for cover letters and says «Sin carta»", async () => {
+    const letter = listItem(
+      "c1",
+      "carta",
+      "Carta",
+      "v1",
+      "2026-10-01T10:00:00.000Z",
+    );
+    const fetchMock = mockFetch({
+      "GET /api/documents": (url: URL) =>
+        jsonResponse(url.searchParams.get("type") === "carta" ? [letter] : []),
+    });
+    render(
+      <DocumentUploadContainer
+        type="carta"
+        selectedId=""
+        onSelected={vi.fn()}
+      />,
+    );
+
+    const select = await screen.findByRole("combobox", {
+      name: "Carta de presentación",
+    });
+    await waitFor(() =>
+      expect(optionTexts(select)).toStrictEqual([
+        "Sin carta",
+        "Carta · v1 · 1 oct. 2026",
+      ]),
+    );
+    expect(String(documentRequests(fetchMock)[0]?.[0])).toContain("type=carta");
+  });
+
+  it("reports the chosen document and «Sin CV»", async () => {
+    serveCvs([cvNewer, cvOlder]);
+    const onSelected = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <DocumentUploadContainer
+        type="cv"
+        selectedId="d2"
+        onSelected={onSelected}
+      />,
+    );
+    const select = await screen.findByRole("combobox", { name: "CV" });
+    await waitFor(() =>
+      expect(within(select).getAllByRole("option")).toHaveLength(3),
+    );
+    expect(select).toHaveValue("d2");
+
+    await user.selectOptions(select, "d1");
+    expect(onSelected).toHaveBeenLastCalledWith("d1");
+    await user.selectOptions(select, "");
+    expect(onSelected).toHaveBeenLastCalledWith("");
+  });
+
+  it("with no documents holds only «Sin CV» and the linked hint", async () => {
+    serveCvs([]);
+    render(
+      <DocumentUploadContainer type="cv" selectedId="" onSelected={vi.fn()} />,
+    );
+    await screen.findByText("Aún no has subido ningún CV.");
+    const select = screen.getByRole("combobox", { name: "CV" });
+    expect(optionTexts(select)).toStrictEqual(["Sin CV"]);
+    expect(select).toHaveAccessibleDescription("Aún no has subido ningún CV.");
+  });
+
+  it("with no letters says so in the feminine", async () => {
+    mockFetch({ "GET /api/documents": [] });
+    render(
+      <DocumentUploadContainer
+        type="carta"
+        selectedId=""
+        onSelected={vi.fn()}
+      />,
+    );
+    expect(
+      await screen.findByText("Aún no has subido ninguna carta."),
+    ).toBeInTheDocument();
+  });
+
+  it("keeps the select in place while loading and ignores changes", async () => {
+    let release: () => void = () => undefined;
+    mockFetch({
+      "GET /api/documents": () =>
+        new Promise<Response>((resolve) => {
+          release = () => resolve(jsonResponse([cvNewer]));
+        }),
+    });
+    const onSelected = vi.fn();
+    render(
+      <DocumentUploadContainer
+        type="cv"
+        selectedId="d9"
+        onSelected={onSelected}
+      />,
+    );
+
+    const select = screen.getByRole("combobox", { name: "CV" });
+    expect(optionTexts(select)).toStrictEqual(["Cargando documentos…"]);
+    expect(select).toHaveAttribute("aria-busy", "true");
+    expect(select).toHaveAttribute("aria-disabled", "true");
+    fireEvent.change(select, { target: { value: "" } });
+    expect(onSelected).not.toHaveBeenCalled();
+
+    await act(async () => {
+      release();
+    });
+    await waitFor(() => expect(select).not.toHaveAttribute("aria-busy"));
+  });
+
+  it("shows the failure, keeps the value and retries with a type=button button", async () => {
+    let attempts = 0;
+    const fetchMock = mockFetch({
+      "GET /api/documents": () => {
+        attempts += 1;
+        return attempts === 1
+          ? errorResponse("INTERNAL_ERROR", 500)
+          : jsonResponse([cvNewer]);
+      },
+    });
+    const onSelected = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <DocumentUploadContainer
+        type="cv"
+        selectedId="d9"
+        onSelected={onSelected}
+      />,
+    );
+
+    expect(
+      await screen.findByText("No se pudieron cargar los documentos."),
+    ).toBeInTheDocument();
+    const select = screen.getByRole("combobox", { name: "CV" });
+    expect(optionTexts(select)).toStrictEqual(["No se pudo cargar la lista"]);
+    expect(select).toHaveAttribute("aria-disabled", "true");
+    fireEvent.change(select, { target: { value: "" } });
+    const retry = screen.getByRole("button", { name: "Reintentar" });
+    expect(retry).toHaveAttribute("type", "button");
+
+    await user.click(retry);
+    await waitFor(() =>
+      expect(
+        within(select).getByRole("option", { name: NEWER_LABEL }),
+      ).toBeInTheDocument(),
+    );
+    expect(documentRequests(fetchMock)).toHaveLength(2);
+    expect(
+      screen.queryByText("No se pudieron cargar los documentos."),
+    ).not.toBeInTheDocument();
+    expect(onSelected).not.toHaveBeenCalled();
+  });
+
+  it("keeps a linked id missing from the list as «Documento vinculado»", async () => {
+    serveCvs([cvNewer]);
+    render(
+      <DocumentUploadContainer
+        type="cv"
+        selectedId="d9"
+        onSelected={vi.fn()}
+      />,
+    );
+    const select = await screen.findByRole("combobox", { name: "CV" });
+    await waitFor(() =>
+      expect(
+        within(select).getByRole("option", { name: "Documento vinculado" }),
+      ).toBeInTheDocument(),
+    );
+    expect(select).toHaveValue("d9");
+  });
+
+  it("marks the select invalid and describes it with the error", async () => {
+    serveCvs([cvNewer]);
+    render(
+      <DocumentUploadContainer
+        type="cv"
+        selectedId=""
+        onSelected={vi.fn()}
+        error="Revisa este campo."
+      />,
+    );
+    const select = await screen.findByRole("combobox", { name: "CV" });
+    expect(select).toHaveAttribute("aria-invalid", "true");
+    expect(select).toHaveAccessibleDescription("Revisa este campo.");
+  });
+
+  it("never submits a surrounding form", async () => {
+    mockFetch({
+      "GET /api/documents": () => errorResponse("INTERNAL_ERROR", 500),
+    });
+    const outer = vi.fn((event: { preventDefault: () => void }) =>
+      event.preventDefault(),
+    );
+    const user = userEvent.setup();
+    render(
+      <form onSubmit={outer}>
+        <DocumentUploadContainer type="cv" selectedId="" onSelected={vi.fn()} />
+      </form>,
+    );
+    await user.click(await screen.findByRole("button", { name: "Reintentar" }));
+    const select = screen.getByRole("combobox", { name: "CV" });
+    select.focus();
+    await user.keyboard("{Enter}");
+    expect(outer).not.toHaveBeenCalled();
   });
 });

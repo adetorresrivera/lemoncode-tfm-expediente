@@ -1,6 +1,8 @@
 import {
+  documentListItemSchema,
   documentSchema,
   type Document,
+  type DocumentListItem,
   type DocumentType,
 } from "@tfm/contracts";
 import { request } from "@/core/http/http-client";
@@ -29,3 +31,15 @@ export const uploadDocument = (
     signal,
   });
 };
+
+// The library of one type, newest first (the server owns the order). The query string is built
+// from the type only.
+export const getDocuments = (
+  type: DocumentType,
+  signal?: AbortSignal,
+): Promise<DocumentListItem[]> =>
+  request(
+    `/api/documents?${new URLSearchParams({ type })}`,
+    documentListItemSchema.array(),
+    { signal },
+  );

@@ -1,13 +1,17 @@
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import { useCallback, useEffect, useRef } from "react";
-import { uploadDocument } from "./api/api";
+import type { DocumentType } from "@tfm/contracts";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getDocuments, uploadDocument } from "./api/api";
 import {
+  mapDocumentsToOptionsVm,
   mapUploadedDocumentFromApiToVm,
   mapUploadErrorToFeedback,
   mapUploadFormToRequest,
   validateUploadForm,
 } from "./document-upload.mapper";
 import type {
+  DocumentOptionsState,
+  DocumentOptionVm,
   UploadedDocumentVm,
   UploadFormValues,
 } from "./document-upload.vm";
@@ -122,3 +126,43 @@ export function useUploadForm({
 }
 
 export type UploadFormApi = ReturnType<typeof useUploadForm>["form"];
+
+type OptionsResult =
+  | { key: string; outcome: "ok"; options: DocumentOptionVm[] }
+  | { key: string; outcome: "error" };
+
+// Keyed-result pattern of the list pod: the key is the type plus the retry attempt, loading is
+// derived (the stored result belongs to another key) and a response that does not belong to the
+// current key is dropped. The mapper runs here, on arrival.
+export const useDocumentOptions = (
+  type: DocumentType,
+): DocumentOptionsState => {
+  const [result, setResult] = useState<OptionsResult | null>(null);
+  const [attempt, setAttempt] = useState(0);
+  const key = `${type}#${attempt}`;
+
+  useEffect(() => {
+    const controller = new AbortController();
+    getDocuments(type, controller.signal)
+      .then((documents) => {
+        if (controller.signal.aborted) return;
+        setResult({
+          key,
+          outcome: "ok",
+          options: mapDocumentsToOptionsVm(documents),
+        });
+      })
+      .catch(() => {
+        if (controller.signal.aborted) return;
+        setResult({ key, outcome: "error" });
+      });
+    return () => controller.abort();
+  }, [type, key]);
+
+  const current = result?.key === key ? result : null;
+  return {
+    status: current === null ? "loading" : current.outcome,
+    options: current?.outcome === "ok" ? current.options : [],
+    retry: () => setAttempt((n) => n + 1),
+  };
+};
