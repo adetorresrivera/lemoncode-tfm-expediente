@@ -14,6 +14,8 @@ export type UploadFormField = keyof UploadFormValues;
 export interface UploadedDocumentVm {
   id: string;
   type: DocumentType;
+  // The picker line of the new document: «name · version · date».
+  label: string;
 }
 
 export interface UploadLiveMessage {
@@ -31,4 +33,6 @@ export interface DocumentOptionsState {
   status: "loading" | "ok" | "error";
   options: DocumentOptionVm[];
   retry: () => void;
+  // Puts a just-uploaded document first (replacing one with the same id); never refetches.
+  add: (option: DocumentOptionVm) => void;
 }

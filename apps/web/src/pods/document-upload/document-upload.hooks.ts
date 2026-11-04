@@ -159,10 +159,27 @@ export const useDocumentOptions = (
     return () => controller.abort();
   }, [type, key]);
 
+  // Writes into the current ok result only: a list that is loading or failed has nothing to add
+  // to, and the next fetch (a retry) brings the uploaded document from the server anyway.
+  const add = (option: DocumentOptionVm) => {
+    setResult((previous) =>
+      previous?.key === key && previous.outcome === "ok"
+        ? {
+            ...previous,
+            options: [
+              option,
+              ...previous.options.filter((item) => item.id !== option.id),
+            ],
+          }
+        : previous,
+    );
+  };
+
   const current = result?.key === key ? result : null;
   return {
     status: current === null ? "loading" : current.outcome,
     options: current?.outcome === "ok" ? current.options : [],
     retry: () => setAttempt((n) => n + 1),
+    add,
   };
 };

@@ -141,10 +141,6 @@ export const mapUploadErrorToFeedback = (
   return { message: UPLOAD_ERROR_MESSAGE };
 };
 
-export const mapUploadedDocumentFromApiToVm = (
-  document: Document,
-): UploadedDocumentVm => ({ id: document.id, type: document.type });
-
 // «CV Frontend · v3 · 12 oct. 2026»: name, version and upload date of one stored document.
 export function documentLabel(document: {
   name: string;
@@ -153,6 +149,14 @@ export function documentLabel(document: {
 }): string {
   return `${document.name} · ${document.version} · ${formatDate(document.createdAt)}`;
 }
+
+export const mapUploadedDocumentFromApiToVm = (
+  document: Document,
+): UploadedDocumentVm => ({
+  id: document.id,
+  type: document.type,
+  label: documentLabel(document),
+});
 
 // Keeps the order the API answers (newest first).
 export function mapDocumentsToOptionsVm(

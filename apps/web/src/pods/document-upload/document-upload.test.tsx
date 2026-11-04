@@ -8,6 +8,7 @@ import {
   within,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { HttpError } from "@/core/http/http-client";
 import { jsonResponse, mockFetch, type MockHandler } from "@/test/mock-fetch";
@@ -154,7 +155,11 @@ describe("DocumentUploadContainer", () => {
     await user.click(submit(dialog));
 
     await waitFor(() => expect(onUploaded).toHaveBeenCalledTimes(1));
-    expect(onUploaded).toHaveBeenCalledWith({ id: "d1", type: "cv" });
+    expect(onUploaded).toHaveBeenCalledWith({
+      id: "d1",
+      type: "cv",
+      label: "CV Frontend · v3 · 4 nov. 2026",
+    });
     const calls = postCalls(fetchMock);
     expect(calls).toHaveLength(1);
     const init = calls[0]?.[1];
@@ -890,5 +895,271 @@ describe("DocumentUploadContainer in picker mode", () => {
     select.focus();
     await user.keyboard("{Enter}");
     expect(outer).not.toHaveBeenCalled();
+  });
+});
+
+describe("DocumentUploadContainer «Subir nuevo» in picker mode", () => {
+  const uploadedCv = documentSchema.parse({
+    id: "d7",
+    type: "cv",
+    name: "CV Backend",
+    version: "v1",
+    fileName: "CV Backend.pdf",
+    s3Key: "documents/d7/cv-backend.pdf",
+    mimeType: "application/pdf",
+    size: 1024,
+    createdAt: "2026-10-12T10:00:00.000Z",
+  });
+  const UPLOADED_LABEL = "CV Backend · v1 · 12 oct. 2026";
+
+  // The application form holds the selected id; the picker reports every choice to the spy.
+  function Harness({
+    type = "cv",
+    onSelected,
+  }: {
+    type?: "cv" | "carta";
+    onSelected: (id: string) => void;
+  }) {
+    const [selectedId, setSelectedId] = useState("");
+    return (
+      <DocumentUploadContainer
+        type={type}
+        selectedId={selectedId}
+        onSelected={(id) => {
+          onSelected(id);
+          setSelectedId(id);
+        }}
+      />
+    );
+  }
+
+  const subirNuevo = () => screen.getByRole("button", { name: "Subir nuevo" });
+
+  const uploadFile = async (user: User, dialog: HTMLElement) => {
+    await user.upload(fileInput(dialog), pdf("CV Backend.pdf"));
+    await user.type(versionInput(dialog), "v1");
+  };
+
+  const asOuterForm = () =>
+    vi.fn((event: { preventDefault: () => void }) => event.preventDefault());
+
+  it("opens «Subir CV» without Tipo and with focus on Archivo", async () => {
+    mockFetch({ "GET /api/documents": [] });
+    const user = setup();
+    render(<Harness onSelected={vi.fn()} />);
+    await screen.findByText("Aún no has subido ningún CV.");
+
+    await user.click(subirNuevo());
+
+    const dialog = await screen.findByRole("dialog", { name: "Subir CV" });
+    expect(within(dialog).queryByText("Tipo")).not.toBeInTheDocument();
+    expect(within(dialog).queryByRole("radio")).not.toBeInTheDocument();
+    await waitFor(() => expect(fileInput(dialog)).toHaveFocus());
+  });
+
+  it("titles the cover letter dialog", async () => {
+    mockFetch({ "GET /api/documents": [] });
+    const user = setup();
+    render(<Harness type="carta" onSelected={vi.fn()} />);
+    await screen.findByText("Aún no has subido ninguna carta.");
+
+    await user.click(subirNuevo());
+
+    expect(
+      await screen.findByRole("dialog", {
+        name: "Subir carta de presentación",
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("uploads with the fixed type, selects the new document first and returns focus", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/documents": [cvOlder],
+      "POST /api/documents": () => jsonResponse(uploadedCv, 201),
+    });
+    const onSelected = vi.fn();
+    const user = setup();
+    render(<Harness onSelected={onSelected} />);
+    const select = await screen.findByRole("combobox", { name: "CV" });
+    await waitFor(() => expect(optionTexts(select)).toHaveLength(2));
+
+    await user.click(subirNuevo());
+    const dialog = await screen.findByRole("dialog", { name: "Subir CV" });
+    await uploadFile(user, dialog);
+    await user.click(submit(dialog));
+
+    await waitFor(() => expect(onSelected).toHaveBeenCalledWith("d7"));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    const body = postCalls(fetchMock)[0]?.[1]?.body as FormData;
+    expect(body.get("type")).toBe("cv");
+    expect(optionTexts(select)).toStrictEqual([
+      "Sin CV",
+      UPLOADED_LABEL,
+      OLDER_LABEL,
+    ]);
+    expect(select).toHaveValue("d7");
+    expect(screen.getByText("Documento subido.")).toBeInTheDocument();
+    await waitFor(() => expect(subirNuevo()).toHaveFocus());
+    // The list is not fetched again: the new option comes from the upload response.
+    expect(documentRequests(fetchMock)).toHaveLength(1);
+  });
+
+  it("sends the cover letter type from the cover letter picker", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/documents": [],
+      "POST /api/documents": () =>
+        jsonResponse({ ...uploadedCv, id: "c1", type: "carta" }, 201),
+    });
+    const user = setup();
+    render(<Harness type="carta" onSelected={vi.fn()} />);
+    await screen.findByText("Aún no has subido ninguna carta.");
+
+    await user.click(subirNuevo());
+    const dialog = await screen.findByRole("dialog");
+    await uploadFile(user, dialog);
+    await user.click(submit(dialog));
+
+    await waitFor(() => expect(postCalls(fetchMock)).toHaveLength(1));
+    const body = postCalls(fetchMock)[0]?.[1]?.body as FormData;
+    expect(body.get("type")).toBe("carta");
+  });
+
+  it("never submits the application form from the upload dialog (click)", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/documents": [],
+      "POST /api/documents": () => jsonResponse(uploadedCv, 201),
+    });
+    const outer = asOuterForm();
+    const onSelected = vi.fn();
+    const user = setup();
+    render(
+      <form onSubmit={outer}>
+        <Harness onSelected={onSelected} />
+      </form>,
+    );
+    await screen.findByText("Aún no has subido ningún CV.");
+
+    await user.click(subirNuevo());
+    const dialog = await screen.findByRole("dialog", { name: "Subir CV" });
+    await uploadFile(user, dialog);
+    await user.click(submit(dialog));
+
+    await waitFor(() => expect(onSelected).toHaveBeenCalledWith("d7"));
+    expect(outer).not.toHaveBeenCalled();
+    expect(postCalls(fetchMock)).toHaveLength(1);
+  });
+
+  it("never submits the application form from the upload dialog (Enter)", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/documents": [],
+      "POST /api/documents": () => jsonResponse(uploadedCv, 201),
+    });
+    const outer = asOuterForm();
+    const onSelected = vi.fn();
+    const user = setup();
+    render(
+      <form onSubmit={outer}>
+        <Harness onSelected={onSelected} />
+      </form>,
+    );
+    await screen.findByText("Aún no has subido ningún CV.");
+
+    await user.click(subirNuevo());
+    const dialog = await screen.findByRole("dialog", { name: "Subir CV" });
+    await uploadFile(user, dialog);
+    versionInput(dialog).focus();
+    await user.keyboard("{Enter}");
+
+    await waitFor(() => expect(onSelected).toHaveBeenCalledWith("d7"));
+    expect(outer).not.toHaveBeenCalled();
+    expect(postCalls(fetchMock)).toHaveLength(1);
+  });
+
+  it("keeps the dialog open and selects nothing on a 415", async () => {
+    mockFetch({
+      "GET /api/documents": [],
+      "POST /api/documents": () => errorResponse("UNSUPPORTED_FILE_TYPE", 415),
+    });
+    const onSelected = vi.fn();
+    const user = setup();
+    render(<Harness onSelected={onSelected} />);
+    await screen.findByText("Aún no has subido ningún CV.");
+
+    await user.click(subirNuevo());
+    const dialog = await screen.findByRole("dialog", { name: "Subir CV" });
+    await uploadFile(user, dialog);
+    await user.click(submit(dialog));
+
+    expect(await within(dialog).findByText(UNSUPPORTED)).toBeInTheDocument();
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(onSelected).not.toHaveBeenCalled();
+  });
+
+  it("keeps «Cancelar subida» and the close guard while uploading", async () => {
+    const { handler } = pendingUpload();
+    mockFetch({ "GET /api/documents": [], "POST /api/documents": handler });
+    const onSelected = vi.fn();
+    const user = setup();
+    render(<Harness onSelected={onSelected} />);
+    await screen.findByText("Aún no has subido ningún CV.");
+
+    await user.click(subirNuevo());
+    const dialog = await screen.findByRole("dialog", { name: "Subir CV" });
+    await uploadFile(user, dialog);
+    await user.click(submit(dialog));
+
+    const cancel = await within(dialog).findByRole("button", {
+      name: "Cancelar subida",
+    });
+    expect(cancel).toHaveFocus();
+    expect(
+      within(dialog).getByRole("button", { name: "Subiendo…" }),
+    ).toBeDisabled();
+    await user.keyboard("{Escape}");
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    await user.click(cancel);
+    expect(await within(dialog).findByText("Subida cancelada.")).toBeVisible();
+    expect(versionInput(dialog)).toHaveValue("v1");
+    expect(onSelected).not.toHaveBeenCalled();
+  });
+
+  it("does not open while the list loads", async () => {
+    mockFetch({
+      "GET /api/documents": () => new Promise<Response>(() => undefined),
+    });
+    const user = setup();
+    render(<Harness onSelected={vi.fn()} />);
+
+    const button = subirNuevo();
+    expect(button).toHaveAttribute("aria-disabled", "true");
+    await user.click(button);
+
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("stays available when the list failed and selects the new document", async () => {
+    mockFetch({
+      "GET /api/documents": () => errorResponse("INTERNAL_ERROR", 500),
+      "POST /api/documents": () => jsonResponse(uploadedCv, 201),
+    });
+    const onSelected = vi.fn();
+    const user = setup();
+    render(<Harness onSelected={onSelected} />);
+    await screen.findByText("No se pudieron cargar los documentos.");
+    expect(subirNuevo()).not.toHaveAttribute("aria-disabled");
+
+    await user.click(subirNuevo());
+    const dialog = await screen.findByRole("dialog", { name: "Subir CV" });
+    await uploadFile(user, dialog);
+    await user.click(submit(dialog));
+
+    await waitFor(() => expect(onSelected).toHaveBeenCalledWith("d7"));
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(screen.getByText("Documento subido.")).toBeInTheDocument();
   });
 });
