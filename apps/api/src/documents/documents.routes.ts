@@ -101,5 +101,12 @@ export function documentsRoutes(service: DocumentsService): Hono {
     });
   });
 
+  routes.delete("/:id", async (c) => {
+    await service.remove(
+      parseObjectId(c.req.param("id"), "Documento no encontrado"),
+    );
+    return c.body(null, 204);
+  });
+
   return routes;
 }

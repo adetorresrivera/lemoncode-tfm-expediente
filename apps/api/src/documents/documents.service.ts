@@ -33,6 +33,7 @@ export interface DocumentsService {
   list(query: DocumentQuery): Promise<DocumentListItem[]>;
   get(id: ObjectId): Promise<Document>;
   open(id: ObjectId): Promise<OpenedDocument>;
+  remove(id: ObjectId): Promise<void>;
 }
 
 const documentNotFound = (): ApiError =>
@@ -114,6 +115,22 @@ export function createDocumentsService(
         throw new ApiError(404, "NOT_FOUND", "Archivo no encontrado");
       }
       return { document: mapDocumentDocToApi(doc), stream: stored.stream };
+    },
+
+    async remove(id) {
+      const doc = await repository.findById(id);
+      if (doc === null) throw documentNotFound();
+      if (await repository.isInUse(id)) {
+        throw new ApiError(
+          409,
+          "DOCUMENT_IN_USE",
+          "Este documento está vinculado a alguna candidatura. Desvincúlalo antes de eliminarlo.",
+        );
+      }
+      if (!(await repository.deleteById(id))) throw documentNotFound();
+      // The record goes first: an orphan object is invisible and harmless, a record pointing to a
+      // missing object is not (D-11). Deleting is idempotent and nothing is logged, so no key leaks.
+      await storage.delete(doc.s3Key).catch(() => undefined);
     },
   };
 }

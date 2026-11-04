@@ -14,8 +14,9 @@ export interface FakeObject {
   contentType: string;
 }
 
-// In-memory storage for every test that does not need the real Silo.
-export function fakeStorage(): {
+// In-memory storage for every test that does not need the real Silo. With failDelete the delete
+// rejects (the message carries no key), to prove the callers never depend on it succeeding.
+export function fakeStorage(options: { failDelete?: boolean } = {}): {
   storage: DocumentStorage;
   objects: Map<string, FakeObject>;
 } {
@@ -29,6 +30,7 @@ export function fakeStorage(): {
       return object ? { stream: new Blob([object.body]).stream() } : null;
     },
     async delete(key) {
+      if (options.failDelete) throw new Error("storage unavailable");
       objects.delete(key);
     },
   };

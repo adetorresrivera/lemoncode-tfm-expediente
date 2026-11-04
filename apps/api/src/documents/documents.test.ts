@@ -267,3 +267,83 @@ describe("GET /api/documents/:id/download", () => {
     );
   });
 });
+
+describe("DELETE /api/documents/:id", () => {
+  const IN_USE_MESSAGE =
+    "Este documento está vinculado a alguna candidatura. Desvincúlalo antes de eliminarlo.";
+
+  async function remove(id: string): Promise<Response> {
+    return await app.request(`/api/documents/${id}`, { method: "DELETE" });
+  }
+
+  it("deletes an unlinked document: record, list entry and object", async () => {
+    const created = await uploadPdf("cv", "CV A");
+    const key = created.s3Key;
+    expect(fake.objects.has(key)).toBe(true);
+
+    const res = await remove(created.id);
+    expect(res.status).toBe(204);
+    expect(await res.text()).toBe("");
+
+    await expectError(
+      await app.request(`/api/documents/${created.id}`),
+      404,
+      "NOT_FOUND",
+      "Documento no encontrado",
+    );
+    expect(await (await app.request("/api/documents")).json()).toEqual([]);
+    expect(fake.objects.has(key)).toBe(false);
+  });
+
+  it.each(["cvDocumentId", "coverLetterDocumentId"])(
+    "answers 409 DOCUMENT_IN_USE and keeps everything when %s links it",
+    async (field) => {
+      const created = await uploadPdf("cv", "CV A");
+      await insertApplication({ [field]: created.id });
+
+      await expectError(
+        await remove(created.id),
+        409,
+        "DOCUMENT_IN_USE",
+        IN_USE_MESSAGE,
+      );
+
+      const list = (await (
+        await app.request("/api/documents")
+      ).json()) as DocumentListItem[];
+      expect(list.map((d) => d.id)).toEqual([created.id]);
+      expect(fake.objects.has(created.s3Key)).toBe(true);
+    },
+  );
+
+  it.each([UNKNOWN_ID, "abc"])(
+    "answers 404 «Documento no encontrado» for %s",
+    async (id) => {
+      await expectError(
+        await remove(id),
+        404,
+        "NOT_FOUND",
+        "Documento no encontrado",
+      );
+    },
+  );
+
+  it("still answers 204 and leaves no record when the object delete fails", async () => {
+    const failing = fakeStorage({ failDelete: true });
+    app = createApp({
+      ...allUp,
+      db: testDb.db,
+      storage: failing.storage,
+      now: () => clock,
+    });
+    const created = await uploadPdf("cv", "CV A");
+
+    const res = await remove(created.id);
+    expect(res.status).toBe(204);
+    await expectError(
+      await app.request(`/api/documents/${created.id}`),
+      404,
+      "NOT_FOUND",
+    );
+  });
+});

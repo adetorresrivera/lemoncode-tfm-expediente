@@ -22,6 +22,9 @@ export interface DocumentsRepository {
   findById(id: ObjectId): Promise<DocumentDoc | null>;
   /** Applications linking each document (as CV or cover letter), keyed by the hex id. */
   usageCounts(): Promise<Map<string, number>>;
+  /** True when any application links the document as CV or as cover letter (rule 4). */
+  isInUse(id: ObjectId): Promise<boolean>;
+  deleteById(id: ObjectId): Promise<boolean>;
 }
 
 export function createDocumentsRepository(db: Db): DocumentsRepository {
@@ -58,6 +61,18 @@ export function createDocumentsRepository(db: Db): DocumentsRepository {
         ])
         .toArray();
       return new Map(rows.map((row) => [row._id, row.count]));
+    },
+    async isInUse(id) {
+      const hex = id.toHexString();
+      const linked = await applications.findOne(
+        { $or: [{ cvDocumentId: hex }, { coverLetterDocumentId: hex }] },
+        { projection: { _id: 1 } },
+      );
+      return linked !== null;
+    },
+    async deleteById(id) {
+      const result = await documents.deleteOne({ _id: id });
+      return result.deletedCount === 1;
     },
   };
 }
