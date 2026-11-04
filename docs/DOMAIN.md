@@ -59,7 +59,11 @@ Etiquetas de UI de los estados: Guardada, Enviada, En entrevistas, Oferta recibi
 `{ id, round, type, scheduledAt (ISO|null), mode, notes|null, outcome }`. `round` se asigna automáticamente (máx. actual + 1) y se puede editar.
 
 ### Document (colección `documents`)
-`{ id, type, name, version, s3Key, mimeType, size, createdAt }`. `version` es texto libre (p. ej. «v3», «Frontend 2026»). Objeto en bucket `tfm-assets`, clave `documents/<id>/<filename-saneado>`.
+`{ id, type, name, version, fileName, s3Key, mimeType, size, createdAt }`. `version` es texto libre (p. ej. «v3», «Frontend 2026»). Objeto en bucket `tfm-assets`.
+- `fileName`: nombre original del archivo en el navegador (solo el nombre base, sin caracteres de control, recortado, 1–255). Se conserva tal cual, con tildes y espacios, y es el que usa la descarga (`Content-Disposition`).
+- `s3Key`: `documents/<id>/<slug>`. El slug sale de `fileName` en ASCII (`[a-z0-9._-]`, sin tildes), de 100 caracteres como máximo (extensión incluida) y con la extensión del tipo detectado (`.pdf` o `.docx`), nunca la que escribió el usuario.
+- `mimeType` se deduce de la firma del archivo, nunca del navegador: PDF si empieza por `%PDF-`; DOCX si es un ZIP con `word/document.xml`. La firma y la extensión deben coincidir; si no, 415 `UNSUPPORTED_FILE_TYPE`. Tamaño máximo 5 MiB (413 `FILE_TOO_LARGE`).
+- `usedBy` (nº de candidaturas que lo vinculan como CV o carta) aparece solo en el listado `GET /api/documents`; se **deriva** de `applications` en cada consulta y no se guarda en la colección.
 
 ### Tag
 `{ label: string (1–40), group: TagGroup }`. Normalización al guardar: `trim`, espacios colapsados, sin duplicados comparando en minúsculas. Se conserva la grafía de la primera aparición (`React`, `C#`, `.NET 8`).
@@ -68,8 +72,8 @@ Etiquetas de UI de los estados: Guardada, Enviada, En entrevistas, Oferta recibi
 1. **Transiciones libres**: cualquier estado puede pasar a cualquier otro. Cada cambio añade `{ status, at: now }` a `statusHistory` (si el estado no cambia, no se añade).
 2. Al pasar a `enviada` por primera vez, si `appliedAt` es `null`, se fija a ahora.
 3. Al añadir una ronda de entrevista, si el estado es `enviada`, pasa automáticamente a `en_entrevistas` (con entrada en el historial).
-4. No se puede borrar un documento vinculado a alguna candidatura (409 `DOCUMENT_IN_USE`).
-5. Borrar una candidatura pide confirmación y no borra sus documentos.
+4. No se puede borrar un documento vinculado a alguna candidatura (409 `DOCUMENT_IN_USE`, «Este documento está vinculado a alguna candidatura. Desvincúlalo antes de eliminarlo.»). Crear o editar una candidatura con un `cvDocumentId` o `coverLetterDocumentId` que no existe o no es del tipo correcto (`cv` / `carta`) se rechaza con 400 `VALIDATION_ERROR`, con el error en el campo.
+5. Borrar una candidatura pide confirmación y no borra sus documentos: quedan en la biblioteca, ya sin vincular.
 6. El borrador IA **solo rellena campos vacíos** del formulario; las etiquetas se fusionan sin duplicados. Nada se persiste hasta que el usuario guarda.
 7. `updatedAt` se actualiza en cualquier cambio, incluidas rondas y estado.
 

@@ -36,7 +36,7 @@ src/
   tag.schema.ts
   interview.schema.ts      interviewSchema, interviewInputSchema
   application.schema.ts    applicationSchema, applicationInputSchema, applicationQuerySchema, statusChangeSchema
-  document.schema.ts
+  document.schema.ts       documentSchema, documentListItemSchema (usedBy), documentInputSchema, documentQuerySchema, DOCUMENT_MAX_BYTES
   offer-extraction.schema.ts
   error.schema.ts          { error: { code, message, details? } }
   index.ts
@@ -50,7 +50,7 @@ src/
   app.ts                   Hono: rutas, middleware de errores, static en prod
   config.ts                lectura y validación de env con Zod
   db/mongo.ts              cliente + índices
-  storage/s3.ts            cliente S3 (forcePathStyle), ensureBucket, put/get/delete
+  storage/s3.ts            cliente S3 (forcePathStyle), ensureBucket, createDocumentStorage (put/get/delete)
   llm/
     llm.client.ts          interfaz LlmClient + factory por LLM_PROVIDER
     ollama.provider.ts
@@ -61,14 +61,20 @@ src/
     applications.repository.ts
     applications.service.ts   reglas de negocio (historial, appliedAt, rondas)
     applications.mapper.ts    documento Mongo ↔ contrato
-  documents/ …
+  documents/
+    documents.routes.ts       multipart, lista, lectura, descarga (stream) y borrado
+    documents.service.ts      S3 primero y Mongo después, con compensación si falla el insert; regla 4 al borrar
+    documents.repository.ts
+    documents.mapper.ts       documento Mongo ↔ contrato
+    file-type.ts              firma real (PDF, DOCX) y coherencia con la extensión
+    file-name.ts              nombre saneado, slug de la clave S3 y Content-Disposition
   offers/
     extract.routes.ts
     extract.service.ts     prompt + normalización
   tags/tags.routes.ts
   scripts/seed.ts
 ```
-Índices: `applications`: `{ status: 1 }`, `{ updatedAt: -1 }`, `{ "tags.label": 1 }`, texto en `{ title, company }`.
+Índices: `applications`: `{ status: 1 }`, `{ updatedAt: -1 }`, `{ "tags.label": 1 }`, texto en `{ title, company }`, `{ cvDocumentId: 1 }`, `{ coverLetterDocumentId: 1 }` (comprobación de uso). `documents`: `{ createdAt: -1 }`.
 
 ### Endpoints
 | Método | Ruta | Descripción |
@@ -85,12 +91,13 @@ src/
 | DELETE | `/api/applications/:id/interviews/:interviewId` | borra la ronda sin renumerar; 200 con la candidatura completa |
 | GET | `/api/tags` | `{ label, group, count }[]` distintos, por count desc |
 | POST | `/api/offers/extract` | `{ text }` → `OfferExtraction` (ver AI-EXTRACTION.md) |
-| GET | `/api/documents` | lista, filtro opcional `type` |
-| POST | `/api/documents` | multipart: `file`, `type`, `name`, `version`; PDF/DOCX ≤5 MB |
-| GET | `/api/documents/:id/download` | stream con `Content-Disposition` |
-| DELETE | `/api/documents/:id` | 409 si está vinculado |
+| GET | `/api/documents` | query: `type` opcional (`cv` \| `carta`); items con `usedBy`, del más reciente al más antiguo |
+| POST | `/api/documents` | multipart: `file`, `type`, `name`, `version`; PDF/DOCX ≤5 MB; 201 con el `Document`; 400, 413, 415 |
+| GET | `/api/documents/:id` | el `Document`; 404 «Documento no encontrado» |
+| GET | `/api/documents/:id/download` | stream; `Content-Disposition` con `filename*` (nombre original); 404 |
+| DELETE | `/api/documents/:id` | 204; 404; 409 si está vinculado a alguna candidatura |
 
-Códigos: 400 `VALIDATION_ERROR`, 404 `NOT_FOUND`, 409 `DOCUMENT_IN_USE`, 413 `FILE_TOO_LARGE`, 415 `UNSUPPORTED_FILE_TYPE`, 502 `LLM_ERROR`, 504 `LLM_TIMEOUT`, 500 `INTERNAL_ERROR`. Las rutas de rondas responden 404 `NOT_FOUND` con «Candidatura no encontrada» o «Ronda no encontrada».
+Códigos: 400 `VALIDATION_ERROR`, 404 `NOT_FOUND`, 409 `DOCUMENT_IN_USE`, 413 `FILE_TOO_LARGE`, 415 `UNSUPPORTED_FILE_TYPE`, 502 `LLM_ERROR`, 504 `LLM_TIMEOUT`, 500 `INTERNAL_ERROR`. Las rutas de rondas responden 404 `NOT_FOUND` con «Candidatura no encontrada» o «Ronda no encontrada». Las rutas de documentos responden 404 `NOT_FOUND` con «Documento no encontrado» (id desconocido o mal formado) o «Archivo no encontrado» (el registro existe pero el objeto ya no está en S3). `POST`/`PUT /api/applications` validan `cvDocumentId` y `coverLetterDocumentId` (deben existir y ser del tipo `cv` / `carta`; si no, 400 `VALIDATION_ERROR` con el error en el campo).
 
 ## apps/web
 ```
@@ -112,11 +119,13 @@ src/
     application-list.scene.tsx
     application-detail.scene.tsx
     application-edit.scene.tsx     alta (sin id) y edición (con id)
+    document-list.scene.tsx        biblioteca de documentos: cabecera, subida, lista y filtro en la URL
   pods/
     application-list/
     application-detail/          incluye rondas (components/interview-*.tsx) y cambio de estado
     application-edit/            formulario + panel «Pegar oferta» (IA)
-    document-upload/             subir / elegir documento; usado como container embebible
+    document-upload/             subida genérica (botón + diálogo) y selector de documento del formulario (modo picker)
+    document-list/               biblioteca: filas, filtro por tipo, descarga y borrado con diálogo
   routes/
     __root.tsx
     index.tsx                    redirect → /applications
@@ -125,9 +134,13 @@ src/
       new.tsx
       $applicationId/index.tsx
       $applicationId/edit.tsx
+    documents/
+      index.tsx                  validateSearch con documentQuerySchema
   routeTree.gen.ts
 ```
-Regla de composición: `application-edit` necesita elegir documentos → la escena de edición renderiza `DocumentUploadContainer` y pasa `onSelected` al formulario por props. Ningún pod importa otro.
+Reglas de composición (ningún pod importa otro):
+- `application-edit` necesita elegir documentos: la escena de edición le pasa el slot `renderDocumentPicker`, que renderiza `DocumentUploadContainer` en modo picker (`type`, valor, `onSelected`); el formulario solo guarda el id elegido.
+- La escena `document-list` compone `DocumentUploadContainer` (subir) y `DocumentListContainer` (lista). La cabecera la pinta la escena, pero el contador es dato del pod, así que pasa por el slot `renderHeader({ counter })`. Tras subir, `onUploaded` de la subida incrementa una señal de refresco que la escena entrega a la lista como `refreshToken`; el filtro de tipo vive en la URL (`?type=`).
 
 Gestión de datos: hooks propios con `fetch` + `AbortController` como en el curso (sin React Query en el MVP).
 

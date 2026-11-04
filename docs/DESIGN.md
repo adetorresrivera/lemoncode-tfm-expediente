@@ -25,7 +25,7 @@ Tuteo, frases cortas, verbos de acción («Añadir candidatura», «Autocompleta
 ## Pantallas
 
 ### Shell (`layouts/app-layout.tsx`)
-- Escritorio (≥1024 px): barra lateral fija `bg-sidebar text-sidebar-foreground`, marca «Expediente» en serifa, navegación: «Mis candidaturas» (activa); «Tablero» y «Documentos» desactivadas con «Próximamente». Toggle de tema al pie (Sistema / Claro / Oscuro).
+- Escritorio (≥1024 px): barra lateral fija `bg-sidebar text-sidebar-foreground`, marca «Expediente» en serifa, navegación: «Mis candidaturas» y «Documentos» activas (la entrada de la ruta actual lleva `aria-current="page"`); «Tablero» desactivada con «Próximamente». Toggle de tema al pie (Sistema / Claro / Oscuro).
 - Móvil: cabecera con botón de menú que abre un `Sheet` con la misma navegación.
 
 ### Mis candidaturas (`/applications`)
@@ -37,11 +37,18 @@ Tuteo, frases cortas, verbos de acción («Añadir candidatura», «Autocompleta
 ### Detalle (`/applications/$id`)
 - Cabecera: puesto (h1), empresa, badge y selector «Cambiar estado», acciones «Editar» y «Eliminar» (diálogo de confirmación).
 - Columna principal: Datos de la oferta (dl), Etiquetas agrupadas, Rondas de entrevista (lista ordenada por ronda con tipo, fecha, modalidad, resultado; «Añadir ronda» abre diálogo), Notas, Texto original de la oferta (plegable).
-- Columna lateral: Historial de estados (timeline vertical con fechas), Documentos vinculados (descargar).
+- Columna lateral: Historial de estados (timeline vertical con fechas), Documentos: el CV y la carta vinculados, cada uno con su nombre, versión, tamaño y enlace «Descargar» (o «Sin CV vinculado.» / «Sin carta vinculada.»). Si uno falla al cargar, el otro se sigue mostrando.
+
+### Documentos (`/documents`)
+- Cabecera: eyebrow «Expediente», h1 «Documentos» con el contador, y el botón primary «Subir documento» (diálogo con tipo, nombre, versión y archivo PDF/DOCX de hasta 5 MB; los errores 413 y 415 salen junto al campo «Archivo»).
+- Filtro por tipo Todos / CV / Carta, guardado en la URL (`?type=`). Si subes un documento de otro tipo que el filtro activo, el filtro pasa a ese tipo.
+- Filas, del más reciente al más antiguo: tipo (insignia neutra, distinta por icono y texto), nombre, versión, fecha, tamaño y «En uso en N candidaturas»; acciones «Descargar» (enlace directo) y «Eliminar».
+- «Eliminar» abre un diálogo de confirmación («¿Eliminar este documento?»). Si el documento está vinculado (regla 4), el diálogo muestra el rechazo del servidor sin cerrarse.
+- Estados: carga (skeleton; al refrescar tras una subida se mantienen las filas con `aria-busy`), error con «Reintentar», vacío absoluto y vacío por filtro con «Ver todos los documentos».
 
 ### Alta / edición (`/applications/new`, `/applications/$id/edit`)
 - Panel «Pegar oferta» arriba (abierto en alta, plegado en edición; se pliega tras analizar): textarea + botón IA + estado (carga «Analizando la oferta…», error amable sin bloquear el formulario).
-- Formulario en secciones: Puesto y empresa · Condiciones (modalidad, seniority, contrato, ubicación, salario min/max, moneda) · Etiquetas (input por grupo con chips removibles) · Seguimiento (estado inicial, fecha de envío, URL, notas) · Documentos (elegir existente o subir: CV y carta).
+- Formulario en secciones: Puesto y empresa · Condiciones (modalidad, seniority, contrato, ubicación, salario min/max, moneda) · Etiquetas (input por grupo con chips removibles) · Seguimiento (estado inicial, fecha de envío, URL, notas) · Documentos (CV y carta: un selector nativo con los documentos del tipo, más el botón «Subir nuevo», que abre en un diálogo el mismo formulario de subida con el tipo fijado; el documento subido queda seleccionado y el diálogo nunca envía el formulario de la candidatura).
 - Acciones: primary «Guardar candidatura», «Descartar cambios». Validación con el esquema de contracts; errores junto al campo.
 
 ## Accesibilidad y responsive
