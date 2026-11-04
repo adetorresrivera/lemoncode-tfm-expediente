@@ -1,6 +1,10 @@
 import {
   CreateBucketCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
   HeadBucketCommand,
+  NoSuchKey,
+  PutObjectCommand,
   S3Client,
   S3ServiceException,
 } from "@aws-sdk/client-s3";
@@ -62,4 +66,50 @@ export async function pingS3(s3: S3Client, bucket: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+export interface StoredObject {
+  stream: ReadableStream<Uint8Array>;
+}
+
+// Narrow adapter over the bucket: the documents module depends on this interface, tests inject a fake.
+export interface DocumentStorage {
+  put(key: string, body: Uint8Array, contentType: string): Promise<void>;
+  /** Null when the key does not exist. */
+  get(key: string): Promise<StoredObject | null>;
+  /** Idempotent: deleting a missing key does not fail. */
+  delete(key: string): Promise<void>;
+}
+
+export function createDocumentStorage(
+  s3: S3Client,
+  bucket: string,
+): DocumentStorage {
+  return {
+    async put(key, body, contentType) {
+      await s3.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: key,
+          Body: body,
+          ContentType: contentType,
+        }),
+      );
+    },
+    async get(key) {
+      try {
+        const out = await s3.send(
+          new GetObjectCommand({ Bucket: bucket, Key: key }),
+        );
+        if (!out.Body) return null;
+        return { stream: out.Body.transformToWebStream() };
+      } catch (err) {
+        if (err instanceof NoSuchKey) return null;
+        throw err;
+      }
+    },
+    async delete(key) {
+      await s3.send(new DeleteObjectCommand({ Bucket: bucket, Key: key }));
+    },
+  };
 }

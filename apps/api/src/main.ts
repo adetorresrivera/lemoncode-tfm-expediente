@@ -5,7 +5,12 @@ import { createApp } from "./app.js";
 import { loadConfig, type Config } from "./config.js";
 import { connectMongo, pingMongo } from "./db/mongo.js";
 import { createLlmClient } from "./llm/llm.client.js";
-import { createS3Client, ensureBucket, pingS3 } from "./storage/s3.js";
+import {
+  createDocumentStorage,
+  createS3Client,
+  ensureBucket,
+  pingS3,
+} from "./storage/s3.js";
 
 let config: Config;
 try {
@@ -34,6 +39,7 @@ const app = createApp({
   webDistDir,
   db,
   llm,
+  storage: createDocumentStorage(s3, config.S3_BUCKET),
 });
 
 const server = serve({ fetch: app.fetch, port: config.PORT });
