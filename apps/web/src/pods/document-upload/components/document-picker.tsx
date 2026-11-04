@@ -1,7 +1,8 @@
 import type { DocumentType } from "@tfm/contracts";
-import { CircleAlert } from "lucide-react";
+import { CircleAlert, Upload } from "lucide-react";
 import { useId } from "react";
 import { RequestStatus } from "@/common/components/request-status";
+import { Button } from "@/common/components/ui/button";
 import { Label } from "@/common/components/ui/label";
 import {
   NativeSelect,
@@ -40,6 +41,11 @@ interface Props {
   onSelected: (id: string) => void;
   error?: string;
   options: DocumentOptionsState;
+  // «Subir nuevo» hands the button over so the owner can return focus to it after the dialog.
+  onUploadNew: (opener: HTMLElement) => void;
+  uploadNewDisabled: boolean;
+  // «Documento subido.» while it is shown, null otherwise.
+  successMessage: string | null;
 }
 
 // Native select of the library documents of one type. While the list loads or failed, the select
@@ -52,6 +58,9 @@ export function DocumentPicker({
   onSelected,
   error,
   options,
+  onUploadNew,
+  uploadNewDisabled,
+  successMessage,
 }: Props) {
   const id = useId();
   const copy = PICKER_COPY[type];
@@ -113,6 +122,19 @@ export function DocumentPicker({
             )}
           </NativeSelect>
         </div>
+        <Button
+          type="button"
+          variant="outline"
+          className="h-11 w-full sm:w-auto"
+          aria-disabled={uploadNewDisabled ? true : undefined}
+          onClick={(event) => {
+            if (uploadNewDisabled) return;
+            onUploadNew(event.currentTarget);
+          }}
+        >
+          <Upload aria-hidden="true" strokeWidth={1.5} className="size-4" />
+          Subir nuevo
+        </Button>
       </div>
       {showEmptyHint ? (
         <p id={hintId} className="text-sm text-muted-foreground">
@@ -139,6 +161,11 @@ export function DocumentPicker({
             message={ERROR_MESSAGE}
             onRetry={options.retry}
           />
+        ) : null}
+      </div>
+      <div role="status" aria-live="polite">
+        {successMessage !== null ? (
+          <RequestStatus kind="success" message={successMessage} />
         ) : null}
       </div>
     </div>

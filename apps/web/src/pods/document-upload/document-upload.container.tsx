@@ -1,6 +1,7 @@
 import type { DocumentType } from "@tfm/contracts";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { DocumentPicker } from "./components/document-picker";
+import { UploadDialog } from "./components/upload-dialog";
 import { DocumentUploadComponent } from "./document-upload.component";
 import { useDocumentOptions, useDocumentUpload } from "./document-upload.hooks";
 import type { UploadLiveMessage } from "./document-upload.vm";
@@ -83,17 +84,77 @@ function GenericUpload({ initialType = "cv", onUploaded }: GenericProps) {
   );
 }
 
-// Picker mode: the select of the library documents of one type, used by the application form.
+// Picker mode: the select of the library documents of one type, used by the application form,
+// plus «Subir nuevo»: the same upload dialog with the type fixed. The uploaded document is added
+// to the options and selected; it is never removed from here (D-21).
 function PickerUpload({ type, selectedId, onSelected, error }: PickerProps) {
   const options = useDocumentOptions(type);
+  const [open, setOpen] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [outcome, setOutcome] = useState<UploadLiveMessage | null>(null);
+  const [success, setSuccess] = useState<object | null>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const { upload, cancel } = useDocumentUpload();
+
+  useEffect(() => {
+    if (success === null) return undefined;
+    const timer = setTimeout(() => setSuccess(null), SUCCESS_VISIBLE_MS);
+    return () => clearTimeout(timer);
+  }, [success]);
+
+  const liveMessage: UploadLiveMessage | null = uploading
+    ? { kind: "loading", message: LOADING_MESSAGE }
+    : outcome;
+
   return (
-    <DocumentPicker
-      type={type}
-      selectedId={selectedId}
-      onSelected={onSelected}
-      error={error}
-      options={options}
-    />
+    <>
+      <DocumentPicker
+        type={type}
+        selectedId={selectedId}
+        onSelected={onSelected}
+        error={error}
+        options={options}
+        uploadNewDisabled={options.status === "loading"}
+        successMessage={success === null ? null : SUCCESS_MESSAGE}
+        onUploadNew={(opener) => {
+          openerRef.current = opener;
+          setOutcome(null);
+          setOpen(true);
+        }}
+      />
+      <UploadDialog
+        open={open}
+        onClose={() => setOpen(false)}
+        fixedType={type}
+        initialType={type}
+        uploading={uploading}
+        liveMessage={liveMessage}
+        onCancel={cancel}
+        // Radix returns focus only to a Trigger; this dialog has none.
+        onCloseAutoFocus={(event) => {
+          event.preventDefault();
+          const opener = openerRef.current;
+          if (opener?.isConnected === true) opener.focus();
+        }}
+        handlers={{
+          upload,
+          onStart: () => {
+            setOutcome(null);
+            setUploading(true);
+          },
+          onUploaded: (uploaded) => {
+            options.add({ id: uploaded.id, label: uploaded.label });
+            onSelected(uploaded.id);
+            setOpen(false);
+            setSuccess({});
+          },
+          onCancelled: () =>
+            setOutcome({ kind: "cancelled", message: CANCELLED_MESSAGE }),
+          onFailed: (message) => setOutcome({ kind: "error", message }),
+          onSettled: () => setUploading(false),
+        }}
+      />
+    </>
   );
 }
 
