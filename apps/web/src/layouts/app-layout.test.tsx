@@ -25,19 +25,75 @@ describe("AppLayout", () => {
     expect(link).toHaveAttribute("aria-current", "page");
   });
 
-  it("marks Tablero and Documentos as disabled without links", async () => {
+  it("marks Tablero as disabled without a link", async () => {
     await renderShell();
 
     const nav = screen.getByRole("navigation", { name: "Principal" });
+    const item = within(nav).getByText("Tablero").closest("[aria-disabled]");
 
-    for (const label of ["Tablero", "Documentos"]) {
-      const item = within(nav).getByText(label).closest("[aria-disabled]");
-      expect(item).toHaveAttribute("aria-disabled", "true");
-      expect(item).toHaveTextContent("Próximamente");
-      expect(
-        within(nav).queryByRole("link", { name: new RegExp(label) }),
-      ).not.toBeInTheDocument();
-    }
+    expect(item).toHaveAttribute("aria-disabled", "true");
+    expect(item).toHaveTextContent("Próximamente");
+    expect(
+      within(nav).queryByRole("link", { name: /Tablero/ }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("links Documentos to /documents without «Próximamente»", async () => {
+    await renderShell();
+
+    const nav = screen.getByRole("navigation", { name: "Principal" });
+    const link = within(nav).getByRole("link", { name: "Documentos" });
+
+    expect(link).toHaveAttribute("href", "/documents");
+    expect(link).not.toHaveAttribute("aria-disabled");
+    expect(link).not.toHaveTextContent("Próximamente");
+    expect(link).toHaveClass(
+      "flex",
+      "items-center",
+      "gap-3",
+      "rounded-md",
+      "px-3",
+      "py-2",
+      "text-sm",
+      "font-medium",
+      "text-sidebar-foreground",
+    );
+    expect(link).not.toHaveClass("cursor-not-allowed");
+  });
+
+  it("opens the library from the sidebar link", async () => {
+    const user = userEvent.setup();
+    const router = await renderShell();
+
+    await user.click(
+      within(screen.getByRole("navigation", { name: "Principal" })).getByRole(
+        "link",
+        { name: "Documentos" },
+      ),
+    );
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Documentos" }),
+    ).toBeInTheDocument();
+    expect(router.state.location.pathname).toBe("/documents");
+  });
+
+  it("closes the sheet after following the Documentos link", async () => {
+    const user = userEvent.setup();
+    await renderShell();
+
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    const dialog = await screen.findByRole("dialog");
+    const link = within(dialog).getByRole("link", { name: "Documentos" });
+    expect(link).not.toHaveTextContent("Próximamente");
+    await user.click(link);
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Documentos" }),
+    ).toBeInTheDocument();
   });
 
   it("renders the scene inside the main landmark", async () => {
