@@ -6,9 +6,12 @@ const OBJECT_ID_PATTERN = /^[0-9a-f]{24}$/i;
 // A path parameter cannot identify anything unless it is exactly 24 hexadecimal characters
 // (either case). Anything else answers the same 404 as an unknown id, so there is no oracle and
 // an unchecked ObjectId constructor call never surfaces as a 500.
-export function parseObjectId(raw: string): ObjectId {
+export function parseObjectId(
+  raw: string,
+  notFoundMessage = "Candidatura no encontrada",
+): ObjectId {
   if (!OBJECT_ID_PATTERN.test(raw)) {
-    throw new ApiError(404, "NOT_FOUND", "Candidatura no encontrada");
+    throw new ApiError(404, "NOT_FOUND", notFoundMessage);
   }
   return new ObjectId(raw);
 }

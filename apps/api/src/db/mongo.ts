@@ -13,7 +13,13 @@ export async function ensureIndexes(db: Db): Promise<void> {
       name: "title_company_text",
       default_language: "none",
     },
+    // Back the rule 4 in-use check and the usedBy count of the documents library.
+    { key: { cvDocumentId: 1 }, name: "cvDocumentId_1" },
+    { key: { coverLetterDocumentId: 1 }, name: "coverLetterDocumentId_1" },
   ]);
+  await db
+    .collection("documents")
+    .createIndexes([{ key: { createdAt: -1 }, name: "createdAt_-1" }]);
 }
 
 export async function connectMongo(

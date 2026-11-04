@@ -472,12 +472,27 @@ describe("DocumentsService.upload compensation", () => {
   const input = { type: "cv", name: "CV", version: "v1" } as const;
   const file = (): UploadedFile => ({ fileName: "cv.pdf", bytes: pdfBytes() });
 
-  function failingInsert(error: unknown): DocumentsRepository {
-    return {
-      insert: async () => {
-        throw error;
-      },
+  // The upload never reads: every other repository method fails loudly if it is ever reached.
+  function repositoryWith(
+    insert: DocumentsRepository["insert"],
+  ): DocumentsRepository {
+    const unused = async (): Promise<never> => {
+      throw new Error("not used by upload");
     };
+    return {
+      insert,
+      list: unused,
+      findById: unused,
+      usageCounts: unused,
+      isInUse: unused,
+      deleteById: unused,
+    };
+  }
+
+  function failingInsert(error: unknown): DocumentsRepository {
+    return repositoryWith(async () => {
+      throw error;
+    });
   }
 
   it("rejects with the insert error itself when the delete fails too", async () => {
@@ -519,7 +534,7 @@ describe("DocumentsService.upload compensation", () => {
       get: async () => null,
       delete: async () => undefined,
     };
-    const service = createDocumentsService({ insert }, storage);
+    const service = createDocumentsService(repositoryWith(insert), storage);
 
     await expect(service.upload(input, file())).rejects.toBe(putError);
     expect(insert).not.toHaveBeenCalled();

@@ -1,9 +1,16 @@
-import { DOCUMENT_MAX_BYTES, documentInputSchema } from "@tfm/contracts";
+import {
+  DOCUMENT_MAX_BYTES,
+  documentInputSchema,
+  documentQuerySchema,
+} from "@tfm/contracts";
 import { Hono } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
 import { ApiError } from "../errors.js";
+import { parseObjectId } from "../http/object-id.js";
+import { queryInput } from "../http/query-input.js";
 import type { DocumentsService } from "./documents.service.js";
+import { contentDisposition } from "./file-name.js";
 
 // Room for the multipart boundary and the part headers on top of the file itself (D-03).
 export const UPLOAD_BODY_LIMIT_BYTES = DOCUMENT_MAX_BYTES + 64 * 1024;
@@ -65,6 +72,41 @@ export function documentsRoutes(service: DocumentsService): Hono {
       );
     },
   );
+
+  routes.get("/", async (c) =>
+    c.json(
+      await service.list(
+        documentQuerySchema.parse(queryInput(c.req.queries())),
+      ),
+    ),
+  );
+
+  routes.get("/:id", async (c) =>
+    c.json(
+      await service.get(
+        parseObjectId(c.req.param("id"), "Documento no encontrado"),
+      ),
+    ),
+  );
+
+  routes.get("/:id/download", async (c) => {
+    const { document, stream } = await service.open(
+      parseObjectId(c.req.param("id"), "Documento no encontrado"),
+    );
+    // The stored name only reaches the header through contentDisposition (ASCII fallback + RFC 5987).
+    return c.body(stream, 200, {
+      "Content-Type": document.mimeType,
+      "Content-Length": String(document.size),
+      "Content-Disposition": contentDisposition(document.fileName),
+    });
+  });
+
+  routes.delete("/:id", async (c) => {
+    await service.remove(
+      parseObjectId(c.req.param("id"), "Documento no encontrado"),
+    );
+    return c.body(null, 204);
+  });
 
   return routes;
 }
