@@ -21,7 +21,7 @@ All analogs are git-tracked source under `apps/` and `packages/`. Paths below ar
 | `apps/api/src/app.ts` (mod: mount `/api/documents`, `storage` dep) | config | request-response | same file lines 70-84 | exact |
 | `apps/api/src/applications/applications.service.ts` (mod: link validation, `toEditableFields`) | service | CRUD | same file | exact |
 | `apps/api/src/db/mongo.ts` (mod: indexes) | config | CRUD | same file | exact |
-| `apps/api/src/documents/*.test.ts`, `apps/api/src/test/storage.ts` | test | request-response | `apps/api/src/tags/tags.test.ts` + `apps/api/src/test/mongo.ts` | role-match |
+| `apps/api/src/documents/*.test.ts`, `apps/api/src/storage/storage.test.ts`, `apps/api/src/test/documents.ts` | test | request-response | `apps/api/src/tags/tags.test.ts` + `apps/api/src/test/mongo.ts` | role-match |
 | `apps/api/src/applications/applications.update.test.ts` (rewrite lines 211-246) | test | CRUD | itself | exact |
 | `apps/web/src/core/http/http-client.ts` (mod: FormData) | utility | request-response | same file lines 61-71 | exact |
 | `apps/web/src/common/lib/format.ts` (+`formatFileSize`) | utility | transform | same file (`formatDate`) | exact |
@@ -234,7 +234,7 @@ Each plan ends with `<verify>` running `npm run typecheck && npm run test`. TDD:
 |---|---|---|---|
 | `apps/api/src/documents/file-type.ts` | utility | transform | No binary signature code in repo; use RESEARCH Pattern 2 (ZIP central directory, not local-header walk) |
 | `apps/api/src/documents/file-name.ts` | utility | transform | No sanitizer exists; use RESEARCH Pattern 4 (`contentDisposition`) and D-07 slug rules |
-| `apps/api/src/test/storage.ts` | test helper | file-I/O | No storage fakes yet; use RESEARCH "fake storage" example |
+| `apps/api/src/test/documents.ts` | test helper | file-I/O | No storage fakes yet; use RESEARCH "fake storage" example. One helper file (created by 05-01, extended by 05-02) holds `fakeStorage`, the real-Silo `useTestStorage` on `tfm-assets-test`, the PDF/ZIP/DOCX byte builders and the multipart helper; the plans name it `test/documents.ts` (refreshed during plan revision; an earlier draft said `test/storage.ts`) |
 
 ## Metadata
 

@@ -195,14 +195,14 @@ Plans:
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 05-02-PLAN.md — API list with `usedBy` and type filter, GET /api/documents/:id, streamed download with Content-Disposition, DELETE with 409 `DOCUMENT_IN_USE`; Silo contract test (wave 2)
 - [ ] 05-04-PLAN.md — Web tracer: /documents route and scene → «Subir documento» dialog → FormData through http-client → «Documento subido.»; validation, 413/415 messages, cancel and focus (wave 2)
-- [ ] 05-07-PLAN.md — Detail aside «Documentos» with two fixed rows, size and «Descargar», per-row degradation; `formatFileSize`; delete-dialog sentence of rule 5 (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 05-03-PLAN.md — Links that hold: applications service validates cvDocumentId/coverLetterDocumentId by type, PUT writes them, the form carries the loaded ids; rules 4 and 5 end to end (wave 3, after 05-02: shared documents repository)
-- [ ] 05-08-PLAN.md — /documents library: list, filter in the URL, «En uso en N candidaturas», download, delete with the 409 in the dialog, refresh after upload, «Documentos» nav active (wave 3)
+- [ ] 05-07-PLAN.md — Detail aside «Documentos» with two fixed rows, size and «Descargar», per-row degradation; `formatFileSize`; delete-dialog sentence of rule 5 (wave 3, after 05-02: GET /api/documents/:id and the download)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 05-05-PLAN.md — Form «Documentos» section: `renderDocumentPicker` slot, picker of existing CVs and cover letters with loading, error, empty and missing-option states (wave 4)
+- [ ] 05-08-PLAN.md — /documents library: list, filter in the URL, «En uso en N candidaturas», download, delete with the 409 in the dialog, refresh after upload, «Documentos» nav active (wave 4, after 05-07: `formatFileSize`)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 05-06-PLAN.md — «Subir nuevo» from the picker (same dialog, isolated from the application form), auto-select; router end-to-end «adjuntar CV» (wave 5)
