@@ -1,5 +1,5 @@
 import type { DocumentType } from "@tfm/contracts";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DocumentUploadComponent } from "./document-upload.component";
 import { useDocumentUpload } from "./document-upload.hooks";
 import type { UploadLiveMessage } from "./document-upload.vm";
@@ -13,6 +13,7 @@ interface Props {
 const LOADING_MESSAGE = "Subiendo el archivo…";
 const CANCELLED_MESSAGE = "Subida cancelada.";
 const SUCCESS_MESSAGE = "Documento subido.";
+const SUCCESS_VISIBLE_MS = 5000;
 
 // Generic mode: «Subir documento» opens the dialog and the new document is reported through
 // `onUploaded` once the server answered 201.
@@ -23,8 +24,15 @@ export function DocumentUploadContainer({
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [outcome, setOutcome] = useState<UploadLiveMessage | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  // An object per upload so a second upload restarts the timer.
+  const [success, setSuccess] = useState<object | null>(null);
   const { upload, cancel } = useDocumentUpload();
+
+  useEffect(() => {
+    if (success === null) return undefined;
+    const timer = setTimeout(() => setSuccess(null), SUCCESS_VISIBLE_MS);
+    return () => clearTimeout(timer);
+  }, [success]);
 
   // Loading is derived from the request in flight; the stored outcome is the last failure or
   // cancellation of an upload that already ended.
@@ -43,7 +51,7 @@ export function DocumentUploadContainer({
       initialType={initialType}
       uploading={uploading}
       liveMessage={liveMessage}
-      successMessage={success}
+      successMessage={success === null ? null : SUCCESS_MESSAGE}
       onCancel={cancel}
       handlers={{
         upload,
@@ -53,7 +61,7 @@ export function DocumentUploadContainer({
         },
         onUploaded: (uploaded) => {
           setOpen(false);
-          setSuccess(SUCCESS_MESSAGE);
+          setSuccess({});
           onUploaded?.(uploaded);
         },
         onCancelled: () =>

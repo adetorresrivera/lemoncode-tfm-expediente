@@ -1,6 +1,6 @@
 import { documentTypeSchema, type DocumentType } from "@tfm/contracts";
 import { CircleAlert, Upload } from "lucide-react";
-import { useRef, type ReactNode } from "react";
+import { useEffect, useRef, type ReactNode, type Ref } from "react";
 import { RequestStatus } from "@/common/components/request-status";
 import { Button } from "@/common/components/ui/button";
 import {
@@ -166,11 +166,26 @@ function UploadForm({
   onCancel,
 }: FormProps) {
   const formRef = useRef<HTMLFormElement>(null);
+  const cancelRef = useRef<HTMLButtonElement>(null);
+  // The name the last file choice filled in; a name still equal to it was never edited.
+  const prefillRef = useRef<string | null>(null);
   const { form } = useUploadForm({
     initialValues: newUploadFormValues(initialType),
     ...handlers,
-    onInvalid: () => undefined,
+    // Waits one frame so React has rendered `aria-invalid` on the controls the validators marked.
+    onInvalid: () => {
+      requestAnimationFrame(() => {
+        formRef.current
+          ?.querySelector<HTMLElement>('[aria-invalid="true"]')
+          ?.focus();
+      });
+    },
   });
+
+  // A disabled submit that held focus would drop it to <body>: it moves to the button that aborts.
+  useEffect(() => {
+    if (uploading) cancelRef.current?.focus();
+  }, [uploading]);
 
   return (
     <form
@@ -247,8 +262,12 @@ function UploadForm({
                 onChange={(event) => {
                   const file = event.target.files?.[0] ?? null;
                   field.handleChange(file);
-                  if (file !== null && form.getFieldValue("name") === "") {
-                    form.setFieldValue("name", nameFromFileName(file.name));
+                  if (file === null) return;
+                  const current = form.getFieldValue("name");
+                  if (current === "" || current === prefillRef.current) {
+                    const prefill = nameFromFileName(file.name);
+                    prefillRef.current = prefill;
+                    form.setFieldValue("name", prefill);
                   }
                 }}
               />
@@ -319,6 +338,7 @@ function UploadForm({
           {uploading ? "Subiendo…" : "Subir documento"}
         </Button>
         <CancelButton
+          buttonRef={cancelRef}
           uploading={uploading}
           onClose={onClose}
           onCancel={onCancel}
@@ -329,15 +349,22 @@ function UploadForm({
 }
 
 interface CancelProps {
+  buttonRef: Ref<HTMLButtonElement>;
   uploading: boolean;
   onClose: () => void;
   onCancel: () => void;
 }
 
 // «Descartar subida» closes the dialog; while a request is in flight the same button aborts it.
-function CancelButton({ uploading, onClose, onCancel }: CancelProps) {
+function CancelButton({
+  buttonRef,
+  uploading,
+  onClose,
+  onCancel,
+}: CancelProps) {
   return (
     <Button
+      ref={buttonRef}
       type="button"
       variant="outline"
       className="h-11 w-full sm:w-auto"

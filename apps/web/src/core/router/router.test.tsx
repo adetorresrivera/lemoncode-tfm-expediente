@@ -728,4 +728,46 @@ describe("/documents", () => {
     expect(posts).toHaveLength(1);
     expect(posts[0]?.[1]?.body).toBeInstanceOf(FormData);
   });
+
+  it("opens the dialog with Carta selected at /documents?type=carta", async () => {
+    mockFetch({});
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/documents?type=carta"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Subir documento" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Subir documento",
+    });
+
+    expect(
+      within(dialog).getByRole("radio", { name: "Carta" }),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("renders the page with CV selected at /documents?type=zzz", async () => {
+    mockFetch({});
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/documents?type=zzz"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Documentos" }),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Subir documento" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Subir documento",
+    });
+
+    expect(within(dialog).getByRole("radio", { name: "CV" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
 });
