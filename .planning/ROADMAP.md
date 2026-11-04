@@ -187,7 +187,7 @@ Plans:
   3. In the application form the user can link one CV and one cover letter, choosing an existing document or uploading a new one without leaving the form (the document section of the form lands in this phase).
   4. The application detail shows the linked documents and the user can download each of them.
   5. Deleting a document that is linked to any application is rejected with 409 `DOCUMENT_IN_USE`.
-**Plans**: 3/9 plans executed
+**Plans**: 5/9 plans executed
 Plans:
 **Wave 1**
 - [x] 05-01-PLAN.md — API tracer: multipart POST /api/documents → body cap, signature check (ZIP central directory), slugged key → real Silo + Mongo with compensation; contracts `fileName` and list item `usedBy`; every 400/413/415 limit (wave 1)
@@ -197,8 +197,8 @@ Plans:
 - [x] 05-04-PLAN.md — Web tracer: /documents route and scene → «Subir documento» dialog → FormData through http-client → «Documento subido.»; validation, 413/415 messages, cancel and focus (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 05-03-PLAN.md — Links that hold: applications service validates cvDocumentId/coverLetterDocumentId by type, PUT writes them, the form carries the loaded ids; rules 4 and 5 end to end (wave 3, after 05-02: shared documents repository)
-- [ ] 05-07-PLAN.md — Detail aside «Documentos» with two fixed rows, size and «Descargar», per-row degradation; `formatFileSize`; delete-dialog sentence of rule 5 (wave 3, after 05-02: GET /api/documents/:id and the download)
+- [x] 05-03-PLAN.md — Links that hold: applications service validates cvDocumentId/coverLetterDocumentId by type, PUT writes them, the form carries the loaded ids; rules 4 and 5 end to end (wave 3, after 05-02: shared documents repository)
+- [x] 05-07-PLAN.md — Detail aside «Documentos» with two fixed rows, size and «Descargar», per-row degradation; `formatFileSize`; delete-dialog sentence of rule 5 (wave 3, after 05-02: GET /api/documents/:id and the download)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 05-05-PLAN.md — Form «Documentos» section: `renderDocumentPicker` slot, picker of existing CVs and cover letters with loading, error, empty and missing-option states (wave 4)
@@ -262,6 +262,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Candidaturas | 12/12 | Complete    | 2026-10-31 |
 | 3. Autocompletado con IA | 12/12 | Complete    | 2026-11-01 |
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
-| 5. Documentos en S3 | 3/9 | In Progress | - |
+| 5. Documentos en S3 | 5/9 | In Progress | - |
 | 6. Pulido de demo | 0/TBD | Not started | - |
 | 7. Documentación y defensa | 0/TBD | Not started | - |
