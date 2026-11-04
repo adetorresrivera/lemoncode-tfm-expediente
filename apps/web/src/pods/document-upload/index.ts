@@ -1,2 +1,1 @@
-// Phase 5 adds the document-upload container.
-export {};
+export { DocumentUploadContainer } from "./document-upload.container";
