@@ -565,14 +565,16 @@ if (body instanceof FormData) {
 | A3 | `Origin`/`Sec-Fetch-Site` are sent by the target browsers and Vite's proxy keeps the original `Host`, so `hono/csrf` defaults would pass in dev and compose | Security Domain | Only matters if the planner adopts the optional CSRF middleware; test in browser before enabling |
 | A4 | The 64 KiB multipart margin is enough for four short text fields and a normal browser filename | Pattern 1 | A legitimate 5 MB file with an extreme name could be rejected by the cap with the same 413; the user-visible effect is identical to oversize |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does the user want `fileName` tolerance for documents inserted before this phase?**
    - What we know: no documents exist anywhere (Mongo `documents`/S3 prefix empty; no code writes them).
    - Recommendation: no tolerance, `fileName` required (D-05 is already "costly" but there is no data to migrate).
+   - **RESOLVED (planning, 05-01):** no tolerance. `fileName` is required in `documentSchema` (1-255) and the mapper copies it as stored, with no fallback to `name`. A developer who inserted a document by hand before this phase deletes it.
 2. **Adopt `hono/csrf` for `POST /api/documents`?**
    - What we know: the multipart POST is a CORS "simple" request, so a hostile page can post a file to a local instance without preflight; JSON endpoints are protected by `requireJson`. Impact is low (junk upload into a single-user local library).
    - Recommendation: out of CONTEXT scope; if adopted, apply `csrf()` to the documents router only, map the resulting `HTTPException(403)` in `app.onError` (currently any status other than 400/404 becomes `INTERNAL_ERROR`) and send `sec-fetch-site: same-origin` in tests. Otherwise record it as an accepted risk in the SUMMARY/SECURITY.
+   - **RESOLVED (planning, 05-01):** not adopted in this phase (outside the CONTEXT decisions, and Assumption A3 is untested in a browser). It is the accepted low risk T-05-09 in the 05-01 threat model: single-user local app, the worst case is a junk file of at most 5 MB in the library, which the user can delete from `/documents`. `DELETE` is not a CORS simple request, so a hostile page cannot delete documents. The SUMMARY of 05-01 records the acceptance.
 
 ## Environment Availability
 
