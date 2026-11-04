@@ -1,7 +1,8 @@
 ---
 phase: "05"
 slug: documentos-en-s3
-status: draft
+status: approved
+reviewed_at: "2026-11-04"
 shadcn_initialized: true
 preset: none
 created: "2026-11-04"
@@ -420,9 +421,9 @@ Only the dialog and overlay fade (inherited), the `LoaderCircle` spin in `Reques
 
 ## UI Considerations
 
-Empty / error / success **copy** lives in the Copywriting Contract above; this table covers state coverage and references it. Rows were resolved by the researcher from the element shapes (E1 upload dialog form, E2 form pickers, E3 detail aside list, E4 `/documents` list, E5 delete dialog). The engine probe of `/gsd-ui-phase` (Step 9.5) may replace these rows idempotently.
+Empty / error / success **copy** lives in the Copywriting Contract above; this table covers state coverage and references it. Rows were resolved by the researcher from the element shapes (E1 upload dialog form, E2 form pickers, E3 detail aside list, E4 `/documents` list, E5 delete dialog, E6 navigation link). The engine probe of `/gsd-ui-phase` (Step 9.5) may replace these rows idempotently.
 
-Applicable state considerations resolved: 31 covered, 3 backstop, 0 unresolved (34 rows).
+Applicable state considerations resolved: 41 covered, 4 backstop, 2 dismissed, 0 unresolved (47 rows). Rows E1–E5 were written by the researcher; the probe of `/gsd-ui-phase` Step 9.5 (engine: 41 applicable categories over E1–E6, E6 = navigation link) added the last 13 rows, confirmed by the user on 2026-11-04.
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
@@ -460,6 +461,19 @@ Applicable state considerations resolved: 31 covered, 3 backstop, 0 unresolved (
 | error | E5 Other failure | ✅ covered | «No se pudo eliminar el documento. Inténtalo de nuevo.» in the same slot. |
 | success | E5 Deleted | ✅ covered | Row removed, counter updated, «Documento eliminado.» announced, focus to the results region. |
 | a11y | Download links | 🧪 backstop | `download` attribute behaviour on a failing endpoint (Research assumption A2) is checked once in a real browser during UAT; the link works without it. |
+| overflow | E1 Dialog at 360 px | ✅ covered | 328 px wide, `max-h-[calc(100dvh-2rem)]` with internal scroll, buttons stacked primary on top; inputs `w-full min-w-0` (§6). |
+| populated | E2 Picker with documents | ✅ covered | «Sin …» first, then documents of that type newest first, current value selected (§2). |
+| overflow | E2 Select inside the form card | ✅ covered | `w-full min-w-0`; the select never exceeds the card width (§2). |
+| populated | E3 Both slots linked | ✅ covered | Two `li` rows: Eyebrow label, `break-words` document label, mono size line, «Descargar» link (§3). |
+| partial | E3 One slot linked, the other not | ✅ covered | Both rows always present; the unlinked one shows «Sin CV vinculado.» / «Sin carta vinculada.», independent per row (D-25). |
+| zero-one-many | E3 Row count | ✅ covered | Always exactly two rows (CV, Carta de presentación) whatever the links; no plural copy needed. |
+| partial | E4 Row with optional data absent | ✅ covered | All row fields are required by the contract except usage: the usage badge is absent at `usedBy = 0` (§4). |
+| overflow | E4 Many documents / narrow rows | ✅ covered | No pagination (single user, small library); meta row `flex-wrap`, actions drop below the content on mobile, `min-w-0` everywhere (§4, §6). |
+| long-text | E5 Description with 120-char name and 40-char version | ✅ covered | `AlertDialogDescription` `break-words` (§4 Delete flow). |
+| overflow | E5 Dialog at 360 px | ✅ covered | `max-h-[calc(100dvh-2rem)] overflow-y-auto` keeps it inside the viewport (§4 Delete flow). |
+| empty / populated / partial | E5 Delete dialog | ➖ dismissed | A confirmation dialog for one existing document has no data set to be empty or partial; its only content is the interpolated name and version. |
+| loading / error | E6 «Documentos» nav link | ➖ dismissed | Static client-side `Link`; it neither fetches nor submits anything. |
+| overflow / long-text | E6 Nav at 360 px (mobile Sheet) | 🧪 backstop | Same label length as «Mis candidaturas»; checked in the manual 360 px pass together with E2/E4 long-text. |
 
 ---
 
@@ -476,12 +490,12 @@ No new npm dependency: the phase uses `radix-ui` 1.8.1 and `lucide-react` 1.57.0
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
-- [ ] Dimension 7 Inventory Provenance: PASS
+- [x] Dimension 1 Copywriting: FLAG (non-blocking: single-word visible CTAs «Descargar», «Reintentar», «Subir nuevo»)
+- [x] Dimension 2 Visuals: PASS
+- [x] Dimension 3 Color: FLAG (non-blocking: inherited `RequestStatus` error icon in `text-destructive`, waived by precedent)
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: PASS
+- [x] Dimension 6 Registry Safety: PASS
+- [x] Dimension 7 Inventory Provenance: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-11-04 (re-verification after revision 1)
