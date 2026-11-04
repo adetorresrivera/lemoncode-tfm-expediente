@@ -82,6 +82,14 @@ describe("mapFormValuesToApiInput", () => {
     });
   });
 
+  it("sends the document ids as they are and an empty string as null", () => {
+    const input = mapFormValuesToApiInput(
+      values({ cvDocumentId: "d1", coverLetterDocumentId: "" }),
+    );
+    expect(input.cvDocumentId).toBe("d1");
+    expect(input.coverLetterDocumentId).toBeNull();
+  });
+
   it("sends offerText as text, and blank text as null", () => {
     expect(
       mapFormValuesToApiInput(values({ offerText: "Texto" })).offerText,
@@ -232,6 +240,18 @@ describe("mapServerErrorToFields", () => {
     ).toStrictEqual({
       company: "Revisa este campo.",
       title: "Revisa este campo.",
+    });
+  });
+
+  it("maps a document link error to its form field", () => {
+    expect(
+      mapServerErrorToFields({
+        formErrors: [],
+        fieldErrors: { cvDocumentId: ["x"], coverLetterDocumentId: ["y"] },
+      }),
+    ).toStrictEqual({
+      cvDocumentId: "Revisa este campo.",
+      coverLetterDocumentId: "Revisa este campo.",
     });
   });
 
@@ -646,6 +666,8 @@ describe("ApplicationEditContainer conditions and tracking", () => {
       location: null,
       workMode: null,
       currency: null,
+      cvDocumentId: null,
+      coverLetterDocumentId: null,
     });
   });
 
@@ -1008,7 +1030,17 @@ describe("mapApplicationFromApiToFormValues", () => {
       sourceUrl: "",
       notes: "",
       offerText: "",
+      cvDocumentId: "",
+      coverLetterDocumentId: "",
     });
+  });
+
+  it("maps stored document links to ids and a null link to an empty string", () => {
+    const mapped = mapApplicationFromApiToFormValues(
+      stored({ cvDocumentId: "d1", coverLetterDocumentId: null }),
+    );
+    expect(mapped.cvDocumentId).toBe("d1");
+    expect(mapped.coverLetterDocumentId).toBe("");
   });
 
   it("carries a stored offerText into the form values", () => {
@@ -1152,6 +1184,28 @@ describe("ApplicationEditContainer edit mode", () => {
     expect(puts(fetchMock)).toHaveLength(1);
     expect(posts(fetchMock)).toHaveLength(0);
     expect(putBody(fetchMock)).toMatchObject({ title: "Frontend Lead" });
+  });
+
+  it("sends the loaded document links back when only the title changed", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": stored({
+        cvDocumentId: "d1",
+        coverLetterDocumentId: "d2",
+      }),
+      "PUT /api/applications/a1": () => jsonResponse(stored()),
+    });
+    renderEdit();
+
+    const title = await screen.findByLabelText("Puesto *");
+    await user.type(title, " 2");
+    await saveEdit(user);
+
+    await waitFor(() => expect(puts(fetchMock)).toHaveLength(1));
+    expect(putBody(fetchMock)).toMatchObject({
+      cvDocumentId: "d1",
+      coverLetterDocumentId: "d2",
+    });
   });
 
   it("sends the stored appliedAt instant back when only the title changed", async () => {

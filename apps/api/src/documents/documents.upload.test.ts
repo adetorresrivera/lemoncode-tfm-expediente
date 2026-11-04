@@ -486,6 +486,7 @@ describe("DocumentsService.upload compensation", () => {
       usageCounts: unused,
       isInUse: unused,
       deleteById: unused,
+      findTypes: unused,
     };
   }
 

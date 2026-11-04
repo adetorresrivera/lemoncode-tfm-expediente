@@ -75,9 +75,13 @@ export function createApp(deps: AppDeps): Hono {
   });
 
   // Mounted before serveStatic so the production image never answers index.html for an API path.
-  if (deps.db) {
+  const documentsRepository = deps.db
+    ? createDocumentsRepository(deps.db)
+    : undefined;
+  if (deps.db && documentsRepository) {
     const service = createApplicationsService(
       createApplicationsRepository(deps.db),
+      (ids) => documentsRepository.findTypes(ids),
       deps.now,
     );
     app.route("/api/applications", applicationsRoutes(service));
@@ -85,9 +89,9 @@ export function createApp(deps: AppDeps): Hono {
   }
 
   // The documents endpoints need both Mongo (metadata) and the bucket (bytes).
-  if (deps.db && deps.storage) {
+  if (documentsRepository && deps.storage) {
     const documents = createDocumentsService(
-      createDocumentsRepository(deps.db),
+      documentsRepository,
       deps.storage,
       deps.now,
     );

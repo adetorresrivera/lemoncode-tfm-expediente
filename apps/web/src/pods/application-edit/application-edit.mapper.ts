@@ -90,6 +90,8 @@ export function mapApplicationFromApiToFormValues(
     sourceUrl: application.sourceUrl ?? "",
     notes: application.notes ?? "",
     offerText: application.offerText ?? "",
+    cvDocumentId: application.cvDocumentId ?? "",
+    coverLetterDocumentId: application.coverLetterDocumentId ?? "",
   };
 }
 
@@ -132,10 +134,12 @@ export const mapFormValuesToApiInput = (
         : (toLocalNoonIso(values.appliedAt) ?? values.appliedAt),
     sourceUrl: textOrNull(values.sourceUrl.trim()),
     notes: textOrNull(values.notes),
-    // The analyzed offer travels with every save; the document links have no inputs until Phase 5.
+    // The analyzed offer and the loaded document links travel with every save: the API writes
+    // PUT as sent, so omitting them would clear them (D-13).
     offerText: textOrNull(values.offerText),
-    cvDocumentId: null,
-    coverLetterDocumentId: null,
+    cvDocumentId: values.cvDocumentId === "" ? null : values.cvDocumentId,
+    coverLetterDocumentId:
+      values.coverLetterDocumentId === "" ? null : values.coverLetterDocumentId,
   };
 };
 
