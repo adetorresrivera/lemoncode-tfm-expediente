@@ -187,7 +187,7 @@ Plans:
   3. In the application form the user can link one CV and one cover letter, choosing an existing document or uploading a new one without leaving the form (the document section of the form lands in this phase).
   4. The application detail shows the linked documents and the user can download each of them.
   5. Deleting a document that is linked to any application is rejected with 409 `DOCUMENT_IN_USE`.
-**Plans**: 5/9 plans executed
+**Plans**: 7/9 plans executed
 Plans:
 **Wave 1**
 - [x] 05-01-PLAN.md — API tracer: multipart POST /api/documents → body cap, signature check (ZIP central directory), slugged key → real Silo + Mongo with compensation; contracts `fileName` and list item `usedBy`; every 400/413/415 limit (wave 1)
@@ -201,8 +201,8 @@ Plans:
 - [x] 05-07-PLAN.md — Detail aside «Documentos» with two fixed rows, size and «Descargar», per-row degradation; `formatFileSize`; delete-dialog sentence of rule 5 (wave 3, after 05-02: GET /api/documents/:id and the download)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 05-05-PLAN.md — Form «Documentos» section: `renderDocumentPicker` slot, picker of existing CVs and cover letters with loading, error, empty and missing-option states (wave 4)
-- [ ] 05-08-PLAN.md — /documents library: list, filter in the URL, «En uso en N candidaturas», download, delete with the 409 in the dialog, refresh after upload, «Documentos» nav active (wave 4, after 05-07: `formatFileSize`)
+- [x] 05-05-PLAN.md — Form «Documentos» section: `renderDocumentPicker` slot, picker of existing CVs and cover letters with loading, error, empty and missing-option states (wave 4)
+- [x] 05-08-PLAN.md — /documents library: list, filter in the URL, «En uso en N candidaturas», download, delete with the 409 in the dialog, refresh after upload, «Documentos» nav active (wave 4, after 05-07: `formatFileSize`)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 05-06-PLAN.md — «Subir nuevo» from the picker (same dialog, isolated from the application form), auto-select; router end-to-end «adjuntar CV» (wave 5)
@@ -262,6 +262,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Candidaturas | 12/12 | Complete    | 2026-10-31 |
 | 3. Autocompletado con IA | 12/12 | Complete    | 2026-11-01 |
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
-| 5. Documentos en S3 | 5/9 | In Progress | - |
+| 5. Documentos en S3 | 7/9 | In Progress | - |
 | 6. Pulido de demo | 0/TBD | Not started | - |
 | 7. Documentación y defensa | 0/TBD | Not started | - |
