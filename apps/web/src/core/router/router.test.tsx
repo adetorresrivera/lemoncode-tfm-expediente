@@ -1,5 +1,9 @@
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { applicationSchema, documentSchema } from "@tfm/contracts";
+import {
+  applicationSchema,
+  documentListItemSchema,
+  documentSchema,
+} from "@tfm/contracts";
 import {
   act,
   fireEvent,
@@ -769,5 +773,232 @@ describe("/documents", () => {
       "aria-checked",
       "true",
     );
+  });
+});
+
+describe("/documents library", () => {
+  const listItem = (overrides: Record<string, unknown>) =>
+    documentListItemSchema.parse({
+      id: "d1",
+      type: "cv",
+      name: "CV Frontend",
+      version: "v3",
+      fileName: "CV Frontend.pdf",
+      s3Key: "documents/d1/cv-frontend.pdf",
+      mimeType: "application/pdf",
+      size: 235520,
+      createdAt: "2026-10-12T10:00:00.000Z",
+      usedBy: 1,
+      ...overrides,
+    });
+  const cv = listItem({});
+  const carta = listItem({
+    id: "d2",
+    type: "carta",
+    name: "Carta Lemoncode",
+    version: "v1",
+    createdAt: "2026-10-11T10:00:00.000Z",
+    usedBy: 0,
+  });
+
+  // The API answers by `type`, like the real endpoint.
+  const listByType = (url: URL) => {
+    const type = url.searchParams.get("type");
+    return jsonResponse(
+      [cv, carta].filter((item) => type === null || item.type === type),
+    );
+  };
+
+  const listRequests = (fetchMock: ReturnType<typeof mockFetch>) =>
+    fetchMock.mock.calls
+      .filter(
+        ([input, init]) =>
+          String(input).startsWith("/api/documents") &&
+          (init?.method ?? "GET") === "GET",
+      )
+      .map(([input]) => new URL(String(input), "http://localhost"));
+
+  const openRoute = (entry: string) => {
+    const history = createMemoryHistory({ initialEntries: [entry] });
+    const router = createAppRouter(history);
+    render(<RouterProvider router={router} />);
+    return { router, history };
+  };
+
+  it("renders the header with the eyebrow, the heading, the counter and the upload button", async () => {
+    mockFetch({ "GET /api/documents": listByType });
+    openRoute("/documents");
+
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Documentos",
+    });
+    const header = within(screen.getByRole("main")).getByRole("banner");
+
+    expect(within(header).getByText("Expediente")).toBeInTheDocument();
+    expect(within(header).getByText(/^Documentos$/)).toBe(heading);
+    expect(await within(header).findByText("2 documentos")).toBeInTheDocument();
+    expect(
+      within(header).getByRole("button", { name: "Subir documento" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("list", { name: "Documentos" }),
+    ).toBeInTheDocument();
+  });
+
+  it("puts the chosen type in the URL replacing the entry and requests it; Todos removes it", async () => {
+    const fetchMock = mockFetch({ "GET /api/documents": listByType });
+    const user = userEvent.setup();
+    const { router, history } = openRoute("/documents");
+    await screen.findByRole("list", { name: "Documentos" });
+
+    await user.click(screen.getByRole("radio", { name: "Carta" }));
+
+    await waitFor(() =>
+      expect(router.state.location.search).toStrictEqual({ type: "carta" }),
+    );
+    expect(router.state.location.href).toBe("/documents?type=carta");
+    await waitFor(() =>
+      expect(
+        listRequests(fetchMock).some(
+          (url) => url.searchParams.get("type") === "carta",
+        ),
+      ).toBe(true),
+    );
+    expect(await screen.findByText("1 documento")).toBeInTheDocument();
+    expect(screen.queryByText("CV Frontend")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "Todos" }));
+
+    await waitFor(() => expect(router.state.location.href).toBe("/documents"));
+    expect(await screen.findByText("2 documentos")).toBeInTheDocument();
+    expect(history.length).toBe(1);
+  });
+
+  it("keeps the filter of the URL after a reload", async () => {
+    const fetchMock = mockFetch({ "GET /api/documents": listByType });
+    openRoute("/documents?type=carta");
+
+    expect(await screen.findByText("Carta Lemoncode")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Carta" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(listRequests(fetchMock)[0]?.searchParams.get("type")).toBe("carta");
+  });
+
+  const uploadCarta = async (
+    user: ReturnType<typeof userEvent.setup>,
+    pickCarta: boolean,
+  ) => {
+    await user.click(screen.getByRole("button", { name: "Subir documento" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Subir documento",
+    });
+    if (pickCarta) {
+      await user.click(within(dialog).getByRole("radio", { name: "Carta" }));
+    }
+    await user.upload(
+      within(dialog).getByLabelText(/Archivo/),
+      new File([new Uint8Array(1024)], "Carta nueva.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    await user.type(within(dialog).getByLabelText(/Versión/), "v2");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Subir documento" }),
+    );
+  };
+
+  const uploaded = listItem({
+    id: "d3",
+    type: "carta",
+    name: "Carta nueva",
+    version: "v2",
+    usedBy: 0,
+  });
+
+  it("switches the filter to the uploaded type so the new row is visible", async () => {
+    const items = [cv, carta];
+    const fetchMock = mockFetch({
+      "GET /api/documents": (url: URL) => {
+        const type = url.searchParams.get("type");
+        return jsonResponse(
+          items.filter((item) => type === null || item.type === type),
+        );
+      },
+      "POST /api/documents": () => {
+        items.push(uploaded);
+        return jsonResponse(uploaded, 201);
+      },
+    });
+    const user = userEvent.setup();
+    const { router } = openRoute("/documents?type=cv");
+    await screen.findByText("CV Frontend");
+
+    await uploadCarta(user, true);
+
+    expect(await screen.findByText("Documento subido.")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(router.state.location.href).toBe("/documents?type=carta"),
+    );
+    expect(await screen.findByText("Carta nueva")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Carta" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(
+      listRequests(fetchMock).some(
+        (url) => url.searchParams.get("type") === "carta",
+      ),
+    ).toBe(true);
+  });
+
+  it("reloads once in Todos without touching the URL", async () => {
+    const items = [cv, carta];
+    const fetchMock = mockFetch({
+      "GET /api/documents": () => jsonResponse(items),
+      "POST /api/documents": () => {
+        items.push(uploaded);
+        return jsonResponse(uploaded, 201);
+      },
+    });
+    const user = userEvent.setup();
+    const { router } = openRoute("/documents");
+    await screen.findByText("CV Frontend");
+    expect(listRequests(fetchMock)).toHaveLength(1);
+
+    await uploadCarta(user, true);
+
+    expect(await screen.findByText("Documento subido.")).toBeInTheDocument();
+    expect(await screen.findByText("Carta nueva")).toBeInTheDocument();
+    expect(screen.getByText("3 documentos")).toBeInTheDocument();
+    expect(listRequests(fetchMock)).toHaveLength(2);
+    expect(router.state.location.href).toBe("/documents");
+  });
+
+  it("reloads without changing the filter when the uploaded type is the active one", async () => {
+    const items = [cv, carta];
+    const fetchMock = mockFetch({
+      "GET /api/documents": (url: URL) => {
+        const type = url.searchParams.get("type");
+        return jsonResponse(
+          items.filter((item) => type === null || item.type === type),
+        );
+      },
+      "POST /api/documents": () => {
+        items.push(uploaded);
+        return jsonResponse(uploaded, 201);
+      },
+    });
+    const user = userEvent.setup();
+    const { router } = openRoute("/documents?type=carta");
+    await screen.findByText("Carta Lemoncode");
+
+    await uploadCarta(user, false);
+
+    expect(await screen.findByText("Carta nueva")).toBeInTheDocument();
+    expect(router.state.location.href).toBe("/documents?type=carta");
+    expect(listRequests(fetchMock)).toHaveLength(2);
   });
 });

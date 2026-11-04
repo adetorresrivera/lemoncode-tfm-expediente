@@ -54,16 +54,14 @@ function MainNav({ onNavigate }: MainNavProps) {
           </span>
         </li>
         <li>
-          <span
-            aria-disabled="true"
-            className={`${NAV_ITEM_CLASS} cursor-not-allowed text-sidebar-foreground/60`}
+          <Link
+            to="/documents"
+            onClick={onNavigate}
+            className={`${NAV_ITEM_CLASS} text-sidebar-foreground hover:bg-sidebar-accent/60 data-[status=active]:bg-sidebar-accent data-[status=active]:text-sidebar-accent-foreground`}
           >
             <FileText strokeWidth={1.5} className="size-5" aria-hidden="true" />
             Documentos
-            <span className="ml-auto text-[11px] font-normal uppercase tracking-[0.08em]">
-              Próximamente
-            </span>
-          </span>
+          </Link>
         </li>
       </ul>
     </nav>

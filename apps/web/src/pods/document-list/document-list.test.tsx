@@ -1,5 +1,5 @@
 import { documentListItemSchema } from "@tfm/contracts";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
@@ -410,5 +410,278 @@ describe("document list", () => {
     expect(heading).toHaveClass("break-words");
     expect(heading.closest(".min-w-0")).not.toBeNull();
     expect(screen.getByText(version).closest(".break-words")).not.toBeNull();
+  });
+});
+
+describe("delete from the library", () => {
+  const noContent = () => new Response(null, { status: 204 });
+
+  const inUse = () =>
+    jsonResponse(
+      {
+        error: {
+          code: "DOCUMENT_IN_USE",
+          message: "El documento está vinculado a una candidatura",
+        },
+      },
+      409,
+    );
+
+  const openDialog = async (
+    user: ReturnType<typeof userEvent.setup>,
+    name = "CV Frontend",
+  ) => {
+    await user.click(
+      await screen.findByRole("button", { name: `Eliminar ${name}` }),
+    );
+    return screen.findByRole("alertdialog", {
+      name: "¿Eliminar este documento?",
+    });
+  };
+
+  const deleteRequests = (fetchMock: ReturnType<typeof mockFetch>) =>
+    fetchMock.mock.calls.filter(([, init]) => init?.method === "DELETE");
+
+  it("opens a confirmation with the name and version and focus on «Conservar documento»", async () => {
+    mockFetch({ "GET /api/documents": [cv, carta] });
+    const user = userEvent.setup();
+    renderList();
+
+    const dialog = await openDialog(user);
+
+    expect(
+      within(dialog).getByText(
+        "Vas a eliminar «CV Frontend» (v3). Esta acción no se puede deshacer.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole("button", { name: "Conservar documento" }),
+    ).toHaveFocus();
+  });
+
+  it("sends one DELETE while pending, ignores close requests and disables both buttons", async () => {
+    const pending = deferred();
+    const fetchMock = mockFetch({
+      "GET /api/documents": [cv, carta],
+      "DELETE /api/documents/d1": () => pending.promise,
+    });
+    const user = userEvent.setup();
+    renderList();
+    const dialog = await openDialog(user);
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Eliminar documento" }),
+    );
+
+    const confirm = await within(dialog).findByRole("button", {
+      name: "Eliminando…",
+    });
+    expect(confirm).toHaveAttribute("aria-disabled", "true");
+    expect(
+      within(dialog).getByRole("button", { name: "Conservar documento" }),
+    ).toHaveAttribute("aria-disabled", "true");
+
+    await user.keyboard("{Escape}");
+    await user.click(confirm);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Conservar documento" }),
+    );
+
+    expect(
+      screen.getByRole("alertdialog", { name: "¿Eliminar este documento?" }),
+    ).toBeInTheDocument();
+    expect(deleteRequests(fetchMock)).toHaveLength(1);
+
+    pending.resolve(noContent());
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+  });
+
+  it("keeps the dialog and the row on a 409 with the rule-4 sentence and lets the user try again", async () => {
+    const fetchMock = mockFetch({
+      "GET /api/documents": [cv, carta],
+      "DELETE /api/documents/d1": inUse,
+    });
+    const user = userEvent.setup();
+    renderList();
+    const dialog = await openDialog(user);
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Eliminar documento" }),
+    );
+
+    expect(
+      await within(dialog).findByText(
+        "Este documento está vinculado a alguna candidatura. Desvincúlalo antes de eliminarlo.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      within(dialog).queryByText(
+        "El documento está vinculado a una candidatura",
+      ),
+    ).not.toBeInTheDocument();
+    const confirm = within(dialog).getByRole("button", {
+      name: "Eliminar documento",
+    });
+    expect(confirm).toHaveAttribute("aria-disabled", "false");
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "CV Frontend",
+        hidden: true,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("2 documentos")).toBeInTheDocument();
+    expect(screen.queryByText("Documento eliminado.")).not.toBeInTheDocument();
+
+    await user.click(confirm);
+    await waitFor(() => expect(deleteRequests(fetchMock)).toHaveLength(2));
+  });
+
+  it("shows the generic sentence on any other failure", async () => {
+    mockFetch({
+      "GET /api/documents": [cv, carta],
+      "DELETE /api/documents/d1": () =>
+        jsonResponse(
+          { error: { code: "INTERNAL_ERROR", message: "boom" } },
+          500,
+        ),
+    });
+    const user = userEvent.setup();
+    renderList();
+    const dialog = await openDialog(user);
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Eliminar documento" }),
+    );
+
+    expect(
+      await within(dialog).findByText(
+        "No se pudo eliminar el documento. Inténtalo de nuevo.",
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "CV Frontend",
+        hidden: true,
+      }),
+    ).toBeInTheDocument();
+  });
+
+  it("removes the row only after the 204, without a new GET, and announces it", async () => {
+    const pending = deferred();
+    const fetchMock = mockFetch({
+      "GET /api/documents": [cv, carta],
+      "DELETE /api/documents/d1": () => pending.promise,
+    });
+    const user = userEvent.setup();
+    renderList();
+    const dialog = await openDialog(user);
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Eliminar documento" }),
+    );
+    await within(dialog).findByRole("button", { name: "Eliminando…" });
+    expect(
+      screen.getByRole("heading", {
+        level: 2,
+        name: "CV Frontend",
+        hidden: true,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText("Documento eliminado.")).not.toBeInTheDocument();
+
+    pending.resolve(noContent());
+
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    expect(
+      screen.queryByRole("heading", { level: 2, name: "CV Frontend" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("1 documento")).toBeInTheDocument();
+    expect(screen.getByText("Documento eliminado.")).toBeInTheDocument();
+    expect(listCalls(fetchMock)).toHaveLength(1);
+    await waitFor(() =>
+      expect(screen.getByRole("region", { name: "Resultados" })).toHaveFocus(),
+    );
+  });
+
+  it("clears «Documento eliminado.» after 5 s", async () => {
+    mockFetch({
+      "GET /api/documents": [cv, carta],
+      "DELETE /api/documents/d1": noContent,
+    });
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+    try {
+      const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
+      renderList();
+      const dialog = await openDialog(user);
+      await user.click(
+        within(dialog).getByRole("button", { name: "Eliminar documento" }),
+      );
+      expect(
+        await screen.findByText("Documento eliminado."),
+      ).toBeInTheDocument();
+
+      await act(async () => {
+        vi.advanceTimersByTime(4900);
+      });
+      expect(screen.getByText("Documento eliminado.")).toBeInTheDocument();
+      await act(async () => {
+        vi.advanceTimersByTime(200);
+      });
+
+      expect(screen.queryByText("Documento eliminado.")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("closes on «Conservar documento» and returns focus to that row's button", async () => {
+    const fetchMock = mockFetch({ "GET /api/documents": [cv, carta] });
+    const user = userEvent.setup();
+    renderList();
+    const dialog = await openDialog(user, "Carta Lemoncode");
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Conservar documento" }),
+    );
+
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("button", { name: "Eliminar Carta Lemoncode" }),
+      ).toHaveFocus(),
+    );
+    expect(deleteRequests(fetchMock)).toHaveLength(0);
+  });
+
+  it("opens with no leftover error after a failed attempt on another document", async () => {
+    mockFetch({
+      "GET /api/documents": [cv, carta],
+      "DELETE /api/documents/d1": inUse,
+    });
+    const user = userEvent.setup();
+    renderList();
+    const first = await openDialog(user);
+    await user.click(
+      within(first).getByRole("button", { name: "Eliminar documento" }),
+    );
+    await within(first).findByText(/Desvincúlalo/);
+    await user.click(
+      within(first).getByRole("button", { name: "Conservar documento" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+
+    const second = await openDialog(user, "Carta Lemoncode");
+
+    expect(within(second).queryByText(/Desvincúlalo/)).not.toBeInTheDocument();
   });
 });
