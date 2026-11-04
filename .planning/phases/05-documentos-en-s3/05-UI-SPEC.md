@@ -47,7 +47,7 @@ The table is a **non-exhaustive** list of known-good components, not a closed al
 | ToggleGroup, ToggleGroupItem | `@/common/components/ui/toggle-group` | `/documents` filter Todos / CV / Carta (D-28) and the «Tipo» CV / Carta control in the generic upload dialog (D-22). `type="single"`, `variant="outline"`. |
 | Input | `@/common/components/ui/input` | «Nombre», «Versión» and the native `type="file"` control (extra `file:` utilities, below). |
 | Label | `@/common/components/ui/label` | Field labels. |
-| Button | `@/common/components/ui/button` | «Subir documento», «Subir nuevo», «Cancelar», «Cancelar subida», «Descargar» (`asChild`), «Eliminar» icon button, «Reintentar». Always `h-11` (`size-11` for icon buttons). |
+| Button | `@/common/components/ui/button` | «Subir documento», «Subir nuevo», «Descartar subida», «Cancelar subida», «Descargar» (`asChild`), «Eliminar» icon button, «Reintentar». Always `h-11` (`size-11` for icon buttons). |
 | Skeleton | `@/common/components/ui/skeleton` | `/documents` loading rows and detail rows. |
 | RequestStatus | `@/common/components/request-status` | Inline loading / success / error lines and block-level errors. |
 | StatusBadge, TagChip | `@/common/components/status-badge`, `tag-chip` | **Not used** here. |
@@ -85,7 +85,7 @@ Declared values (multiples of 4). Same card rhythm as every other section (`roun
 | 3xl | 64px | not used |
 
 Exceptions:
-- Touch targets are 44 px: «Subir documento», «Subir nuevo», «Descargar» (button in `/documents`), «Cancelar», «Cancelar subida», «Reintentar», dialog buttons and the native select are `h-11`; the row «Eliminar» icon button is `size-11` (44 × 44); the dialog X is `size-11`; the detail «Descargar» link is `min-h-11`; toggle items are `min-h-11`.
+- Touch targets are 44 px: «Subir documento», «Subir nuevo», «Descargar» (button in `/documents`), «Descartar subida», «Cancelar subida», «Reintentar», dialog buttons and the native select are `h-11`; the row «Eliminar» icon button is `size-11` (44 × 44); the dialog X is `size-11`; the detail «Descargar» link is `min-h-11`; toggle items are `min-h-11`.
 - Dialog width `max-w-lg` (512 px) on desktop; `w-[calc(100%-2rem)]` below (328 px at a 360 px viewport, 296 px of inner width with `p-4`), inherited from `dialog.tsx`.
 - Page column `max-w-5xl` (inherited); `/documents` list is a single column at every width.
 - No 12 px spacing (`gap-3`, `px-3`, `py-3`).
@@ -135,7 +135,7 @@ Accent reserved for (exhaustive):
 Rules:
 - **Type badge is neutral**: CV and Carta share `bg-muted text-foreground` and differ by icon and text (`FileText` for CV, `Mail` for Carta). Never `status-*`, never `brand-gold`.
 - **«En uso» badge is not a warning colour**: `border border-border bg-card text-foreground` with the `Link2` icon. It is information (and the hook for the rule-4 demo), not an error; it must not read as a status.
-- **Destructive**: only `AlertDialogAction` «Eliminar documento» (existing `destructive` variant) and the `CircleAlert` inside `RequestStatus kind="error"` (existing behaviour). The row `Trash2` is **not** coloured destructive (`text-destructive` on `bg-card` is 2.83:1 in dark, below the 3:1 non-text floor, measured in Phase 4); it inherits `currentColor` and is named by its `aria-label` and confirmed by a dialog. Error text is `text-foreground` with the icon, never `text-destructive`.
+- **Destructive**: only `AlertDialogAction` «Eliminar documento» (existing `destructive` variant) and, as an **inherited exemption**, the `CircleAlert` that the shared `RequestStatus kind="error"` already tints `text-destructive` (approved in Phases 2 and 4; the icon is always paired with the message text, so colour is not the only signal). No new icon in this phase is tinted destructive. The row `Trash2` is **not** coloured destructive (`text-destructive` on `bg-card` is 2.83:1 in dark, below the 3:1 non-text floor, measured in Phase 4); it inherits `currentColor` and is named by its `aria-label` and confirmed by a dialog. Error text is `text-foreground` with the icon, never `text-destructive`.
 - Contrast: every pair below is a token pair already measured in Phase 4's contract; no new pair is introduced (AA = 4.5:1 text, 3:1 non-text).
 
 | Pair | Light | Dark |
@@ -203,7 +203,7 @@ Voice: tuteo, short sentences, sentence case, no exclamations, no emojis. Dates 
 | Label «Nombre» (required, ` *`) / placeholder | Nombre / Ej.: CV Frontend |
 | Label «Versión» (required, ` *`) / placeholder | Versión / Ej.: v3 |
 | Primary CTA (pending) | Subir documento (Subiendo…) |
-| Secondary (idle / pending) | Cancelar / Cancelar subida |
+| Secondary (idle / pending) | Descartar subida / Cancelar subida |
 | Close X `aria-label` | Cerrar |
 | Live line while uploading | Subiendo el archivo… |
 | Live line after «Cancelar subida» | Subida cancelada. |
@@ -285,7 +285,7 @@ One `UploadDialog` instance per `DocumentUploadContainer`, controlled (`closed |
 │   Nombre *   [ CV-2026                    ] Versión *    │
 │                                         [ Ej.: v3  ]    │
 │   <div role="status" aria-live="polite"> line </div>    │
-│   [Subir documento]  [Cancelar]   (mobile: stacked)     │
+│   [Subir documento]  [Descartar subida] (mobile: stacked)     │
 │ </form>                                                 │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -303,13 +303,13 @@ Fields, in DOM and visual order:
 - **Name prefill (D-18)**: on choosing a file, if «Nombre» is empty, set it to the file name without extension, trimmed, cut to 120 characters. If «Nombre» still holds the previous automatic prefill (the user has not edited it), replace it with the new one; a name the user typed is never overwritten. The «Nombre» input does not take focus (the user is still on «Archivo»).
 - **Client validation (D-19)** runs on submit, then re-validates on change; it uses `documentInputSchema` for the text fields plus extension (`.pdf`/`.docx`, case-insensitive) and `file.size <= DOCUMENT_MAX_BYTES` (imported from `@tfm/contracts`) for the file. File errors are attached to «Archivo»; text errors to their fields; error markup is the `FormField` line (`CircleAlert` + `text-sm text-foreground`). On a failed submit focus moves to the first `[aria-invalid="true"]` control in DOM order. A zero-byte file passes the client and ends as the server's 415 («Solo se admiten archivos PDF o DOCX.»).
 - **Server errors**: 413 and 415 are shown **under «Archivo»** (field error, `aria-invalid`) and focus moves to the file input; the dialog stays open and every typed value is kept. 400 field details map to their field with «Revisa este campo.». `NETWORK_ERROR` and any other failure render in the dialog's always-mounted live region above the footer as `RequestStatus kind="error"`. Errors are cleared when the user starts a new submit, changes the file, or reopens the dialog.
-- **Uploading (D-20)**: «Subir documento» becomes «Subiendo…» and gets `aria-disabled="true"` (never `disabled`: focus is not dropped; the submit handler returns early). The live region (`role="status" aria-live="polite"`, always mounted) shows `RequestStatus kind="loading"` «Subiendo el archivo…». The secondary button changes from «Cancelar» to **«Cancelar subida»** and stays active: it aborts the `fetch` (`AbortController`), the dialog **stays open** with every value kept, and the live region says «Subida cancelada.» as a plain `text-sm text-muted-foreground` line (no icon; `RequestStatus` has no neutral kind). While uploading, the X, Esc and overlay are ignored (same rule as Phase 4 «Guardando…»); «Cancelar subida» is the only way out. Fields are not disabled. No spinner beyond the `LoaderCircle` already inside `RequestStatus`; no progress bar.
+- **Uploading (D-20)**: «Subir documento» becomes «Subiendo…» and is **`disabled`** (locked D-20: «botón deshabilitado»; the submit handler also returns early). A disabled button that held focus would drop it to `<body>`, so at the moment the upload starts focus is moved programmatically to «Cancelar subida» (stable, active, in the same footer); this replaces the `aria-disabled` pattern of Phase 4 for this one button. The live region (`role="status" aria-live="polite"`, always mounted) shows `RequestStatus kind="loading"` «Subiendo el archivo…». The secondary button changes from «Descartar subida» to **«Cancelar subida»** and stays active: it aborts the `fetch` (`AbortController`), the dialog **stays open** with every value kept, and the live region says «Subida cancelada.» as a plain `text-sm text-muted-foreground` line (no icon; `RequestStatus` has no neutral kind). While uploading, the X, Esc and overlay are ignored (same rule as Phase 4 «Guardando…»); «Cancelar subida» is the only way out. Fields are not disabled. No spinner beyond the `LoaderCircle` already inside `RequestStatus`; no progress bar.
 - **Success (D-17)**: the dialog closes; in picker mode the new document enters the picker's list and is selected (`onSelected(id)`); in generic mode `onUploaded(document)` fires. Focus returns to the opener (`onCloseAutoFocus` pointing at the opener ref, as `interview-dialog.tsx`: «Subir nuevo» or «Subir documento»). The container's always-mounted `role="status" aria-live="polite"` line next to the opener announces **«Documento subido.»** (`RequestStatus kind="success"`, cleared after `SUCCESS_VISIBLE_MS`, 5 s). In the form the line sits directly under the picker's select; on `/documents` it sits under the page header.
 - **Isolation (D-17, verified in Research Pattern 7)**: the inner `<form onSubmit>` calls `event.preventDefault()` **and** `event.stopPropagation()`; every other button the picker renders inside the application `<form>` («Subir nuevo», «Reintentar») is `type="button"`. The dialog form never submits the application.
-- **Keyboard order**: generic mode: Tipo (one tab stop, arrows inside) → Archivo → Nombre → Versión → «Subir documento» → «Cancelar» / «Cancelar subida» → X (last in DOM, top-right visually). Picker mode skips Tipo. Initial focus is the first tabbable element (Tipo in generic mode, Archivo in picker mode). Esc closes unless uploading. Visible focus is the project ring everywhere.
+- **Keyboard order**: generic mode: Tipo (one tab stop, arrows inside) → Archivo → Nombre → Versión → «Subir documento» → «Descartar subida» / «Cancelar subida» → X (last in DOM, top-right visually). Picker mode skips Tipo. Initial focus is the first tabbable element (Tipo in generic mode, Archivo in picker mode). Esc closes unless uploading. Visible focus is the project ring everywhere.
 - **Buttons**: submit `type="submit" variant="default" className="h-11 w-full sm:w-auto"`; secondary `type="button" variant="outline" className="h-11 w-full sm:w-auto"`. Footer `flex flex-col-reverse gap-2 sm:flex-row sm:justify-end` (primary on top on mobile).
 
-Why «Cancelar» and not Phase 4's «Descartar cambios»: nothing has been saved and no data of an existing record is at stake; the verb must also name the in-flight abort («Cancelar subida»). It is a deliberate, local choice, not drift.
+Why «Descartar subida» and not Phase 4's «Descartar cambios»: nothing has been saved and no record is being edited, so the noun is the upload; the same noun names the in-flight abort («Cancelar subida»). Every dialog CTA is a specific verb + noun (no bare «Cancelar»). It is a deliberate, local choice, not drift.
 
 ### 2. Picker in the application form (D-14, D-15, D-16)
 
@@ -355,7 +355,7 @@ status line (role="status" aria-live="polite", always mounted)
 - Download link: `<a href="/api/documents/{encodeURIComponent(id)}/download" download className="inline-flex min-h-11 items-center gap-2 rounded-sm text-sm font-semibold text-primary underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Descargar {nombre}">` with `Download` (`size-4`, `aria-hidden`) and the visible text «Descargar». It is a plain anchor, not a router `Link` and not a button. The `download` attribute keeps the SPA in place if the endpoint returns an error (Research assumption A2; confirm once in the manual UAT; remove the attribute if a browser misbehaves, the behaviour of D-24 is unchanged).
 - **No link**: muted Body «Sin CV vinculado.» / «Sin carta vinculada.», no anchor.
 - **Loading** (documents are requested after the application loads, in parallel): each linked row shows `Skeleton` blocks (`h-5 w-3/4` and `h-4 w-16`, `aria-hidden`) and the section carries `aria-busy="true"` with one sr-only `role="status"` «Cargando documentos…». Rows without a link render their «Sin … vinculado.» text immediately. The rest of the detail is already visible.
-- **Per-row failure (D-25)**: that row shows `<p className="flex items-start gap-2 text-sm text-foreground"><CircleAlert className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden="true" strokeWidth={1.5}/> No hemos podido cargar este documento.</p>`, no link, no retry button; the other row and the whole page are unaffected. The message is inside a polite `role="status"` container that is always mounted in the section.
+- **Per-row failure (D-25)**: that row shows `<p className="flex items-start gap-2 text-sm text-foreground"><CircleAlert className="mt-1 size-4 shrink-0 text-foreground" aria-hidden="true" strokeWidth={1.5}/> No hemos podido cargar este documento.</p>` (icon in `text-foreground` and offset `mt-1` = 4 px, on the scale; the destructive tint is not used because `text-destructive` on `bg-card` is 2.83:1 in dark), no link, no retry button; the other row and the whole page are unaffected. The message is inside a polite `role="status"` container that is always mounted in the section.
 - Keyboard: aside tab order adds the CV «Descargar» → Carta «Descargar» after the page's existing stops (status history has none). Nothing else is focusable.
 
 ### 4. `/documents` screen (D-26 … D-29)
@@ -422,18 +422,18 @@ Only the dialog and overlay fade (inherited), the `LoaderCircle` spin in `Reques
 
 Empty / error / success **copy** lives in the Copywriting Contract above; this table covers state coverage and references it. Rows were resolved by the researcher from the element shapes (E1 upload dialog form, E2 form pickers, E3 detail aside list, E4 `/documents` list, E5 delete dialog). The engine probe of `/gsd-ui-phase` (Step 9.5) may replace these rows idempotently.
 
-Applicable state considerations resolved: 27 covered, 3 backstop, 0 unresolved.
+Applicable state considerations resolved: 31 covered, 3 backstop, 0 unresolved (34 rows).
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
 | empty | E1 Dialog form, just opened | ✅ covered | Remounted on every opening: no file, empty Nombre and Versión, Tipo = active filter or CV; nothing from a cancelled attempt survives. |
-| loading | E1 Upload in flight | ✅ covered | «Subiendo…» with `aria-disabled`, live line «Subiendo el archivo…», «Cancelar subida» aborts and keeps the dialog open; X, Esc and overlay ignored while in flight. |
+| loading | E1 Upload in flight | ✅ covered | «Subiendo…» on a `disabled` submit (D-20) with focus moved to «Cancelar subida», live line «Subiendo el archivo…», «Cancelar subida» aborts and keeps the dialog open; X, Esc and overlay ignored while in flight. |
 | error | E1 Client validation | ✅ covered | Field errors under their control (no file, extension, size, name, version) using the copy table; focus to the first invalid field. |
 | error | E1 Server 413 / 415 | ✅ covered | Same sentences as the client checks, under «Archivo», focus to the file input, values kept. |
 | error | E1 Network / other failure | ✅ covered | `RequestStatus` error in the dialog live region: network sentence or «No se pudo subir el documento. Inténtalo de nuevo.». |
 | partial | E1 File chosen, Nombre empty | ✅ covered | Nombre prefilled from the file name (no extension, ≤ 120); an edited name is never overwritten. |
 | long-text | E1 / E4 File name 255 chars, name 120, version 40 | ✅ covered | Nombre `maxLength` 120, Versión 40; prefill is cut to 120; rows and labels `break-words`; the native file input shows its own truncated name. |
-| concurrency | E1 Double submit | ✅ covered | `aria-disabled` plus early return; the inner `stopPropagation` prevents a second (application) submit. |
+| concurrency | E1 Double submit | ✅ covered | `disabled` submit plus early return in the handler (Enter inside a field is covered by the early return); the inner `stopPropagation` prevents a second (application) submit. |
 | concurrency | E1 Dialog inside the application `<form>` | ✅ covered | `preventDefault` + `stopPropagation` on the inner form; all other picker buttons `type="button"`; covered by the D-31 test. |
 | a11y | E1 Focus and keyboard | ✅ covered | Focus trapped, initial focus on first tabbable, restored to the opener via `onCloseAutoFocus`, X last in DOM, Esc closes unless uploading. |
 | empty | E2 Picker, no document of that type | ✅ covered | Select with only «Sin CV» / «Sin carta» plus the muted hint «Aún no has subido ningún CV.» / «…ninguna carta.»; «Subir nuevo» available. |
