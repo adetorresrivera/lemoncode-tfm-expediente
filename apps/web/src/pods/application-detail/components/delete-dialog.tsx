@@ -45,7 +45,7 @@ export function DeleteDialog({ title, company, state, onConfirm }: Props) {
         <AlertDialogTitle>¿Eliminar esta candidatura?</AlertDialogTitle>
         <AlertDialogDescription className="break-words">
           Vas a eliminar «{title}» de {company}. Esta acción no se puede
-          deshacer.
+          deshacer. Los documentos vinculados no se eliminan.
         </AlertDialogDescription>
         <div role="status" aria-live="polite">
           {state === "error" ? (

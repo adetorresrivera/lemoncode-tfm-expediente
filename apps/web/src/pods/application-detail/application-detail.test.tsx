@@ -981,7 +981,7 @@ describe("delete dialog", () => {
     ).toBeInTheDocument();
     const description = within(dialog).getByText(/Vas a eliminar/);
     expect(description).toHaveTextContent(
-      "Vas a eliminar «Frontend Developer» de Lemoncode. Esta acción no se puede deshacer.",
+      "Vas a eliminar «Frontend Developer» de Lemoncode. Esta acción no se puede deshacer. Los documentos vinculados no se eliminan.",
     );
     expect(description).toHaveClass("break-words");
     expect(
