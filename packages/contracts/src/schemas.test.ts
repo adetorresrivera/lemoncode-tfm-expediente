@@ -5,6 +5,7 @@ import {
   applicationStatusSchema,
   contractTypeSchema,
   documentInputSchema,
+  documentListItemSchema,
   documentSchema,
   documentTypeSchema,
   interviewInputSchema,
@@ -156,6 +157,7 @@ describe("document schemas", () => {
     type: "cv",
     name: "CV Frontend",
     version: "v3",
+    fileName: "CV Frontend.pdf",
     s3Key: "documents/d1/cv.pdf",
     mimeType: "application/pdf",
     size: 1024,
@@ -181,6 +183,34 @@ describe("document schemas", () => {
     expect(
       documentSchema.safeParse({ ...doc, mimeType: "text/plain" }).success,
     ).toBe(false);
+  });
+
+  it("documentSchema rejects an empty fileName and one over 255 characters", () => {
+    expect(documentSchema.safeParse({ ...doc, fileName: "" }).success).toBe(
+      false,
+    );
+    expect(
+      documentSchema.safeParse({ ...doc, fileName: "a".repeat(255) }).success,
+    ).toBe(true);
+    expect(
+      documentSchema.safeParse({ ...doc, fileName: "a".repeat(256) }).success,
+    ).toBe(false);
+  });
+
+  it("documentListItemSchema requires a non-negative integer usedBy", () => {
+    expect(
+      documentListItemSchema.safeParse({ ...doc, usedBy: 0 }).success,
+    ).toBe(true);
+    expect(
+      documentListItemSchema.safeParse({ ...doc, usedBy: 3 }).success,
+    ).toBe(true);
+    expect(
+      documentListItemSchema.safeParse({ ...doc, usedBy: -1 }).success,
+    ).toBe(false);
+    expect(
+      documentListItemSchema.safeParse({ ...doc, usedBy: 1.5 }).success,
+    ).toBe(false);
+    expect(documentListItemSchema.safeParse(doc).success).toBe(false);
   });
 
   it("documentSchema accepts 5242880 bytes and rejects 5242881", () => {
