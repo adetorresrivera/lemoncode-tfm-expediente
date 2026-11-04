@@ -12,6 +12,7 @@ import {
   type ApplicationEditSummary,
   type ApplicationFormValues,
   type RenderCancelLink,
+  type RenderDocumentPicker,
   type RenderListLink,
 } from "./application-edit.vm";
 import {
@@ -26,14 +27,20 @@ interface Props {
   onSaved: (id: string) => void;
   renderCancelLink: RenderCancelLink;
   renderListLink: RenderListLink;
+  renderDocumentPicker: RenderDocumentPicker;
 }
 
 interface CreateProps {
   onSaved: (id: string) => void;
   renderCancelLink: RenderCancelLink;
+  renderDocumentPicker: RenderDocumentPicker;
 }
 
-function ApplicationCreate({ onSaved, renderCancelLink }: CreateProps) {
+function ApplicationCreate({
+  onSaved,
+  renderCancelLink,
+  renderDocumentPicker,
+}: CreateProps) {
   const marks = useAiMarks();
   // `clearStatus` comes from the extraction hook, which needs the form: the callback only runs
   // after a save, when both exist. Marks and summary clear on a successful save only (D-17).
@@ -80,6 +87,7 @@ function ApplicationCreate({ onSaved, renderCancelLink }: CreateProps) {
         onCancel: cancel,
       }}
       renderCancelLink={renderCancelLink}
+      renderDocumentPicker={renderDocumentPicker}
     />
   );
 }
@@ -98,6 +106,7 @@ function ApplicationEditForm({
   summary,
   onSaved,
   renderCancelLink,
+  renderDocumentPicker,
 }: EditFormProps) {
   const marks = useAiMarks();
   const { form, formMessage } = useApplicationForm({
@@ -148,6 +157,7 @@ function ApplicationEditForm({
         onCancel: cancel,
       }}
       renderCancelLink={renderCancelLink}
+      renderDocumentPicker={renderDocumentPicker}
     />
   );
 }
@@ -157,6 +167,7 @@ function ApplicationEditLoader({
   onSaved,
   renderCancelLink,
   renderListLink,
+  renderDocumentPicker,
 }: Props & { applicationId: string }) {
   const { status, values, summary, errorCode, retry } =
     useApplicationEditLoad(applicationId);
@@ -178,6 +189,7 @@ function ApplicationEditLoader({
       summary={summary}
       onSaved={onSaved}
       renderCancelLink={renderCancelLink}
+      renderDocumentPicker={renderDocumentPicker}
     />
   );
 }
@@ -187,12 +199,14 @@ export function ApplicationEditContainer({
   onSaved,
   renderCancelLink,
   renderListLink,
+  renderDocumentPicker,
 }: Props) {
   if (applicationId === undefined) {
     return (
       <ApplicationCreate
         onSaved={onSaved}
         renderCancelLink={renderCancelLink}
+        renderDocumentPicker={renderDocumentPicker}
       />
     );
   }
@@ -203,6 +217,7 @@ export function ApplicationEditContainer({
       onSaved={onSaved}
       renderCancelLink={renderCancelLink}
       renderListLink={renderListLink}
+      renderDocumentPicker={renderDocumentPicker}
     />
   );
 }

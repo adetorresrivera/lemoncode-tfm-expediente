@@ -1,14 +1,27 @@
 import type { DocumentType } from "@tfm/contracts";
 import { useEffect, useState } from "react";
+import { DocumentPicker } from "./components/document-picker";
 import { DocumentUploadComponent } from "./document-upload.component";
-import { useDocumentUpload } from "./document-upload.hooks";
+import { useDocumentOptions, useDocumentUpload } from "./document-upload.hooks";
 import type { UploadLiveMessage } from "./document-upload.vm";
 
-interface Props {
+interface GenericProps {
+  type?: undefined;
   // The active /documents filter; the dialog opens with this type selected (default CV).
   initialType?: DocumentType;
   onUploaded?: (uploaded: { id: string; type: DocumentType }) => void;
 }
+
+interface PickerProps {
+  type: DocumentType;
+  // The id of the linked document, "" when there is none.
+  selectedId: string;
+  onSelected: (id: string) => void;
+  // The first error of the form field, shown under the select.
+  error?: string;
+}
+
+type Props = GenericProps | PickerProps;
 
 const LOADING_MESSAGE = "Subiendo el archivo…";
 const CANCELLED_MESSAGE = "Subida cancelada.";
@@ -17,10 +30,7 @@ const SUCCESS_VISIBLE_MS = 5000;
 
 // Generic mode: «Subir documento» opens the dialog and the new document is reported through
 // `onUploaded` once the server answered 201.
-export function DocumentUploadContainer({
-  initialType = "cv",
-  onUploaded,
-}: Props) {
+function GenericUpload({ initialType = "cv", onUploaded }: GenericProps) {
   const [open, setOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [outcome, setOutcome] = useState<UploadLiveMessage | null>(null);
@@ -71,4 +81,23 @@ export function DocumentUploadContainer({
       }}
     />
   );
+}
+
+// Picker mode: the select of the library documents of one type, used by the application form.
+function PickerUpload({ type, selectedId, onSelected, error }: PickerProps) {
+  const options = useDocumentOptions(type);
+  return (
+    <DocumentPicker
+      type={type}
+      selectedId={selectedId}
+      onSelected={onSelected}
+      error={error}
+      options={options}
+    />
+  );
+}
+
+export function DocumentUploadContainer(props: Props) {
+  if (props.type !== undefined) return <PickerUpload {...props} />;
+  return <GenericUpload {...props} />;
 }

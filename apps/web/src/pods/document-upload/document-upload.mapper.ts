@@ -2,12 +2,15 @@ import {
   DOCUMENT_MAX_BYTES,
   documentInputSchema,
   type Document,
+  type DocumentListItem,
   type DocumentType,
 } from "@tfm/contracts";
 import { z } from "zod";
+import { formatDate } from "@/common/lib/format";
 import { HttpError } from "@/core/http/http-client";
 import type { UploadRequest } from "./api/api";
 import type {
+  DocumentOptionVm,
   UploadedDocumentVm,
   UploadFormField,
   UploadFormValues,
@@ -141,3 +144,22 @@ export const mapUploadErrorToFeedback = (
 export const mapUploadedDocumentFromApiToVm = (
   document: Document,
 ): UploadedDocumentVm => ({ id: document.id, type: document.type });
+
+// «CV Frontend · v3 · 12 oct. 2026»: name, version and upload date of one stored document.
+export function documentLabel(document: {
+  name: string;
+  version: string;
+  createdAt: string;
+}): string {
+  return `${document.name} · ${document.version} · ${formatDate(document.createdAt)}`;
+}
+
+// Keeps the order the API answers (newest first).
+export function mapDocumentsToOptionsVm(
+  documents: DocumentListItem[],
+): DocumentOptionVm[] {
+  return documents.map((document) => ({
+    id: document.id,
+    label: documentLabel(document),
+  }));
+}

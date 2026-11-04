@@ -1,6 +1,7 @@
 import type {
   ApplicationStatus,
   ContractType,
+  DocumentType,
   Seniority,
   TagGroup,
   WorkMode,
@@ -73,6 +74,16 @@ export interface FormMessage {
 export type RenderCancelLink = (link: {
   className?: string;
   children: ReactNode;
+}) => ReactElement;
+
+// The seam for the document pickers of the «Documentos» section (D-14): the scene fills it with
+// the upload pod, so this pod never imports it. `error` is the field's first error («Revisa este
+// campo.») so the picker can mark its own select.
+export type RenderDocumentPicker = (picker: {
+  type: DocumentType;
+  selectedId: string;
+  onSelected: (id: string) => void;
+  error?: string;
 }) => ReactElement;
 
 // Same seam for the link to the list (the not-found state of the edit load).

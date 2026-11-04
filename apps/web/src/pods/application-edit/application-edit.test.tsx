@@ -26,6 +26,7 @@ import {
 import {
   EMPTY_FORM_VALUES,
   type ApplicationFormValues,
+  type RenderDocumentPicker,
 } from "./application-edit.vm";
 
 const values = (
@@ -293,12 +294,37 @@ const renderListLink = (link: { className?: string; children: ReactNode }) => (
   </a>
 );
 
+// The scene fills the Documentos slot with the real picker; pod tests use a plain select that
+// calls `onSelected` and prints the error it receives.
+const renderDocumentPicker: RenderDocumentPicker = ({
+  type,
+  selectedId,
+  onSelected,
+  error,
+}) => (
+  <div>
+    <label htmlFor={`double-${type}`}>{`Doble ${type}`}</label>
+    <select
+      id={`double-${type}`}
+      value={selectedId}
+      aria-invalid={error !== undefined ? true : undefined}
+      onChange={(event) => onSelected(event.target.value)}
+    >
+      <option value="">Sin documento</option>
+      <option value="d1">Documento d1</option>
+      <option value="d2">Documento d2</option>
+    </select>
+    {error !== undefined ? <p>{`${type}: ${error}`}</p> : null}
+  </div>
+);
+
 const renderForm = (onSaved: (id: string) => void = () => {}) =>
   render(
     <ApplicationEditContainer
       onSaved={onSaved}
       renderCancelLink={renderCancelLink}
       renderListLink={renderListLink}
+      renderDocumentPicker={renderDocumentPicker}
     />,
   );
 
@@ -544,6 +570,7 @@ describe("ApplicationEditContainer conditions and tracking", () => {
       "Condiciones",
       "Etiquetas",
       "Seguimiento",
+      "Documentos",
     ]);
     expect(screen.getByLabelText("Puesto *")).toHaveValue("");
     expect(screen.getByLabelText("Empresa *")).toHaveValue("");
@@ -1111,6 +1138,7 @@ const renderEdit = (
       onSaved={onSaved}
       renderCancelLink={renderCancelLink}
       renderListLink={renderListLink}
+      renderDocumentPicker={renderDocumentPicker}
     />,
   );
 
@@ -1316,5 +1344,113 @@ describe("ApplicationEditContainer edit mode", () => {
     expect(await screen.findByLabelText("Puesto *")).toHaveValue(
       "Frontend Developer",
     );
+  });
+});
+
+describe("ApplicationEditContainer Documentos section", () => {
+  it("shows the section after Seguimiento and before the actions, with both pickers empty", () => {
+    renderForm();
+
+    const section = screen.getByRole("region", { name: "Documentos" });
+    expect(
+      within(section).getByText(
+        "Opcionales. Elige uno que ya tengas o sube uno nuevo.",
+      ),
+    ).toBeInTheDocument();
+    const tracking = screen.getByRole("region", { name: "Seguimiento" });
+    const save = screen.getByRole("button", { name: "Guardar candidatura" });
+    expect(
+      tracking.compareDocumentPosition(section) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      section.compareDocumentPosition(save) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    const cv = within(section).getByLabelText("Doble cv");
+    const carta = within(section).getByLabelText("Doble carta");
+    expect(cv).toHaveValue("");
+    expect(carta).toHaveValue("");
+    expect(
+      cv.compareDocumentPosition(carta) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+
+  it("saves the chosen ids and sends null after choosing none again", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockCreate();
+    renderForm();
+
+    await fillRequired(user);
+    await user.selectOptions(screen.getByLabelText("Doble cv"), "d1");
+    await user.selectOptions(screen.getByLabelText("Doble carta"), "d2");
+    await submit(user);
+
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(1));
+    expect(lastPostBody(fetchMock)).toMatchObject({
+      cvDocumentId: "d1",
+      coverLetterDocumentId: "d2",
+    });
+
+    await user.selectOptions(screen.getByLabelText("Doble cv"), "");
+    await user.selectOptions(screen.getByLabelText("Doble carta"), "");
+    await submit(user);
+
+    await waitFor(() => expect(posts(fetchMock)).toHaveLength(2));
+    expect(lastPostBody(fetchMock)).toMatchObject({
+      cvDocumentId: null,
+      coverLetterDocumentId: null,
+    });
+  });
+
+  it("opens an edit with the loaded ids selected and keeps them on a save that did not touch them", async () => {
+    const user = userEvent.setup();
+    const fetchMock = mockFetch({
+      "GET /api/applications/a1": stored({
+        cvDocumentId: "d1",
+        coverLetterDocumentId: "d2",
+      }),
+      "PUT /api/applications/a1": () => jsonResponse(stored()),
+    });
+    renderEdit();
+
+    expect(await screen.findByLabelText("Doble cv")).toHaveValue("d1");
+    expect(screen.getByLabelText("Doble carta")).toHaveValue("d2");
+    await user.type(screen.getByLabelText("Puesto *"), " 2");
+    await saveEdit(user);
+
+    await waitFor(() => expect(puts(fetchMock)).toHaveLength(1));
+    expect(putBody(fetchMock)).toMatchObject({
+      cvDocumentId: "d1",
+      coverLetterDocumentId: "d2",
+    });
+  });
+
+  it("passes a server 400 on one link only to that picker", async () => {
+    const user = userEvent.setup();
+    mockFetch({
+      "POST /api/applications": () =>
+        jsonResponse(
+          {
+            error: {
+              code: "VALIDATION_ERROR",
+              message: "Datos no válidos",
+              details: { formErrors: [], fieldErrors: { cvDocumentId: ["x"] } },
+            },
+          },
+          400,
+        ),
+    });
+    renderForm();
+
+    await fillRequired(user);
+    await submit(user);
+
+    expect(
+      await screen.findByText("cv: Revisa este campo."),
+    ).toBeInTheDocument();
+    expect(screen.queryByText(/carta: /)).toBeNull();
+    const cv = screen.getByLabelText("Doble cv");
+    expect(cv).toHaveAttribute("aria-invalid", "true");
+    await waitFor(() => expect(cv).toHaveFocus());
   });
 });

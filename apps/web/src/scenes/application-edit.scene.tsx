@@ -1,6 +1,7 @@
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { ApplicationEditContainer } from "@/pods/application-edit";
+import { DocumentUploadContainer } from "@/pods/document-upload";
 
 interface Props {
   applicationId?: string;
@@ -69,6 +70,14 @@ export function ApplicationEditScene({ applicationId }: Props) {
           <Link to="/applications" className={className}>
             {children}
           </Link>
+        )}
+        renderDocumentPicker={({ type, selectedId, onSelected, error }) => (
+          <DocumentUploadContainer
+            type={type}
+            selectedId={selectedId}
+            onSelected={onSelected}
+            error={error}
+          />
         )}
       />
     </div>

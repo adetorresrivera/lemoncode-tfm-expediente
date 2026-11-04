@@ -21,6 +21,9 @@ const link =
     </a>
   );
 
+// The Documentos section is covered in application-edit.test.tsx; here the slot renders nothing.
+const noDocumentPicker = () => <></>;
+
 const OFFER_TEXT =
   "Buscamos una persona frontend para un equipo de producto en Madrid.";
 
@@ -54,6 +57,7 @@ const renderCreate = () =>
     <ApplicationEditContainer
       onSaved={() => {}}
       renderCancelLink={link("/applications")}
+      renderDocumentPicker={noDocumentPicker}
       renderListLink={link("/applications-list-stub")}
     />,
   );
@@ -566,6 +570,7 @@ describe("ApplicationEditContainer AI autocomplete", () => {
         applicationId="a1"
         onSaved={() => {}}
         renderCancelLink={link("/applications")}
+        renderDocumentPicker={noDocumentPicker}
         renderListLink={link("/applications-list-stub")}
       />,
     );
@@ -931,6 +936,7 @@ describe("ApplicationEditContainer AI marks", () => {
       <ApplicationEditContainer
         onSaved={onSaved}
         renderCancelLink={link("/applications")}
+        renderDocumentPicker={noDocumentPicker}
         renderListLink={link("/applications-list-stub")}
       />,
     );
@@ -973,6 +979,7 @@ describe("ApplicationEditContainer AI marks", () => {
         applicationId="a1"
         onSaved={() => {}}
         renderCancelLink={link("/applications")}
+        renderDocumentPicker={noDocumentPicker}
         renderListLink={link("/applications-list-stub")}
       />,
     );
@@ -1254,6 +1261,7 @@ describe("ApplicationEditContainer AI tags", () => {
       <ApplicationEditContainer
         onSaved={onSaved}
         renderCancelLink={link("/applications")}
+        renderDocumentPicker={noDocumentPicker}
         renderListLink={link("/applications-list-stub")}
       />,
     );
@@ -1295,6 +1303,7 @@ const renderEdit = () =>
       applicationId="a1"
       onSaved={() => {}}
       renderCancelLink={link("/applications")}
+      renderDocumentPicker={noDocumentPicker}
       renderListLink={link("/applications-list-stub")}
     />,
   );
