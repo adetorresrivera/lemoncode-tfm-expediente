@@ -71,6 +71,26 @@ export function formatSalaryRange(
   return null;
 }
 
+const sizeFormatter = new Intl.NumberFormat("es-ES", {
+  maximumFractionDigits: 1,
+});
+
+/**
+ * Readable file size, base 1024, es-ES numbers with at most one decimal («,0» omitted).
+ * B under 1024 bytes; from there KB, unless the KB value rounded to one decimal reaches 1024,
+ * which is shown in MB. No unit above MB (5 MB ceiling).
+ *
+ * 512 → «512 B», 1023 → «1023 B», 1024 → «1 KB», 1536 → «1,5 KB», 235520 → «230 KB»,
+ * 1048575 → «1 MB», 1258291 → «1,2 MB», 5242880 → «5 MB».
+ */
+export function formatFileSize(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const kb = bytes / 1024;
+  const roundedKb = Math.round(kb * 10) / 10;
+  if (roundedKb < 1024) return `${sizeFormatter.format(kb)} KB`;
+  return `${sizeFormatter.format(bytes / 1048576)} MB`;
+}
+
 export function formatMoney(amount: number, currency = "EUR"): string {
   return new Intl.NumberFormat("es-ES", {
     style: "currency",
