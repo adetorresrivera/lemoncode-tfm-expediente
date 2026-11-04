@@ -1002,3 +1002,166 @@ describe("/documents library", () => {
     expect(listRequests(fetchMock)).toHaveLength(2);
   });
 });
+
+describe("documents in the application form", () => {
+  type StoredDocument = ReturnType<typeof documentSchema.parse>;
+
+  // A library that remembers what the form uploads: POST /api/documents stores the document of the
+  // multipart body, GET /api/documents?type= lists it.
+  const libraryRoutes = (library: StoredDocument[]) => ({
+    "GET /api/documents": (url: URL) =>
+      jsonResponse(
+        library
+          .filter((item) => item.type === url.searchParams.get("type"))
+          .map((item) => ({ ...item, usedBy: 0 })),
+      ),
+    "POST /api/documents": (_url: URL, init: RequestInit | undefined) => {
+      const body = init?.body;
+      if (!(body instanceof FormData)) return jsonResponse({}, 400);
+      const type = body.get("type") === "carta" ? "carta" : "cv";
+      const uploaded = documentSchema.parse({
+        id: type === "cv" ? "d1" : "c1",
+        type,
+        name: String(body.get("name")),
+        version: String(body.get("version")),
+        fileName: type === "cv" ? "CV Frontend.pdf" : "Carta Acme.pdf",
+        s3Key: `documents/${type}/file.pdf`,
+        mimeType: "application/pdf",
+        size: 1024,
+        createdAt: "2026-11-04T10:00:00.000Z",
+      });
+      library.push(uploaded);
+      return jsonResponse(uploaded, 201);
+    },
+  });
+
+  const pdfFile = (name: string) =>
+    new File([new Uint8Array(1024)], name, { type: "application/pdf" });
+
+  const uploadFromPicker = async (
+    user: ReturnType<typeof userEvent.setup>,
+    picker: "cv" | "carta",
+    fileName: string,
+    version: string,
+  ) => {
+    // The pickers load their lists; «Subir nuevo» stays inert until the list arrived.
+    const label = picker === "cv" ? "CV" : "Carta de presentación";
+    const select = await screen.findByRole("combobox", { name: label });
+    await waitFor(() => expect(select).not.toHaveAttribute("aria-busy"));
+    const buttons = screen.getAllByRole("button", { name: "Subir nuevo" });
+    const opener = picker === "cv" ? buttons[0] : buttons[1];
+    if (opener === undefined) throw new Error("Subir nuevo not found");
+    await user.click(opener);
+    const dialog = await screen.findByRole("dialog", {
+      name: picker === "cv" ? "Subir CV" : "Subir carta de presentación",
+    });
+    await user.upload(
+      within(dialog).getByLabelText(/Archivo/),
+      pdfFile(fileName),
+    );
+    await user.type(within(dialog).getByLabelText(/Versión/), version);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Subir documento" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    return select;
+  };
+
+  it("uploads a CV from the form, selects it and saves the application linked to it", async () => {
+    const library: StoredDocument[] = [];
+    const fetchMock = mockFetch({
+      "GET /api/applications": [],
+      "POST /api/applications": () =>
+        jsonResponse({ ...createdApplication, cvDocumentId: "d1" }, 201),
+      "GET /api/applications/new1": createdApplication,
+      ...libraryRoutes(library),
+    });
+    const user = userEvent.setup({ applyAccept: false });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications/new"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    await user.type(
+      await screen.findByLabelText("Puesto *"),
+      "Frontend Developer",
+    );
+    await user.type(screen.getByLabelText("Empresa *"), "Acme");
+    const select = await uploadFromPicker(user, "cv", "CV Frontend.pdf", "v3");
+
+    expect(select).toHaveValue("d1");
+    expect(
+      within(select).getByRole("option", {
+        name: "CV Frontend · v3 · 4 nov. 2026",
+        selected: true,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Documento subido.")).toBeInTheDocument();
+    expect(methodCalls(fetchMock, "POST")).toHaveLength(1);
+
+    await user.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Frontend Developer",
+    });
+    const posts = methodCalls(fetchMock, "POST");
+    expect(posts).toHaveLength(2);
+    const saved: unknown = JSON.parse(String(posts[1]?.[1]?.body));
+    expect(saved).toMatchObject({
+      title: "Frontend Developer",
+      company: "Acme",
+      cvDocumentId: "d1",
+      coverLetterDocumentId: null,
+    });
+    expect(router.state.location.pathname).toBe("/applications/new1");
+  });
+
+  it("keeps a document uploaded from the form after «Descartar cambios» and lists it in the next form", async () => {
+    const library: StoredDocument[] = [];
+    const fetchMock = mockFetch({
+      "GET /api/applications": [],
+      ...libraryRoutes(library),
+    });
+    const user = userEvent.setup({ applyAccept: false });
+    const router = createAppRouter(
+      createMemoryHistory({
+        initialEntries: ["/applications", "/applications/new"],
+      }),
+    );
+    render(<RouterProvider router={router} />);
+
+    const select = await uploadFromPicker(
+      user,
+      "carta",
+      "Carta Acme.pdf",
+      "v1",
+    );
+    expect(select).toHaveValue("c1");
+
+    await user.click(screen.getByRole("link", { name: "Descartar cambios" }));
+    await screen.findByRole("heading", { level: 1, name: "Mis candidaturas" });
+    expect(router.state.location.pathname).toBe("/applications");
+    expect(methodCalls(fetchMock, "DELETE")).toHaveLength(0);
+
+    await user.click(
+      await screen.findByRole("link", {
+        name: "Añadir la primera candidatura",
+      }),
+    );
+    const next = await screen.findByRole("combobox", {
+      name: "Carta de presentación",
+    });
+    expect(
+      await within(next).findByRole("option", {
+        name: "Carta Acme · v1 · 4 nov. 2026",
+      }),
+    ).toBeInTheDocument();
+    expect(next).toHaveValue("");
+    expect(methodCalls(fetchMock, "DELETE")).toHaveLength(0);
+  });
+});

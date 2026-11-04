@@ -22,11 +22,13 @@ const notFound = (): Response =>
 
 // Stubs the global fetch. Routes are keyed "METHOD /pathname"; a function value is called with
 // (url, init), any other value is answered as a 200 JSON body. An unmatched key answers 404,
-// except GET /api/tags, which answers an empty list unless the test routes it: the list pod
-// always loads the tag options, and tests about other endpoints should not have to know that.
+// except GET /api/tags and GET /api/documents, which answer an empty list unless the test routes
+// them: the list pod always loads the tag options and the application form's pickers always load
+// the document lists, and tests about other endpoints should not have to know that.
 export function mockFetch(routes: Record<string, MockHandler | unknown>) {
   const allRoutes: Record<string, MockHandler | unknown> = {
     "GET /api/tags": [],
+    "GET /api/documents": [],
     ...routes,
   };
   const fetchMock = vi.fn<typeof fetch>(async (input, init) => {
@@ -48,4 +50,8 @@ export function mockFetch(routes: Record<string, MockHandler | unknown>) {
 }
 
 export const installDefaultFetch = () =>
-  mockFetch({ "GET /api/applications": [], "GET /api/tags": [] });
+  mockFetch({
+    "GET /api/applications": [],
+    "GET /api/tags": [],
+    "GET /api/documents": [],
+  });
