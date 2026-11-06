@@ -68,7 +68,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Demo readiness (DEMO)
 
-- [ ] **DEMO-01**: `npm run seed` (also via `docker compose exec app npm run seed`) loads demo applications, documents and the 3 fixture offers into Mongo and Silo
+- [ ] **DEMO-01**: `npm run seed` (also via `docker compose exec app npm run seed`) loads demo applications and documents into Mongo and Silo, idempotently (`-- --reset` wipes everything first); the 3 fixture offers are available to paste from `docs/demo/ofertas/` and are never seeded (D-08)
 - [ ] **DEMO-02**: README explains how to run, seed, switch `LLM_PROVIDER` and recover with `mock` when Ollama fails
 - [ ] **DEMO-03**: The app is usable from 360 px width without horizontal scroll
 - [ ] **DEMO-04**: The app is fully keyboard-operable with visible focus, labelled fields, `aria-live="polite"` on load/error/AI results and AA contrast
@@ -179,4 +179,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-10-28*
-*Last updated: 2026-10-28 after roadmap creation (traceability filled)*
+*Last updated: 2026-11-06 after plan 06-16: DEMO-01 reworded because D-08 keeps the 3 fixture offers out of the seed (they live in `docs/demo/ofertas/`)*

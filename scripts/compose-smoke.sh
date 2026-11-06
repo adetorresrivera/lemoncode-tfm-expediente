@@ -1,23 +1,30 @@
 #!/usr/bin/env bash
-# Compose smoke test (D-23). Usage: bash scripts/compose-smoke.sh [--with-model] [--down]
+# Compose smoke test (D-23). Usage: bash scripts/compose-smoke.sh [--with-model] [--down] [--cold]
 #
 # Runs entirely through `docker compose exec` because the runtime image has no curl and, from a
 # devcontainer, the published host ports are not reachable (Docker-outside-of-Docker).
 # `--with-model` also waits for the `ollama-init` one-shot (model pull) and checks the model is
 # listed; the first pull downloads several GB, so it is opt-in.
 # `--down` removes the containers at the end (never the volumes: the model volume is expensive).
+# `--cold` is a separate flow (D-15): it rebuilds the image in its own project `expediente-cold`
+# (fresh Mongo and Silo volumes, no published ports, LLM_PROVIDER=mock), seeds it, checks the API,
+# the mock extraction, the image size, the pins and the healthchecks, and removes the project and
+# its volumes at the end. It never touches the `expediente` project or its Ollama model volume.
+# It needs Docker Compose v2.24 or later (scripts/compose.cold.yml uses the `!reset` tag).
 set -euo pipefail
 
 cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 DOWN=false
 WITH_MODEL=false
+COLD=false
 for arg in "$@"; do
   case "$arg" in
     --down) DOWN=true ;;
     --with-model) WITH_MODEL=true ;;
+    --cold) COLD=true ;;
     *)
-      echo "Unknown option: $arg (usage: compose-smoke.sh [--with-model] [--down])" >&2
+      echo "Unknown option: $arg (usage: compose-smoke.sh [--with-model] [--down] [--cold])" >&2
       exit 2
       ;;
   esac
@@ -171,6 +178,145 @@ cleanup_smoke_records() {
   fi
   return 0
 }
+
+# Cold start (D-15): the delivered image on fresh volumes, in an isolated project. It is defined
+# here because it uses the helpers above; it runs before the default flow and ends the script, so
+# the default flow's `trap cleanup_smoke_records EXIT` is never registered in cold mode.
+run_cold() {
+  local version major minor start size images doc_first offer_body cold_download cold_extract
+  version="$(docker compose version --short | tr -d '\r')"
+  version="${version#v}"
+  major="${version%%.*}"
+  minor="${version#*.}"
+  minor="${minor%%.*}"
+  case "$major$minor" in
+    '' | *[!0-9]*) fail "--cold could not read the Docker Compose version ('$version')" ;;
+  esac
+  if [ "$major" -lt 2 ] || { [ "$major" -eq 2 ] && [ "$minor" -lt 24 ]; }; then
+    fail "--cold needs Docker Compose v2.24 or later (scripts/compose.cold.yml uses !reset); found $version"
+  fi
+
+  export COMPOSE_PROJECT_NAME=expediente-cold
+  export COMPOSE_FILE=compose.yml:scripts/compose.cold.yml
+  export LLM_PROVIDER=mock
+  # `down -v` below must never reach the default project: it would delete the model volume.
+  [ "$COMPOSE_PROJECT_NAME" = "expediente-cold" ] || fail "refusing to continue: the project is not expediente-cold"
+  [ "$(docker compose config --format json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>process.stdout.write(JSON.parse(s).name))')" = "expediente-cold" ] \
+    || fail "refusing to continue: Compose resolved a project other than expediente-cold"
+  trap 'docker compose down -v --remove-orphans >/dev/null 2>&1 || true' EXIT
+  start=$SECONDS
+
+  echo "== cold: fresh volumes =="
+  docker compose down -v --remove-orphans
+  docker compose up -d --build --wait --wait-timeout 300 app mongo s3
+
+  echo "== cold: health =="
+  assert_health '"mongo":"ok","s3":"ok","llm":"ok"'
+
+  echo "== cold: image and pins =="
+  size="$(docker image inspect tfm-app:0.1.0 --format '{{.Size}}' | tr -d '\r')"
+  echo "tfm-app:0.1.0 is $size bytes (ceiling 450000000)"
+  [ "$size" -le 450000000 ] || fail "tfm-app:0.1.0 is $size bytes, over the 450000000 ceiling"
+  images="$(docker compose config --images)"
+  echo "$images"
+  if echo "$images" | grep -qE ':latest$'; then fail "an image is pinned to :latest"; fi
+  if echo "$images" | grep -qvE '.+:[^/:]+$'; then fail "an image has no tag"; fi
+  docker compose config --format json | node -e '
+    let s = "";
+    process.stdin.on("data", (d) => (s += d)).on("end", () => {
+      const services = JSON.parse(s).services;
+      const missing = ["mongo", "s3", "ollama"].filter((name) => !services[name] || !services[name].healthcheck);
+      if (missing.length > 0) { console.error("no healthcheck: " + missing.join(", ")); process.exit(1); }
+    });
+  ' || fail "mongo, s3 and ollama must all have a healthcheck"
+  [ "$(docker image inspect tfm-app:0.1.0 --format '{{json .Config.Healthcheck}}' | tr -d '\r')" != "null" ] \
+    || fail "tfm-app:0.1.0 has no HEALTHCHECK"
+
+  # Runs `npm run seed ARGS` inside the app container, detached and polled through files, because
+  # exec output can be dropped in this devcontainer (RESEARCH Pitfall 4). Leaves the seed's own
+  # output in SEED_OUTPUT.
+  run_seed() {
+    local label="$1" deadline=$((SECONDS + 120)) code=""
+    shift
+    docker compose exec -T app rm -f /tmp/seed.out /tmp/seed.code
+    docker compose exec -d app sh -c "npm run seed $* > /tmp/seed.out 2>&1; echo \$? > /tmp/seed.code"
+    while [ "$SECONDS" -lt "$deadline" ]; do
+      code="$(docker compose exec -T app cat /tmp/seed.code 2>/dev/null | tr -d '\r\n' || true)"
+      [ -n "$code" ] && break
+      sleep 1
+    done
+    SEED_OUTPUT="$(docker compose exec -T app cat /tmp/seed.out 2>/dev/null || true)"
+    echo "$SEED_OUTPUT"
+    [ -n "$code" ] || fail "$label did not finish within 120 s"
+    [ "$code" = "0" ] || fail "$label exited with code $code"
+  }
+
+  # Prints the number of items of the JSON array that `GET PATH` answers.
+  count_items() {
+    local answer
+    answer="$(http_send GET "$1")" || fail "GET $1 did not answer"
+    expect_status "GET $1" 200 "$answer"
+    echo "$answer" | sed 1d | node -e '
+      let s = "";
+      process.stdin.on("data", (d) => (s += d)).on("end", () => {
+        const items = JSON.parse(s);
+        process.stdout.write(String(Array.isArray(items) ? items.length : -1));
+      });
+    '
+  }
+
+  expect_seeded() {
+    local apps docs
+    apps="$(count_items /api/applications)"
+    docs="$(count_items /api/documents)"
+    [ "$apps" = "12" ] || fail "$1: the API lists $apps applications, expected 12"
+    [ "$docs" = "3" ] || fail "$1: the API lists $docs documents, expected 3"
+    echo "$1: 12 applications and 3 documents"
+  }
+
+  echo "== cold: seed in the image =="
+  run_seed "npm run seed"
+  echo "$SEED_OUTPUT" | grep -q "Seed listo: 12 candidaturas y 3 documentos" \
+    || fail "the seed did not print its summary: $SEED_OUTPUT"
+  expect_seeded "first seed"
+
+  echo "== cold: seed twice =="
+  run_seed "second npm run seed"
+  expect_seeded "second seed"
+
+  echo "== cold: seed --reset =="
+  run_seed "npm run seed -- --reset" -- --reset
+  echo "$SEED_OUTPUT" | grep -q "Borrando todo en" || fail "seed --reset did not announce the wipe: $SEED_OUTPUT"
+  expect_seeded "seed --reset"
+
+  echo "== cold: download =="
+  doc_first="$(http_send GET /api/documents | sed 1d | node -e '
+    let s = "";
+    process.stdin.on("data", (d) => (s += d)).on("end", () => process.stdout.write(String(JSON.parse(s)[0].id)));
+  ')"
+  [ -n "$doc_first" ] || fail "no seeded document to download"
+  cold_download="$(http_send GET "/api/documents/$doc_first/download")" \
+    || fail "GET /api/documents/$doc_first/download did not answer"
+  expect_status "GET /api/documents/$doc_first/download" 200 "$cold_download"
+  echo "$cold_download" | sed -n 2p | grep -q '^%PDF-' || fail "the seeded download does not start with %PDF-"
+
+  echo "== cold: mock extraction =="
+  offer_body="$(node -e '
+    const fs = require("node:fs");
+    process.stdout.write(JSON.stringify({ text: fs.readFileSync("docs/demo/ofertas/remote-senior.txt", "utf8") }));
+  ')"
+  cold_extract="$(http_send POST /api/offers/extract "$offer_body")" || fail "POST /api/offers/extract did not answer"
+  expect_status "POST /api/offers/extract" 200 "$cold_extract"
+  echo "$cold_extract" | grep -q "Lumen Analytics" || fail "the mock draft lacks its company: $cold_extract"
+
+  echo "cold start: $((SECONDS - start)) s"
+  echo "SMOKE OK"
+  exit 0
+}
+
+if [ "$COLD" = true ]; then
+  run_cold
+fi
 
 echo "== up =="
 # ollama-init is a one-shot (model pull) that exits 0 when done; `--wait` treats an exited
