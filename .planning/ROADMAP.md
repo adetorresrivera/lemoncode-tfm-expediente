@@ -187,7 +187,7 @@ Plans:
   3. In the application form the user can link one CV and one cover letter, choosing an existing document or uploading a new one without leaving the form (the document section of the form lands in this phase).
   4. The application detail shows the linked documents and the user can download each of them.
   5. Deleting a document that is linked to any application is rejected with 409 `DOCUMENT_IN_USE`.
-**Plans**: 10/10 plans executed (1 gap closure from UAT 2026-11-06 pending)
+**Plans**: 10/11 plans executed (gap closure 05-11 from UAT re-test 2026-11-06 pending)
 Plans:
 **Wave 1**
 - [x] 05-01-PLAN.md — API tracer: multipart POST /api/documents → body cap, signature check (ZIP central directory), slugged key → real Silo + Mongo with compensation; contracts `fileName` and list item `usedBy`; every 400/413/415 limit (wave 1)
@@ -212,6 +212,9 @@ Plans:
 
 **Gap closure wave 1** *(UAT 2026-11-06)*
 - [x] 05-10-PLAN.md — G-05-4: the upload dialog's native file button styled as the DS outline/sm button (border, fill, hover, Label role) and centred beside the Body-role file name in the 44 px control (local className, shared Input unchanged), class test and UI-SPEC «Archivo» row; closes only on the human check (UAT test 4, both themes), with an in-plan fallback
+
+**Gap closure wave 2** *(UAT re-test 2026-11-06, after 05-10)*
+- [ ] 05-11-PLAN.md — G-05-4b: the «Archivo» file input loses its box (no border, fill or side padding, min 44 px) and the native file button takes the h-11 / px-4 outline look of «Descartar subida», with the invalid state on the button border (local className, shared Input unchanged), class test and UI-SPEC «Archivo» row; closes only on the human re-test (UAT test 4, both themes, both modes)
 **UI hint**: yes
 
 ### Phase 6: Pulido de demo
