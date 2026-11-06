@@ -8,9 +8,9 @@ files_reviewed_list:
   - apps/web/src/pods/document-upload/document-upload.test.tsx
 findings:
   critical: 0
-  warning: 2
-  info: 2
-  total: 4
+  warning: 3
+  info: 3
+  total: 6
 status: issues_found
 ---
 
@@ -23,40 +23,47 @@ status: issues_found
 
 ## Summary
 
-Reviewed the upload dialog and its test file, with extra attention to the diff against `d38d87a`. That diff is the 05-10 change: the native file button is restyled as an outline button, and a class-assertion test was added. The dialog logic is sound. It covers close guard while uploading, focus handling, `stopPropagation` across the Radix portal, name prefill without overwriting typed names, and an `aria-invalid` focus move after a frame. I found no crash, security or data-loss defects. The issues are in the new test and in fragile styling arithmetic.
+I reviewed the upload dialog component and its test file. I also read the hook, mapper, shared `Input`, `cn` and container to check how they fit together. `vitest run src/pods/document-upload` passes (52 tests) and ESLint is clean on the pod. I found no correctness or security defects in the component. The close guard, the submit propagation stop, the name prefill and the focus handling all trace through correctly. The weaknesses are in the tests: one timing-dependent test and one guard that no test actually exercises. Some UX and maintainability points remain.
 
 ## Warnings
 
-### WR-01: New styling test asserts class strings, not behavior, and part of it cannot fail
+### WR-01: Success-line timer test can flake on fake-timer drift
 
-**File:** `apps/web/src/pods/document-upload/document-upload.test.tsx:571-607`
-**Issue:** jsdom computes no layout or pseudo-element styles. The test name promises an outline button "centred in the 44 px control", but it only checks that a list of Tailwind class names is present.
-- It re-types the className literal from `upload-dialog.tsx:211`, so any restyle needs two edits and the test proves nothing about the rendered result.
-- Several asserted classes (`h-11`, `text-base`, `focus-visible:ring-2`, `focus-visible:ring-ring`, `min-w-0`, `w-full`) come from `Input`'s base classes in `ui/input.tsx`, not from this change. The test now fails on unrelated edits to the shared `Input`.
-- `expect(nameInput(dialog)).not.toHaveClass("py-1.25")` is nearly tautological, because nothing in the name field could add that class.
-- The two `.not.toHaveClass("file:bg-transparent" / "file:border-0")` checks only guard against a revert of the exact old string.
+**File:** `apps/web/src/pods/document-upload/document-upload.test.tsx:646-672`
+**Issue:** The test uses `vi.useFakeTimers({ shouldAdvanceTime: true })`, so the fake clock also advances with real time. The 5 s timer starts when the upload resolves. It is then followed by `findByText` polling and a React flush. Only after that does the test advance 4900 ms and assert the line is still visible. That leaves a 100 ms margin. Any real-time lag over 100 ms between the timer arming and the first `advanceTimersByTime(4900)` makes `getByText("Documento subido.")` throw. A loaded CI runner can hit this. The test would then fail for a reason unrelated to the code.
+**Fix:** Drop `shouldAdvanceTime`, and drive the fake clock only through `advanceTimers: vi.advanceTimersByTime` on `userEvent`. Await the upload with `act` plus `vi.advanceTimersByTimeAsync(0)` instead of real-time polling. Alternatively widen the margin: assert at 4000 ms, then advance 1500 ms.
 
-**Fix:** Drop the test, or reduce it to a small guard that does not duplicate the literal. Verify the visual result with the UI review or a manual check at 360 px. If a regression guard is wanted, assert only the two classes that carry the intent, `py-1.25` and `file:h-8`, and rename the test to say it checks the class contract (for example "keeps the vertical padding that centres the file button").
+### WR-02: The "outside pointer never closes it" guard is not tested where it matters
 
-### WR-02: Timer test has a 100 ms margin and runs on a clock that advances in real time
+**File:** `apps/web/src/pods/document-upload/document-upload.test.tsx:420-431` (guard at `upload-dialog.tsx:72`)
+**Issue:** The component's documented rule is that an outside pointer never closes the dialog, so a stray click cannot discard typed data. The only test that fires `pointerDown` on the overlay does so while `uploading` is true. In that state `handleOpenChange` already ignores every close request. The test would still pass if `onInteractOutside={(event) => event.preventDefault()}` were deleted. The idle case, where a click outside would close the dialog and drop the filled values, has no coverage. The `Escape` close while idle is covered by the focus test, but the pointer one is not.
+**Fix:** Add an idle test. Open the dialog, type a version, then `fireEvent.pointerDown` on `[data-slot="dialog-overlay"]` and assert the dialog is still present and `versionInput` still holds its value.
 
-**File:** `apps/web/src/pods/document-upload/document-upload.test.tsx:609-635`
-**Issue:** The test uses `vi.useFakeTimers({ shouldAdvanceTime: true })`. With this option the fake clock also advances with real time. It then asserts the message is still present after 4900 ms of fake time, and gone after 200 ms more. The window before the 5000 ms timeout fires is 100 ms. On a slow CI run, real time elapsed between the success message appearing and `advanceTimersByTime(4900)` (`findByText`, `act` flushes) is added to the fake clock. The line can then clear before the "still present" assertion, which makes the test flaky. This test predates the 05-10 diff but is in the reviewed file.
-**Fix:** Use `vi.useFakeTimers()` without `shouldAdvanceTime`. If `userEvent` needs it, keep the option but widen the margin (assert presence at 4000 ms, absence at 5100 ms or later). Also move `vi.useFakeTimers` after `render` and the upload so only the 5 s timer is faked.
+### WR-03: Close «X» stays active-looking but does nothing while uploading
+
+**File:** `apps/web/src/pods/document-upload/components/upload-dialog.tsx:65-67`
+**Issue:** While a request is in flight, `handleOpenChange` silently swallows the close request. The shared `DialogContent` still renders the «Cerrar» button, enabled and focusable (the test at line 423 confirms it is clickable). A keyboard or screen-reader user who activates it gets no response and no explanation. The only cue is that «Cancelar subida» now has focus. This is a silent no-op control, which is an accessibility and UX defect.
+**Fix:** While uploading, give the user feedback when a close is attempted. For example, set a "close blocked" live message such as «Cancela la subida para cerrar.» in `handleOpenChange`. Alternatively pass a prop to hide or disable the X while `uploading`, which needs a small change to `DialogContent`.
 
 ## Info
 
-### IN-01: File-button vertical centring depends on three unrelated magic numbers
+### IN-01: Test asserts Tailwind class names, including ones inherited from the shared Input
 
-**File:** `apps/web/src/pods/document-upload/components/upload-dialog.tsx:211`
-**Issue:** `py-1.25` (5 px) is correct only while `Input` stays at `h-11` (44 px), the 1 px input border stays, and the button stays at `file:h-8` (32 px): 44 - 2 - 32 = 10 px, split as 5 px per side. The coupling is implicit and appears nowhere except a hidden calculation. `py-1.25` is also the only non-integer spacing step in the codebase (grep found no other use). The `::file-selector-button` also renders slightly differently in Safari and Firefox, and no cross-browser check is recorded.
-**Fix:** Add a one-line comment above the className: `// 44 px control - 2 px border - 32 px button = 10 px, so py-1.25 on each side`. Also check the dialog in Firefox and Safari.
+**File:** `apps/web/src/pods/document-upload/document-upload.test.tsx:571-644`
+**Issue:** The test pins about 30 class tokens, including `rounded-md`, `text-base` and `focus-visible:ring-*`. These come from `common/components/ui/input.tsx`, not from this pod. It also asserts the absence of `py-1.25`, `file:h-8` and similar leftovers from earlier plans. It checks class strings, not rendered behavior, because jsdom has no layout. Any harmless refactor of the shared Input or of the class order breaks it. It also couples this pod's tests to the Input implementation.
+**Fix:** Keep only the few assertions that guard the intent (`file:h-11`, `border-0`, `bg-transparent`, `px-0`). Drop the assertions on inherited tokens and the list of removed classes.
 
-### IN-02: Outline file button has very low boundary contrast
+### IN-02: Misleading helper name in a test
 
-**File:** `apps/web/src/pods/document-upload/components/upload-dialog.tsx:211`
-**Issue:** `file:border-border` (#dcd2bd) on a `bg-card` input (#fffdf8), with a `bg-background` (#f6f1e6) fill, gives well under 3:1 non-text contrast for the button edge. This mirrors the existing `Button` outline variant, so it is consistent, and the "Elegir archivo" label is readable. Still, the project constraint is WCAG AA contrast, and the control's boundary is the input's `border-input` (#8c7f64), not this inner border.
-**Fix:** If a visible inner edge is required, use `file:border-input`. Otherwise treat it as an accepted DS limitation and note it in the UI review.
+**File:** `apps/web/src/pods/document-upload/document-upload.test.tsx:496, 547, 623`
+**Issue:** `submit(dialog, "Descartar subida")` returns the cancel/discard button. The helper is named `submit`, so these calls read as submitting. It is a generic "button by name" lookup.
+**Fix:** Rename the helper to `button` or `dialogButton`, or add a `discard(dialog)` helper for the «Descartar subida» cases.
+
+### IN-03: `Field` and `controlProps` duplicated from the application form
+
+**File:** `apps/web/src/pods/document-upload/components/upload-dialog.tsx:341-418`
+**Issue:** The comment acknowledges that the field shell and the aria wiring are copied from the application form because a pod cannot import another pod. Two copies will drift, for example if one gains `aria-live` on errors and the other does not. The shared place for this is `common/components`.
+**Fix:** Move `Field`, `firstFieldError` and `controlProps` to `common/components` (for example `form-field.tsx`), and import them from both pods.
 
 ---
 
