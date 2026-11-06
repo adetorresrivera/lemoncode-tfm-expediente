@@ -61,7 +61,7 @@ export function StatusBadge({ status }: Props) {
   const { badge, dot, Icon } = STATUS_STYLES[status];
   return (
     <span
-      className={`inline-flex items-center gap-2 rounded-sm px-2 py-0.5 text-sm font-semibold ${badge}`}
+      className={`inline-flex items-center gap-2 rounded-sm px-2 py-1 text-sm font-semibold ${badge}`}
     >
       <span aria-hidden="true" className={`size-1.5 rounded-full ${dot}`} />
       <Icon aria-hidden="true" className="size-4" strokeWidth={1.5} />
