@@ -1,5 +1,5 @@
 import { readFileSync } from "node:fs";
-import type { S3Client } from "@aws-sdk/client-s3";
+import { ListObjectsV2Command, type S3Client } from "@aws-sdk/client-s3";
 import { applicationStatusSchema } from "@tfm/contracts";
 import { ObjectId } from "mongodb";
 import {
@@ -26,7 +26,7 @@ import {
 import { pdfBytes, readStream, TEST_BUCKET } from "../../test/documents.js";
 import { useTestDb, type TestDb } from "../../test/mongo.js";
 import { buildSeedPlan } from "./seed.plan.js";
-import { runSeed } from "./seed.run.js";
+import { parseSeedArgs, runSeed, SeedUsageError } from "./seed.run.js";
 
 const NOW = new Date(Date.UTC(2026, 10, 6, 10, 0, 0));
 const PLAN = buildSeedPlan(NOW);
@@ -54,13 +54,8 @@ beforeAll(async () => {
   storage = createDocumentStorage(s3, TEST_BUCKET);
 });
 
-// A leftover of an interrupted run must not change the counts of the next case.
-beforeEach(async () => {
-  await testDb.reset();
-});
-
 // Removes every object of the documents left in tfm_test, then the records.
-afterEach(async () => {
+async function wipe(): Promise<void> {
   const docs = await testDb.db
     .collection("documents")
     .find({}, { projection: { s3Key: 1 } })
@@ -69,21 +64,62 @@ afterEach(async () => {
     if (typeof doc["s3Key"] === "string") await storage.delete(doc["s3Key"]);
   }
   await testDb.reset();
-});
+}
+
+// A leftover of an interrupted run must not change the counts of the next case.
+beforeEach(wipe);
+afterEach(wipe);
 
 afterAll(async () => {
   s3.destroy();
   await testDb.close();
 });
 
-function seed(): ReturnType<typeof runSeed> {
+function seed(
+  options: {
+    reset?: boolean;
+    storage?: DocumentStorage;
+    log?: (line: string) => void;
+  } = {},
+): ReturnType<typeof runSeed> {
   return runSeed({
     db: testDb.db,
     s3,
     bucket: TEST_BUCKET,
-    log: () => undefined,
+    log: options.log ?? (() => undefined),
     now: () => NOW,
+    reset: options.reset ?? false,
+    ...(options.storage === undefined ? {} : { storage: options.storage }),
   });
+}
+
+async function listKeys(): Promise<string[]> {
+  const out = await s3.send(new ListObjectsV2Command({ Bucket: TEST_BUCKET }));
+  return (out.Contents ?? []).flatMap((object) =>
+    object.Key === undefined ? [] : [object.Key],
+  );
+}
+
+function userApplication(cvDocumentId: string | null) {
+  return {
+    title: "Puesto propio",
+    company: "Empresa propia",
+    location: null,
+    workMode: null,
+    seniority: null,
+    contractType: null,
+    salaryMin: null,
+    salaryMax: null,
+    currency: null,
+    tags: [],
+    sourceUrl: null,
+    offerText: null,
+    appliedAt: null,
+    notes: null,
+    cvDocumentId,
+    coverLetterDocumentId: null,
+    status: "guardada" as const,
+  };
 }
 
 function services(): {
@@ -340,5 +376,183 @@ describe("runSeed", () => {
       expect(text.length).toBeGreaterThan(2);
       expect(text).not.toContain('"seed"');
     }
+  });
+
+  it("keeps a user's application, document and extra bucket object on a normal run", async () => {
+    const { documents, applications } = services();
+    const ownDocument = await documents.upload(
+      { type: "cv", name: "Mi CV", version: "v1" },
+      { fileName: "mi-cv.pdf", bytes: pdfBytes() },
+    );
+    await applications.create(userApplication(ownDocument.id));
+    await storage.put("orphans/extra.pdf", pdfBytes(), "application/pdf");
+
+    try {
+      await seed();
+
+      expect(await seededCounts()).toEqual({ applications: 12, documents: 3 });
+      expect(await testDb.db.collection("applications").countDocuments()).toBe(
+        13,
+      );
+      expect(await storage.get("orphans/extra.pdf")).not.toBeNull();
+    } finally {
+      await storage.delete("orphans/extra.pdf");
+    }
+  });
+
+  it("announces what it deletes, then empties the database and the bucket", async () => {
+    const { documents, applications } = services();
+    const ownDocument = await documents.upload(
+      { type: "cv", name: "Mi CV", version: "v1" },
+      { fileName: "mi-cv.pdf", bytes: pdfBytes() },
+    );
+    await applications.create(userApplication(ownDocument.id));
+    await storage.put("orphans/extra.pdf", pdfBytes(), "application/pdf");
+    const objectsBefore = (await listKeys()).length;
+    expect(objectsBefore).toBeGreaterThanOrEqual(2);
+
+    const lines: string[] = [];
+    await seed({ reset: true, log: (line) => lines.push(line) });
+
+    expect(lines.find((line) => line.startsWith("Borrando todo en"))).toBe(
+      `Borrando todo en tfm_test / ${TEST_BUCKET}: 1 candidaturas, 1 documentos, ${objectsBefore} objetos.`,
+    );
+    expect(await seededCounts()).toEqual({ applications: 12, documents: 3 });
+    expect(await testDb.db.collection("applications").countDocuments()).toBe(
+      12,
+    );
+    expect(await testDb.db.collection("documents").countDocuments()).toBe(3);
+    expect(await listKeys()).toHaveLength(3);
+    expect(await storage.get("orphans/extra.pdf")).toBeNull();
+  });
+
+  it("deletes nothing when the announcement itself fails", async () => {
+    const { documents, applications } = services();
+    const ownDocument = await documents.upload(
+      { type: "cv", name: "Mi CV", version: "v1" },
+      { fileName: "mi-cv.pdf", bytes: pdfBytes() },
+    );
+    await applications.create(userApplication(ownDocument.id));
+    const objectsBefore = (await listKeys()).length;
+
+    await expect(
+      seed({
+        reset: true,
+        log: (line) => {
+          if (line.startsWith("Borrando todo en")) {
+            throw new Error("announcement interrupted");
+          }
+        },
+      }),
+    ).rejects.toThrow("announcement interrupted");
+
+    expect(await testDb.db.collection("applications").countDocuments()).toBe(1);
+    expect(await testDb.db.collection("documents").countDocuments()).toBe(1);
+    expect(await listKeys()).toHaveLength(objectsBefore);
+  });
+
+  it("brings a rehearsal back to exactly the seeded records", async () => {
+    await seed();
+    await services().applications.create(userApplication(null));
+    await services().documents.upload(
+      { type: "carta", name: "Carta de ensayo", version: "v1" },
+      { fileName: "ensayo.pdf", bytes: pdfBytes() },
+    );
+
+    await seed({ reset: true });
+
+    expect(await testDb.db.collection("applications").countDocuments()).toBe(
+      12,
+    );
+    expect(await testDb.db.collection("documents").countDocuments()).toBe(3);
+    expect(await seededCounts()).toEqual({ applications: 12, documents: 3 });
+    expect(await listKeys()).toHaveLength(3);
+  });
+
+  it("keeps and unmarks a seeded document that a user application links", async () => {
+    await seed();
+    const linked = await testDb.db
+      .collection("documents")
+      .findOne({ seed: true, type: "cv", name: "CV Full Stack" });
+    expect(linked).not.toBeNull();
+    const linkedId = String(linked?.["_id"]);
+    const linkedKey = String(linked?.["s3Key"]);
+    const { documents, applications } = services();
+    const own = await applications.create(userApplication(linkedId));
+
+    const lines: string[] = [];
+    await seed({ log: (line) => lines.push(line) });
+
+    const kept = await testDb.db
+      .collection("documents")
+      .findOne({ _id: new ObjectId(linkedId) });
+    expect(kept).not.toBeNull();
+    expect(kept).not.toHaveProperty("seed");
+    expect(await storage.get(linkedKey)).not.toBeNull();
+    const stillLinked = await applications.get(new ObjectId(own.id));
+    expect(stillLinked.cvDocumentId).toBe(linkedId);
+    const opened = await documents.open(new ObjectId(linkedId));
+    expect(
+      Buffer.from((await readStream(opened.stream)).slice(0, 5)).toString(
+        "latin1",
+      ),
+    ).toBe("%PDF-");
+
+    expect(await seededCounts()).toEqual({ applications: 12, documents: 3 });
+    expect(await testDb.db.collection("documents").countDocuments()).toBe(4);
+    expect(lines).toContain(
+      "1 documentos de demo quedan en tu biblioteca porque los usa una candidatura tuya.",
+    );
+  });
+
+  it("leaves only marked records after an interrupted run and recovers on the next one", async () => {
+    let puts = 0;
+    const failingSecondUpload: DocumentStorage = {
+      ...storage,
+      put: async (key, body, contentType) => {
+        puts += 1;
+        if (puts === 2) throw new Error("upload rejected");
+        await storage.put(key, body, contentType);
+      },
+    };
+
+    await expect(seed({ storage: failingSecondUpload })).rejects.toThrow(
+      "upload rejected",
+    );
+
+    expect(await testDb.db.collection("documents").countDocuments()).toBe(
+      await testDb.db.collection("documents").countDocuments({ seed: true }),
+    );
+    expect(await testDb.db.collection("applications").countDocuments()).toBe(
+      await testDb.db.collection("applications").countDocuments({ seed: true }),
+    );
+
+    await seed();
+
+    expect(await seededCounts()).toEqual({ applications: 12, documents: 3 });
+    expect(await testDb.db.collection("applications").countDocuments()).toBe(
+      12,
+    );
+    expect(await testDb.db.collection("documents").countDocuments()).toBe(3);
+  });
+});
+
+describe("parseSeedArgs", () => {
+  it("accepts no arguments and --reset", () => {
+    expect(parseSeedArgs([])).toEqual({ reset: false });
+    expect(parseSeedArgs(["--reset"])).toEqual({ reset: true });
+  });
+
+  it("rejects anything else with the usage line", () => {
+    expect(() => parseSeedArgs(["--rest"])).toThrow(SeedUsageError);
+    expect(() => parseSeedArgs(["--rest"])).toThrow(
+      "Opción desconocida: --rest",
+    );
+    expect(() => parseSeedArgs(["--reset", "extra"])).toThrow(
+      "Opción desconocida: extra",
+    );
+    expect(() => parseSeedArgs(["--rest"])).toThrow(
+      "Uso: npm run seed [-- --reset]",
+    );
   });
 });
