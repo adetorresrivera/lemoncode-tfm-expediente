@@ -586,7 +586,7 @@ describe("DocumentUploadContainer", () => {
       "text-base",
       "focus-visible:ring-2",
       "focus-visible:ring-ring",
-      "file:mr-3",
+      "file:mr-4",
       "file:inline-flex",
       "file:h-11",
       "file:items-center",

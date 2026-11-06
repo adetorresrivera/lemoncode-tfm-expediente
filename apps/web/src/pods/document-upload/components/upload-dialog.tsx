@@ -208,7 +208,7 @@ function UploadForm({
                 })}
                 type="file"
                 accept=".pdf,.docx"
-                className="h-auto min-h-11 w-full min-w-0 border-0 bg-transparent px-0 file:mr-3 file:inline-flex file:h-11 file:cursor-pointer file:items-center file:rounded-md file:border file:border-border file:bg-background file:px-4 file:text-sm file:font-semibold file:text-foreground file:shadow-xs file:transition-colors hover:file:bg-accent hover:file:text-accent-foreground aria-invalid:file:border-destructive"
+                className="h-auto min-h-11 w-full min-w-0 border-0 bg-transparent px-0 file:mr-4 file:inline-flex file:h-11 file:cursor-pointer file:items-center file:rounded-md file:border file:border-border file:bg-background file:px-4 file:text-sm file:font-semibold file:text-foreground file:shadow-xs file:transition-colors hover:file:bg-accent hover:file:text-accent-foreground aria-invalid:file:border-destructive"
                 name={field.name}
                 onBlur={field.handleBlur}
                 onChange={(event) => {
@@ -377,7 +377,7 @@ function Field({
           <CircleAlert
             aria-hidden="true"
             strokeWidth={1.5}
-            className="mt-0.5 size-4 shrink-0 text-destructive"
+            className="mt-1 size-4 shrink-0"
           />
           <span>{error}</span>
         </p>
