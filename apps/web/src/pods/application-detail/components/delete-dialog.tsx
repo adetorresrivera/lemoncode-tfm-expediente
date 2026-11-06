@@ -52,7 +52,7 @@ export function DeleteDialog({
       </AlertDialogTrigger>
       <AlertDialogContent onOverlayClick={() => handleOpenChange(false)}>
         <AlertDialogTitle>¿Eliminar esta candidatura?</AlertDialogTitle>
-        <AlertDialogDescription className="break-words">
+        <AlertDialogDescription className="min-w-0 break-words">
           Vas a eliminar «{title}» de {company}. Esta acción no se puede
           deshacer. Los documentos vinculados no se eliminan.
         </AlertDialogDescription>
