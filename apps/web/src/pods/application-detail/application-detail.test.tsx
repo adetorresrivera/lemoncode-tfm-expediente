@@ -1120,6 +1120,39 @@ describe("delete dialog", () => {
     ).toHaveFocus();
     expect(onDeleted).not.toHaveBeenCalled();
   });
+
+  it("reopens clean after a failed DELETE: no previous error and focus on «Conservar candidatura»", async () => {
+    mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "DELETE /api/applications/a1": serverError,
+    });
+    renderDetail();
+    const { trigger, dialog } = await openDeleteDialog();
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar candidatura" }),
+    );
+    await within(dialog).findByText(
+      "No se pudo eliminar la candidatura. Inténtalo de nuevo.",
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Conservar candidatura" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    await userEvent.click(trigger);
+
+    const reopened = await screen.findByRole("alertdialog");
+    expect(
+      within(reopened).queryByText(
+        "No se pudo eliminar la candidatura. Inténtalo de nuevo.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      within(reopened).getByRole("button", { name: "Conservar candidatura" }),
+    ).toHaveFocus();
+  });
 });
 
 describe("arrival notice", () => {
