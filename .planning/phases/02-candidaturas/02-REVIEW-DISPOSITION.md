@@ -19,8 +19,9 @@ findings:
     title: "Delete dialog shows a stale error after cancel and reopen"
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "List shows \"no results\" while a refetch is in flight"
+    note: "Fixed in 06-06"
   - id: IN-01
     severity: info
     disposition: open
