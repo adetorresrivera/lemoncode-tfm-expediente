@@ -35,13 +35,14 @@ export const applicationFieldsSchema = z.object({
   // http/https only: a stored javascript: URL would become a clickable link.
   sourceUrl: z
     .url({ protocol: /^https?$/ })
+    .max(2048)
     .nullable()
     .default(null),
   offerText: z.string().max(20000).nullable().default(null),
   appliedAt: z.iso.datetime().nullable().default(null),
   notes: z.string().trim().max(5000).nullable().default(null),
-  cvDocumentId: z.string().min(1).nullable().default(null),
-  coverLetterDocumentId: z.string().min(1).nullable().default(null),
+  cvDocumentId: z.string().min(1).max(64).nullable().default(null),
+  coverLetterDocumentId: z.string().min(1).max(64).nullable().default(null),
 });
 
 const salaryOrder = (v: {

@@ -5,6 +5,8 @@ import {
   statusChangeSchema,
 } from "@tfm/contracts";
 import { Hono } from "hono";
+import { bodyLimit } from "hono/body-limit";
+import { ApiError } from "../errors.js";
 import { parseObjectId } from "../http/object-id.js";
 import { queryInput } from "../http/query-input.js";
 import { requireJson } from "../http/require-json.js";
@@ -15,6 +17,20 @@ export function applicationsRoutes(service: ApplicationsService): Hono {
   const routes = new Hono();
 
   routes.use("*", requireJson);
+  // Capped per router, so the upload route keeps its own 5 MB limit.
+  routes.use(
+    "*",
+    bodyLimit({
+      maxSize: 256 * 1024,
+      onError: () => {
+        throw new ApiError(
+          413,
+          "VALIDATION_ERROR",
+          "Solicitud demasiado grande",
+        );
+      },
+    }),
+  );
 
   routes.get("/", async (c) =>
     c.json(
