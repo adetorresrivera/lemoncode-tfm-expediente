@@ -56,4 +56,5 @@ blocked: 0
   missing:
     - "Give the file input vertical padding (e.g. py-2) and a fixed-height, vertically centred file: button (file:h-7 file:inline-flex file:items-center), with matching text size for button and label (text-sm), so both sit centred in the 44 px control at 360 px and desktop"
     - "Keep the change local to the upload dialog (do not alter the shared Input for text fields)"
+    - "Style the file-selector as a DS outline/sm button (user re-test 2026-11-06: 'does not look like a button at all')"
   debug_session: ""

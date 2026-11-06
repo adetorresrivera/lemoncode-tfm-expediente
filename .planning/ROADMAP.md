@@ -211,7 +211,7 @@ Plans:
 - [x] 05-09-PLAN.md — Compose smoke documents round trip, DOMAIN/ARCHITECTURE/DESIGN updates and the phase gate (wave 6)
 
 **Gap closure wave 1** *(UAT 2026-11-06)*
-- [ ] 05-10-PLAN.md — G-05-4: the upload dialog's file input centres the native button and the file name, both 16 px, on one baseline in the 44 px control (local className, shared Input unchanged), class test and UI-SPEC «Archivo» row; closes only on the human check (UAT test 4), with an in-plan fallback
+- [ ] 05-10-PLAN.md — G-05-4: the upload dialog's native file button styled as the DS outline/sm button (border, fill, hover, Label role) and centred beside the Body-role file name in the 44 px control (local className, shared Input unchanged), class test and UI-SPEC «Archivo» row; closes only on the human check (UAT test 4, both themes), with an in-plan fallback
 **UI hint**: yes
 
 ### Phase 6: Pulido de demo
