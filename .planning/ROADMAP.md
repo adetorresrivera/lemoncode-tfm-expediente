@@ -229,7 +229,7 @@ Plans:
   3. Every screen is usable from 360 px width without horizontal scroll, and fully operable with the keyboard alone, with visible focus, labelled fields, `aria-live="polite"` on load, error and AI results, and AA contrast in light and dark themes.
   4. The full demo flow (paste offer → autofill → review → save → add round → attach CV → change status → see it filtered) completes in under 2 minutes on a clean machine, both with Ollama and with `mock`.
   5. Tests pending from earlier phases are written, and `npm run typecheck && npm run test` pass on a clean checkout.
-**Plans**: 9/17 plans executed
+**Plans**: 10/17 plans executed
 Plans:
 **Wave 1**
 - [x] 06-01-PLAN.md — Seed tracer: `npm run seed` → compiled `dist/scripts/seed.js` → services with an injected clock → Mongo + Silo, idempotent `seed: true` mark, one linked CV and one application (wave 1)
@@ -249,7 +249,7 @@ Plans:
 - [x] 06-08-PLAN.md — Token sweep of the remaining pod files: no destructive icon tint, on-scale offsets and skeleton gaps (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 06-09-PLAN.md — Dialog close lock with spoken feedback on the upload and round dialogs (wave 5)
+- [x] 06-09-PLAN.md — Dialog close lock with spoken feedback on the upload and round dialogs (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 06-10-PLAN.md — Reset-on-open delete dialogs (application, round, document) (wave 6)
@@ -308,5 +308,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Autocompletado con IA | 12/12 | Complete    | 2026-11-01 |
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
 | 5. Documentos en S3 | 11/11 | Complete    | 2026-11-06 |
-| 6. Pulido de demo | 9/17 | In Progress | - |
+| 6. Pulido de demo | 10/17 | In Progress | - |
 | 7. Documentación y defensa | 0/TBD | Not started | - |
