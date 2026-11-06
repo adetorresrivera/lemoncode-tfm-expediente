@@ -2,16 +2,16 @@
 gsd_state_version: "1.0"
 current_phase: 6
 current_phase_name: Pulido de demo
-status: planning
+status: executing
 stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-11-06T09:50:18.255Z"
+last_updated: "2026-11-06T18:21:11.408Z"
 last_activity: 2026-11-06
 last_activity_desc: "Phase 05 shipped as PR #5"
-state_head: d70e91921a0ba3b23c3ce1c06ce63b0d92b9b258
+state_head: 00a9e0c1be121fce1a9019ce9a223dc8f8ba1b25
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 45
+  total_plans: 62
   completed_plans: 45
   percent: 71
 ---
@@ -27,9 +27,9 @@ See: .planning/PROJECT.md (updated 2026-11-06)
 
 ## Current Position
 
-Phase: 6 — Pulido de demo
+Phase: 6 (Pulido de demo) — READY TO EXECUTE
 Plan: Not started
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-11-06 -- Phase 05 shipped as PR #5
 
 Progress: [███████░░░] 71%
@@ -97,6 +97,7 @@ None yet.
 
 - [Phase 4]: Open findings in `04-REVIEW-DISPOSITION.md`: WR-01 the `busy` lock (`busyRef`) is still one slot while feedback and timers are per application (a second mutation on A is possible after A → B → A with A pending); WR-02 the unmount-cancels-timers test only asserts `clearTimeout` ≥ 1; IN-01 `endBusy` own-lock guard untested; IN-02 `deletingRef`/`onDeleted` not scoped per application; IN-03 per-key error feedback never pruned. `/gsd-code-review 04 --fix` applies the warnings. `04-01/02-SUMMARY.md` key-files list paths without the `apps/web/src/` prefix.
 - [Phase 5]: Open findings in `05-REVIEW-DISPOSITION.md` (WR-01..WR-03, IN-01..IN-06), incl. a possibly flaky timer test and an untested idle outside-pointer case. UI review top fixes not applied: error icons tinted `text-destructive` against the UI-SPEC, dialog X silently ignored during upload, `mt-0.5`/`file:mr-3` off-scale. `05-VALIDATION.md` still draft (`/gsd-validate-phase 05` not run). Several 05-SUMMARY key-files lack the `apps/*/src/` prefix.
+- [Phase 6 plan]: Plan check accepted by the user on 2026-11-06 with 1 open warning (override): in 06-17 Task 3, a code fix after the human pass re-runs only typecheck/lint/test/clean checkout/image build, so other green map rows (incl. `compose-smoke.sh --cold`) keep pre-fix evidence. If Task 3 changes anything under `apps/`, re-run every map command; `/gsd-verify-work 06` must re-run the full suite and the cold smoke. Advisory: record the log dir in the SUMMARY; timed runs are truncated to whole seconds.
 
 ### Quick Tasks Completed
 
