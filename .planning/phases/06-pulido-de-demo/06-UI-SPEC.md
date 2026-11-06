@@ -1,7 +1,8 @@
 ---
 phase: "06"
 slug: pulido-de-demo
-status: draft
+status: approved
+reviewed_at: "2026-11-06"
 shadcn_initialized: true
 preset: none
 created: "2026-11-06"
@@ -322,7 +323,7 @@ One image: the seeded `/applications` list, **light** theme, viewport **1280 × 
 
 Empty / error / loading **copy** lives in the Copywriting Contract above and in the approved Phase 2-5 contracts; this table covers state coverage per view and references them. Elements: E1 shell (nav, skip link, theme toggle, sheet), E2 not-found / route-error screens, E3 application list, E4 application detail, E5 application form and AI panel, E6 `/documents` screen, E7 dialogs with an in-flight lock, E8 seeded demo data.
 
-Applicable state considerations resolved: 24 covered, 5 backstop, 2 dismissed, 0 unresolved (31 rows). Written by the researcher; the engine probe of `/gsd-ui-phase` Step 9.5 may replace these rows idempotently.
+Applicable state considerations resolved: 36 covered, 8 backstop, 5 dismissed, 0 unresolved (49 rows). Researcher rows completed by the engine probe of `/gsd-ui-phase` Step 9.5 on 2026-11-06 (52 probe items; E7 kinds confirmed by the user as modal + form; gap resolutions confirmed by the user).
 
 | Category | Element(s) | Status | Resolution / Reason |
 |----------|------------|--------|---------------------|
@@ -355,6 +356,24 @@ Applicable state considerations resolved: 24 covered, 5 backstop, 2 dismissed, 0
 | overflow | E1 Sheet navigation and theme toggle at 360 px | 🧪 backstop | Manual 360 px pass; the toggle is stacked (14 px label, `px-1`, about 15 px free per item, Layout §2 / A9) and the 28 px wordmark is checked in the 56 px bar. |
 | a11y | All screens: AA contrast, light and dark | ✅ covered | `contrast.test.ts` over the token pairs of the Color section (jsdom cannot run axe `color-contrast`) plus the manual pass. |
 | populated | E8 Seeded list of 12 | ✅ covered | All 7 statuses, `+N`, long title, no-salary, no-location cases (Layout §9). |
+| partial | E3 Card without salary or location | ✅ covered | The missing field's line is omitted, not shown as an empty label; the seed has both cases (Layout §9). |
+| empty | E4 Application with no rounds and no documents | ✅ covered | Existing Phase 2 / 4 empty copy for rounds and the Phase 5 empty documents aside; not re-specified. |
+| zero-one-many | E4 Rounds 0 / 1 / 3 | ✅ covered | The seed provides 0, 1 and 3 rounds; ordered by round number, singular / plural labels unchanged. |
+| overflow | E4 Detail at 360 px | 🧪 backstop | Manual pass S3 / S4: long title, rounds list and documents aside stack without horizontal scroll. |
+| empty | E5 Blank create form | ✅ covered | Fields empty with visible labels; the AI panel is idle until text is pasted (Phase 3). |
+| populated | E5 Edit form prefilled | ✅ covered | Edit form loads every saved field; manual pass S6. |
+| zero-one-many | E5 Tag inputs with 0 / 1 / many tags | ✅ covered | Grouped tag inputs unchanged from Phase 4; many tags wrap inside `min-w-0`. |
+| long-text | E5 Long pasted offer | ✅ covered | Textarea scrolls internally, the page does not grow sideways; the full offer text is never logged (security constraint). |
+| empty | E6 No documents | ✅ covered | Existing Phase 5 empty copy with the upload action. |
+| populated | E6 Seeded documents | ✅ covered | The seed uploads CV and cover letter files to Silo (Layout §9). |
+| partial | E6 One row fails to resolve | ✅ covered | Phase 5 per-row degradation unchanged. |
+| zero-one-many | E6 0 / 1 / many documents and versions | ✅ covered | Phase 5 counter and version labels unchanged. |
+| overflow | E6 Documents table at 360 px | 🧪 backstop | Manual pass S7 / S8 together with the long-text row above. |
+| overflow | E2 Error screens at 360 px | 🧪 backstop | Manual pass S9 / S10: heading and both actions wrap, no horizontal scroll. |
+| loading | E7 Dialog submit in flight | ✅ covered | Submit shows the pending state, the close lock and the polite line apply (Layout §3); submit errors use the existing Phase 2 / 5 copy inside the dialog. |
+| loading / long-text | E1 Shell navigation | ➖ dismissed | Static links with fixed short labels; no data fetch. |
+| loading / zero-one-many / long-text | E2 Error screens | ➖ dismissed | Rendered synchronously with fixed copy. |
+| empty / loading / error / partial / overflow | E8 Seeded demo data | ➖ dismissed | Data, not a view: these states are covered on E3, E4 and E6. |
 | loading / error | E1 Theme toggle | ➖ dismissed | Static control: no fetch, no submit; persistence is a Phase 1 concern. |
 | empty / populated / partial | E2 Error screens | ➖ dismissed | Static screens with fixed copy and no data set. |
 
@@ -403,12 +422,12 @@ No new runtime dependency. `axe-core` is a test-only devDependency of `@tfm/web`
 
 ## Checker Sign-Off
 
-- [ ] Dimension 1 Copywriting: PASS
-- [ ] Dimension 2 Visuals: PASS
-- [ ] Dimension 3 Color: PASS
-- [ ] Dimension 4 Typography: PASS
-- [ ] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
-- [ ] Dimension 7 Inventory Provenance: PASS
+- [x] Dimension 1 Copywriting: FLAG (non-blocking: «Reintentar» kept unchanged as an inherited exception)
+- [x] Dimension 2 Visuals: FLAG (non-blocking: no declared focal point for E1, E6, E7; their anchor is the `h1` or dialog title)
+- [x] Dimension 3 Color: PASS
+- [x] Dimension 4 Typography: PASS
+- [x] Dimension 5 Spacing: FLAG (non-blocking: `status-badge.tsx` `py-0.5` → `py-1` belongs in the A2 sweep and its grep)
+- [x] Dimension 6 Registry Safety: PASS
+- [x] Dimension 7 Inventory Provenance: PASS
 
-**Approval:** pending
+**Approval:** approved 2026-11-06 (gsd-ui-checker, after revision 1; FLAGs are accepted recommendations for the planner)
