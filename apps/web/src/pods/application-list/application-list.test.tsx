@@ -403,6 +403,68 @@ describe("stale-while-refresh", () => {
       within(resultsRegion()).queryByRole("status"),
     ).not.toBeInTheDocument();
     expect(getCounter()).toHaveTextContent("1 candidatura");
+    expect(
+      screen.queryByText("Ninguna candidatura coincide con los filtros"),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText(EMPTY_TEXT)).not.toBeInTheDocument();
+  });
+
+  it("shows the skeleton, not the filtered empty state, while refreshing from an empty result with filters", () => {
+    render(
+      <ApplicationListComponent
+        status="loading"
+        applications={[]}
+        errorCode={null}
+        refreshing
+        onRetry={() => {}}
+        {...panelProps}
+        query={{ status: ["enviada"], sort: "updatedAt" }}
+      />,
+    );
+
+    expect(within(resultsRegion()).getByRole("status")).toBeInTheDocument();
+    expect(
+      screen.queryByText("Ninguna candidatura coincide con los filtros"),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Resultados" })).toHaveAttribute(
+      "aria-busy",
+      "true",
+    );
+    expect(getCounter()).toBeEmptyDOMElement();
+  });
+
+  it("shows the skeleton, not the absolute empty state, while refreshing from an empty result without filters", () => {
+    render(
+      <ApplicationListComponent
+        status="loading"
+        applications={[]}
+        errorCode={null}
+        refreshing
+        onRetry={() => {}}
+        {...panelProps}
+      />,
+    );
+
+    expect(within(resultsRegion()).getByRole("status")).toBeInTheDocument();
+    expect(screen.queryByText(EMPTY_TEXT)).not.toBeInTheDocument();
+  });
+
+  it("still renders the filtered empty state from a settled empty response", () => {
+    render(
+      <ApplicationListComponent
+        status="ok"
+        applications={[]}
+        errorCode={null}
+        refreshing={false}
+        onRetry={() => {}}
+        {...panelProps}
+        query={{ status: ["enviada"], sort: "updatedAt" }}
+      />,
+    );
+
+    expect(
+      screen.getByText("Ninguna candidatura coincide con los filtros"),
+    ).toBeInTheDocument();
   });
 });
 

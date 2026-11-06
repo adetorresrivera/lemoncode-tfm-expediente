@@ -9,7 +9,8 @@ import {
   useThemePreference,
 } from "@/core/theme/theme";
 
-const ITEM_CLASS = "flex-1 gap-1 px-1.5 text-xs";
+const ITEM_CLASS =
+  "h-auto min-h-11 flex-1 flex-col gap-1 px-1 py-1 focus-visible:ring-sidebar-ring";
 
 export function ThemeToggle() {
   const preference = useThemePreference();

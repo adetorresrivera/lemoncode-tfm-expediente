@@ -174,4 +174,14 @@ describe("ThemeToggle", () => {
     expect(localStorage.getItem(THEME_STORAGE_KEY)).toBe("dark");
     expect(root()).toHaveClass("dark");
   });
+
+  it("stacks the items at 44 px on the type scale", () => {
+    render(createElement(ThemeToggle));
+
+    for (const name of ["Sistema", "Claro", "Oscuro"]) {
+      const item = screen.getByRole("radio", { name });
+      expect(item).toHaveClass("min-h-11", "flex-col", "px-1");
+      expect(item).not.toHaveClass("text-xs");
+    }
+  });
 });
