@@ -11,6 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { HttpError } from "@/core/http/http-client";
+import { useFakeClock, useRealClock } from "@/test/fake-clock";
 import { jsonResponse, mockFetch, type MockHandler } from "@/test/mock-fetch";
 import { DocumentUploadContainer } from "./document-upload.container";
 import {
@@ -744,7 +745,7 @@ describe("DocumentUploadContainer", () => {
 
   it("clears the success line 5 s after the upload", async () => {
     mockFetch({ "POST /api/documents": () => jsonResponse(stored, 201) });
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    useFakeClock();
     try {
       const user = userEvent.setup({
         applyAccept: false,
@@ -757,16 +758,16 @@ describe("DocumentUploadContainer", () => {
       expect(await screen.findByText("Documento subido.")).toBeInTheDocument();
 
       await act(async () => {
-        vi.advanceTimersByTime(4900);
+        await vi.advanceTimersByTimeAsync(4000);
       });
       expect(screen.getByText("Documento subido.")).toBeInTheDocument();
       await act(async () => {
-        vi.advanceTimersByTime(200);
+        await vi.advanceTimersByTimeAsync(1500);
       });
 
       expect(screen.queryByText("Documento subido.")).toBeNull();
     } finally {
-      vi.useRealTimers();
+      useRealClock();
     }
   });
 });

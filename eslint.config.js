@@ -54,6 +54,7 @@ export default defineConfig([
       "packages/**/*.ts",
       "*.config.{js,ts}",
       "apps/*/*.config.ts",
+      "apps/*/scripts/**/*.mjs",
     ],
     languageOptions: { globals: globals.node },
   },
