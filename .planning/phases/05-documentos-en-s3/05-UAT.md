@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 05-documentos-en-s3
 source: [05-VERIFICATION.md]
 started: 2026-11-04T20:35:00Z
@@ -69,5 +69,17 @@ blocked: 0
   reason: "User reported: I think it would look better if we move the button outside the white square and make it a bit bigger so it maches the other buttons"
   severity: cosmetic
   test: 4
-  artifacts: []
-  missing: []
+  root_cause: "The «Seleccionar archivo» button is the native ::file-selector-button, a pseudo-element drawn inside the <input type=file>. That input reuses the shared Input box (border border-input bg-card h-11 px-4), so the button always renders inside the white bordered square, and 05-10 sized it as outline/sm (h-8, px-3) while every other dialog button («Subir documento», «Descartar subida») is h-11. This is a design change request, not a defect."
+  artifacts:
+    - path: "apps/web/src/pods/document-upload/components/upload-dialog.tsx"
+      issue: "File input className (line ~211) keeps the Input box (border, bg-card, px-4) around the native button and sizes the button h-8 / px-3"
+    - path: "apps/web/src/pods/document-upload/document-upload.test.tsx"
+      issue: "Test at line ~571 pins the h-8 outline/sm classes from 05-10"
+    - path: ".planning/phases/05-documentos-en-s3/05-UI-SPEC.md"
+      issue: "«Archivo» row (line ~299) specifies the outline/sm look inside the 44 px box"
+  missing:
+    - "Strip the box from the file input only, locally in upload-dialog.tsx (border-0 bg-transparent px-0 shadow-none, keep h-auto/min-h-11, w-full min-w-0 and a visible focus-visible ring), so the button sits on the dialog background with the file name as plain text beside it"
+    - "Size the native button like the other dialog buttons: Button outline at h-11 (file:h-11 file:px-4 file:text-sm file:font-semibold, border-border, bg-background, shadow-xs, rounded-md, accent on hover)"
+    - "Keep the native control visible and operable (UI-SPEC: do not hide it behind a custom button): accept, client checks, prefill, focus-on-error and focus return unchanged; shared Input untouched"
+    - "Update the class test and amend the UI-SPEC «Archivo» row (UAT G-05-4b, 2026-11-06)"
+  debug_session: ""
