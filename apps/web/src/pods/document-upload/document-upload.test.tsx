@@ -568,23 +568,29 @@ describe("DocumentUploadContainer", () => {
     });
   });
 
-  it("styles the native file button as an outline button centred in the 44 px control", async () => {
+  it("renders the native file button as an h-11 outline button outside the input box", async () => {
     mockFetch({});
     const user = setup();
     render(<DocumentUploadContainer />);
     const dialog = await openDialog(user);
 
     expect(fileInput(dialog)).toHaveClass(
-      "h-11",
+      "h-auto",
+      "min-h-11",
       "w-full",
       "min-w-0",
-      "py-1.25",
+      "border-0",
+      "bg-transparent",
+      "px-0",
+      "rounded-md",
       "text-base",
-      "file:inline-flex",
-      "file:items-center",
-      "file:h-8",
-      "file:px-3",
+      "focus-visible:ring-2",
+      "focus-visible:ring-ring",
       "file:mr-3",
+      "file:inline-flex",
+      "file:h-11",
+      "file:items-center",
+      "file:px-4",
       "file:rounded-md",
       "file:border",
       "file:border-border",
@@ -597,13 +603,44 @@ describe("DocumentUploadContainer", () => {
       "file:transition-colors",
       "hover:file:bg-accent",
       "hover:file:text-accent-foreground",
-      "focus-visible:ring-2",
-      "focus-visible:ring-ring",
+      "aria-invalid:file:border-destructive",
     );
-    expect(fileInput(dialog)).not.toHaveClass("file:bg-transparent");
-    expect(fileInput(dialog)).not.toHaveClass("file:border-0");
-    expect(nameInput(dialog)).toHaveClass("h-11", "text-base");
-    expect(nameInput(dialog)).not.toHaveClass("py-1.25");
+    // The shared box and the 05-10 small size are gone. One call per class:
+    // jest-dom passes `not.toHaveClass(a, b)` when ANY of them is missing.
+    for (const absent of [
+      "h-11",
+      "border",
+      "bg-card",
+      "px-4",
+      "py-1.25",
+      "file:h-8",
+      "file:px-3",
+    ]) {
+      expect(fileInput(dialog)).not.toHaveClass(absent);
+    }
+
+    // The look the file button mirrors: the dialog's own outline button.
+    expect(submit(dialog, "Descartar subida")).toHaveClass(
+      "h-11",
+      "px-4",
+      "border",
+      "bg-background",
+      "shadow-xs",
+      "text-sm",
+      "font-semibold",
+    );
+
+    // The shared Input is untouched: text fields keep their box.
+    expect(nameInput(dialog)).toHaveClass(
+      "h-11",
+      "border",
+      "bg-card",
+      "px-4",
+      "text-base",
+    );
+    for (const absent of ["border-0", "bg-transparent"]) {
+      expect(nameInput(dialog)).not.toHaveClass(absent);
+    }
   });
 
   it("clears the success line 5 s after the upload", async () => {
