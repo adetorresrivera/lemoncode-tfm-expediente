@@ -233,6 +233,59 @@ describe("static hosting with SPA fallback", () => {
     );
   });
 
+  it("falls back to index.html for extensionless nested routes", async () => {
+    const res = await createApp({ ...allUp, webDistDir: dist }).request(
+      "/documents",
+    );
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toContain("text/html");
+  });
+
+  it("answers 404 JSON for a missing built asset instead of the app shell", async () => {
+    const res = await createApp({ ...allUp, webDistDir: dist }).request(
+      "/assets/missing-abc123.js",
+    );
+    expect(res.status).toBe(404);
+    expect(res.headers.get("content-type")).toContain("application/json");
+    expect(errorResponseSchema.parse(await bodyOf(res)).error.code).toBe(
+      "NOT_FOUND",
+    );
+  });
+
+  it("answers 404 JSON for an absent favicon", async () => {
+    const res = await createApp({ ...allUp, webDistDir: dist }).request(
+      "/favicon.ico",
+    );
+    expect(res.status).toBe(404);
+    expect(errorResponseSchema.parse(await bodyOf(res)).error.code).toBe(
+      "NOT_FOUND",
+    );
+  });
+
+  it("warns once with the directory when index.html is missing, then answers 404 JSON", async () => {
+    const empty = await mkdtemp(join(tmpdir(), "tfm-web-empty-"));
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    try {
+      const app = createApp({ ...allUp, webDistDir: empty });
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(String(warn.mock.calls[0]?.[0])).toContain(empty);
+
+      const res = await app.request("/applications");
+      expect(res.status).toBe(404);
+      expect(errorResponseSchema.parse(await bodyOf(res)).error.code).toBe(
+        "NOT_FOUND",
+      );
+    } finally {
+      await rm(empty, { recursive: true, force: true });
+    }
+  });
+
+  it("does not warn when index.html exists", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    createApp({ ...allUp, webDistDir: dist });
+    expect(warn).not.toHaveBeenCalled();
+  });
+
   describe("static root is fixed (T-01-06)", () => {
     const secretMarker = "TFM-SECRET-MARKER-7f3a9c";
     let secretRoot: string;
@@ -266,7 +319,7 @@ describe("static hosting with SPA fallback", () => {
           ...allUp,
           webDistDir: servedDist,
         }).request(path);
-        // The SPA fallback may answer 200 text/html (WR-08); only the marker matters.
+        // Only the marker matters: the secret must never leak, whatever the status.
         expect(await res.text()).not.toContain(secretMarker);
       });
     }
