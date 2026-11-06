@@ -1,13 +1,13 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 6
+current_phase: 06
 current_phase_name: Pulido de demo
 status: executing
 stopped_at: Phase 6 UI-SPEC approved
-last_updated: "2026-11-06T18:21:11.408Z"
+last_updated: "2026-11-06T19:08:47.284Z"
 last_activity: 2026-11-06
-last_activity_desc: "Phase 05 shipped as PR #5"
-state_head: 00a9e0c1be121fce1a9019ce9a223dc8f8ba1b25
+last_activity_desc: Phase 06 execution started
+state_head: e287809c02a5f80ef32c23f22b3624a9c2b18738
 progress:
   total_phases: 7
   completed_phases: 5
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-06)
 
 **Core value:** Pegar una oferta y obtener un expediente casi completo y revisable en segundos, con el flujo entero (pegar → guardar → ronda → CV → estado → filtrar) demostrable en menos de 2 minutos con `docker compose up`.
-**Current focus:** Phase 6 — Pulido de demo
+**Current focus:** Phase 06 — Pulido de demo
 
 ## Current Position
 
-Phase: 6 (Pulido de demo) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-11-06 -- Phase 05 shipped as PR #5
+Phase: 06 (Pulido de demo) — EXECUTING
+Plan: 1 of 17
+Status: Executing Phase 06
+Last activity: 2026-11-06 — Phase 06 execution started
 
 Progress: [███████░░░] 71%
 
