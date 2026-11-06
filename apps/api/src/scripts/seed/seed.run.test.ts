@@ -1,10 +1,21 @@
+import { readFileSync } from "node:fs";
 import type { S3Client } from "@aws-sdk/client-s3";
+import { applicationStatusSchema } from "@tfm/contracts";
 import { ObjectId } from "mongodb";
-import { afterAll, afterEach, beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+} from "vitest";
 import { createApp } from "../../app.js";
 import { createApplicationsRepository } from "../../applications/applications.repository.js";
 import { createApplicationsService } from "../../applications/applications.service.js";
 import { createDocumentsRepository } from "../../documents/documents.repository.js";
+import { detectDocument } from "../../documents/file-type.js";
 import { createDocumentsService } from "../../documents/documents.service.js";
 import {
   createDocumentStorage,
@@ -41,6 +52,11 @@ beforeAll(async () => {
   });
   await ensureBucket(s3, TEST_BUCKET);
   storage = createDocumentStorage(s3, TEST_BUCKET);
+});
+
+// A leftover of an interrupted run must not change the counts of the next case.
+beforeEach(async () => {
+  await testDb.reset();
 });
 
 // Removes every object of the documents left in tfm_test, then the records.
@@ -125,6 +141,107 @@ describe("runSeed", () => {
     const opened = await services().documents.open(new ObjectId(String(cvId)));
     const bytes = await readStream(opened.stream);
     expect(Buffer.from(bytes.slice(0, 5)).toString("latin1")).toBe("%PDF-");
+  });
+
+  it("lands the 12 applications and 3 documents with coherent histories", async () => {
+    await seed();
+    const applications = await testDb.db
+      .collection("applications")
+      .find({})
+      .toArray();
+    expect(applications).toHaveLength(12);
+    expect(applications.every((doc) => doc["seed"] === true)).toBe(true);
+    expect(
+      await testDb.db.collection("documents").countDocuments({ seed: true }),
+    ).toBe(3);
+    expect(await testDb.db.collection("documents").countDocuments()).toBe(3);
+    expect(new Set(applications.map((doc) => doc["status"]))).toEqual(
+      new Set(applicationStatusSchema.options),
+    );
+
+    for (const doc of applications) {
+      const planned = PLAN.applications.find(
+        (app) => app.input.company === doc["company"],
+      );
+      expect(planned).toBeDefined();
+      const history = doc["statusHistory"] as { status: string; at: Date }[];
+      const times = history.map((entry) => entry.at.getTime());
+
+      expect(history[0]?.at.getTime()).toBe(
+        (doc["createdAt"] as Date).getTime(),
+      );
+      expect(history.at(-1)?.status).toBe(doc["status"]);
+      for (let i = 1; i < history.length; i++) {
+        expect(history[i]!.status).not.toBe(history[i - 1]!.status);
+        expect(times[i]!).toBeGreaterThanOrEqual(times[i - 1]!);
+      }
+      expect((doc["updatedAt"] as Date).getTime()).toBe(
+        planned!.timeline.at(-1)!.at.getTime(),
+      );
+
+      const statuses = history.map((entry) => entry.status);
+      const interviews = doc["interviews"] as { round: number }[];
+      if (interviews.length > 0) {
+        expect(statuses.indexOf("en_entrevistas")).toBeGreaterThan(
+          statuses.indexOf("enviada"),
+        );
+        expect(statuses.indexOf("enviada")).toBeGreaterThanOrEqual(0);
+      }
+      if (statuses.includes("enviada")) {
+        expect(doc["appliedAt"]).toBeInstanceOf(Date);
+      }
+    }
+
+    const rounds = applications.map(
+      (doc) => (doc["interviews"] as unknown[]).length,
+    );
+    expect(rounds.filter((count) => count === 3)).toHaveLength(3);
+    expect(rounds.filter((count) => count === 1).length).toBeGreaterThan(0);
+    expect(rounds.filter((count) => count === 0).length).toBeGreaterThan(0);
+  });
+
+  it("links documents of the right type and serves every one as a PDF", async () => {
+    await seed();
+    const documents = await testDb.db
+      .collection("documents")
+      .find({})
+      .toArray();
+    const typeById = new Map(
+      documents.map((doc) => [String(doc["_id"]), doc["type"]]),
+    );
+    const applications = await testDb.db
+      .collection("applications")
+      .find({})
+      .toArray();
+    for (const doc of applications) {
+      const cv = doc["cvDocumentId"];
+      const letter = doc["coverLetterDocumentId"];
+      if (cv !== null) expect(typeById.get(String(cv))).toBe("cv");
+      if (letter !== null) expect(typeById.get(String(letter))).toBe("carta");
+    }
+    const usedIds = new Set(
+      applications.flatMap((doc) =>
+        [doc["cvDocumentId"], doc["coverLetterDocumentId"]].filter(
+          (id): id is string => typeof id === "string",
+        ),
+      ),
+    );
+    expect(usedIds).toEqual(new Set(typeById.keys()));
+
+    for (const doc of documents) {
+      const opened = await services().documents.open(doc["_id"] as ObjectId);
+      const bytes = await readStream(opened.stream);
+      expect(Buffer.from(bytes.slice(0, 5)).toString("latin1")).toBe("%PDF-");
+    }
+  });
+
+  it("only commits assets that pass the same file check as an upload", () => {
+    for (const document of PLAN.documents) {
+      const bytes = new Uint8Array(
+        readFileSync(new URL(`../assets/${document.asset}`, import.meta.url)),
+      );
+      expect(detectDocument(bytes, document.fileName)).not.toBeNull();
+    }
   });
 
   it("walks the history through the services with the injected clock", async () => {
