@@ -13,7 +13,7 @@ created: "2026-11-06"
 >
 > Sources, in order of authority: `docs/DESIGN.md` (literal, locked), `06-CONTEXT.md` D-11…D-13, D-18, D-19, D-22 (locked), the approved Phase 2-5 UI contracts as precedent (`02-UI-SPEC.md`, `05-UI-SPEC.md`, `05-UI-REVIEW.md`), then the code in `apps/web/src`. Nothing here overrides those documents except where an **Amendment** says so, with the measured reason.
 >
-> **No new product capability, no new screen except the two error screens of D-18, no new design token, no new font size, no new weight, no new shadcn block, no new runtime dependency.** The only new package (`axe-core`, devDependency, test only) belongs to the plan, not to this contract.
+> **No new product capability, no new screen except the two error screens of D-18, no new design token, no new font size, no new weight, no new shadcn block, no new runtime dependency.** The typography scale is exactly four sizes and two weights with no exceptions: the three inherited off-scale items (wordmark, `ThemeToggle`, `AiMark`) are mapped onto it by Amendments A8-A10. The only new package (`axe-core`, devDependency, test only) belongs to the plan, not to this contract.
 >
 > Out of scope (do not design): Kanban / dashboard («Tablero» keeps «Próximamente»), onboarding or "load demo data" button in the UI, a language switch, a print stylesheet, offline mode, a cookie or about page, theme store desync (01 WR-03, deferred), per-tab re-rendering of 04 WR-01/WR-02.
 
@@ -43,10 +43,10 @@ The table is a **non-exhaustive** list of known-good components, not a closed al
 
 | Component | Import path | Use in this phase |
 |-----------|-------------|-------------------|
-| Button | `@/common/components/ui/button` | «Volver a Mis candidaturas» (`asChild` over a link), «Reintentar», skip link look-alike is **not** a Button. Always `h-11`. |
+| Button | `@/common/components/ui/button` | «Volver a Mis candidaturas» (`asChild` over a link), «Volver a cargar la pantalla» (route error); the existing list-error «Reintentar» is untouched. The skip link look-alike is **not** a Button. Always `h-11`. The `size="xs"` variant (`text-xs`) is not used in app code. |
 | Dialog / AlertDialog | `@/common/components/ui/dialog`, `alert-dialog` | In-flight close behaviour (new optional `closeDisabled` prop on `DialogContent` / `AlertDialogContent`, see Interaction §3). |
 | Sheet | `@/common/components/ui/sheet` | Mobile navigation: close «X» focus ring switches to `sidebar-ring`. |
-| ToggleGroup | `@/common/components/ui/toggle-group` | `ThemeToggle` items: `min-h-11` and `focus-visible:ring-sidebar-ring`. |
+| ToggleGroup | `@/common/components/ui/toggle-group` | `ThemeToggle` items: stacked icon + 14 px label, `h-auto min-h-11 px-1`, `focus-visible:ring-sidebar-ring` (A5, A9). |
 | Skeleton | `@/common/components/ui/skeleton` | Existing loading states, unchanged. |
 | RequestStatus | `@/common/components/request-status` | Error icon `text-foreground` (Amendment A1). |
 
@@ -80,19 +80,19 @@ Exceptions (all inherited and unchanged, listed so the checker does not rediscov
 - Touch targets are 44 px (`h-11`, `size-11`, `min-h-11`) for every interactive control **including the shell** (Amendment A4: menu button `size-11`, nav links and theme-toggle items `min-h-11`).
 - Page header bar of the mobile shell is `h-14` (56 px, on scale).
 - Dialog width `w-[calc(100%-2rem)] max-w-lg` (328 px at a 360 px viewport).
-- ThemeToggle keeps `px-1.5` / `text-xs`: three labelled options in 224 px of sidebar. Phase 1 shell exception; not changed (changing it overflows the sheet at 360 px).
+- None off-scale. The former `ThemeToggle` (`px-1.5`, `text-xs`) and `AiMark` (`px-1.5`) exceptions are removed by Amendments A9 and A10: toggle items use `px-1` (4 px) with `py-1` and a stacked layout, `AiMark` uses `px-2` (8 px). Unused `/ui/` primitive variants (`toggle` `sm` / `lg`, `button` `xs`) are not referenced by app code.
 
 **Off-scale sweep (Amendment A2).** Replace, in `apps/web/src`, outside `/ui/` and tests:
 - `mt-0.5` → `mt-1` (13 occurrences: `request-status.tsx` ×3, `upload-dialog.tsx`, `document-picker.tsx`, `interview-dialog.tsx`, `detail-states.tsx` ×2, `document-list.component.tsx`, `edit-states.tsx` ×2, `form-field.tsx`, `list-error.tsx`).
 - `file:mr-3` → `file:mr-4` in `upload-dialog.tsx`.
 - `gap-3` → `gap-4` in `detail-states.tsx` and `edit-states.tsx` (skeleton cards); in `app-layout.tsx` `NAV_ITEM_CLASS` `gap-3 px-3 py-2` → `min-h-11 gap-2 px-4`.
-- The executor re-greps (`grep -rnE "mt-0\.5|file:mr-3|gap-3|px-3|py-3|p-3" apps/web/src --include=*.tsx`) and the remaining hits must be only `/ui/` primitives, `theme-toggle.tsx` (documented exception) and tests.
+- The executor re-greps (`grep -rnE "mt-0\.5|file:mr-3|gap-3|px-3|py-3|p-3" apps/web/src --include=*.tsx`) and the remaining hits must be only `/ui/` primitives and tests. Also `grep -rnE "px-1\.5|px-2\.5|py-1\.5|text-xs|font-bold|font-medium|text-(lg|xl|2xl|3xl)" apps/web/src --include=*.tsx` must return only `/ui/` primitives and tests.
 
 ---
 
 ## Typography
 
-Exactly the four sizes and two weights already in use; this phase adds none.
+Exactly four sizes (11, 14, 16, 28 px) and two weights (400, 600), with **no exceptions**. This phase adds none, and removes the three off-scale items that earlier phases inherited (Amendments A8-A10).
 
 | Role | Size | Weight | Line Height | Where |
 |------|------|--------|-------------|-------|
@@ -100,11 +100,14 @@ Exactly the four sizes and two weights already in use; this phase adds none.
 | Label | 14px (`text-sm`) | 600 for labels, buttons, badges, links, nav items; 400 for hints, errors, live-region lines | 1.5 | Buttons, skip link, nav items, live lines |
 | Eyebrow | 11px (`text-[11px]`) | 600 | 1.5 | `uppercase tracking-[0.08em] text-muted-foreground`: «Expediente» above every `h1`, including the error screens |
 | Heading | 16px (`text-base`) | 600 | 1.2 | `font-serif`: section and card `h2` |
-| Display | 28px (`text-[28px]`) | 600 | 1.2 | `font-serif`: `h1` of every screen, including «No encontramos esta página» and «Algo ha fallado» |
+| Display | 28px (`text-[28px]`) | 600 (`h1`) / 400 (wordmark) | 1.2 | `font-serif`: `h1` of every screen, including «No encontramos esta página» and «Algo ha fallado»; brand wordmark «Expediente» (sidebar, sheet title and mobile bar, A8) at weight 400 |
 
 Rules:
 - Weights 400 and 600 only. **Amendment A3:** `NAV_ITEM_CLASS` `font-medium` (500) → `font-semibold`.
-- Inherited exceptions, not changed: brand wordmark «Expediente» in `font-serif` 24 px (sidebar, sheet title) and 20 px (mobile bar), weight 400 (`docs/DESIGN.md`: «marca en serifa»); `AiMark` `text-[11px] font-bold` (literal in `docs/DESIGN.md`); `ThemeToggle` `text-xs`.
+- **No inherited exceptions remain.** Mapping of the three items that used to sit outside the scale:
+  - Brand wordmark «Expediente» → Display role: `font-serif text-[28px] leading-[1.2] font-normal` in the desktop sidebar, the Sheet title and the mobile bar (was 24 / 24 / 20 px). It fits: about 130 px wide against 224 px of sidebar and a 56 px bar (`h-14`, 34 px line box) next to the 44 px menu button at 360 px. Weight 400 vs the `h1`'s 600 keeps the logotype from reading as a second heading. Amendment A8.
+  - `ThemeToggle` items → Label role (14 px, 600, inherited from the `toggle` primitive); no `text-xs`. Layout in Interaction §2. Amendment A9.
+  - `AiMark` → Eyebrow size with weight 600: `text-[11px] font-semibold` (was `font-bold`, 700). Amendment A10.
 - Containers that hold user text keep `min-w-0` + `break-words` (already widespread); any new container that renders user text follows the rule.
 
 ---
@@ -121,7 +124,7 @@ Values come from `styles.css`; components reference tokens only. 60 / 30 / 10 un
 | Destructive | `bg-destructive text-destructive-foreground` | #9b2c2c / #b23a3a | Confirm button of delete dialogs only |
 
 Accent reserved for (exhaustive, unchanged plus the two error-screen items):
-1. The single `default` Button of each view (including «Volver a Mis candidaturas» on the not-found screen and «Reintentar» on the route-error screen; each screen has exactly one).
+1. The single `default` Button of each view (including «Volver a Mis candidaturas» on the not-found screen and «Volver a cargar la pantalla» on the route-error screen; each screen has exactly one).
 2. Selected item of every `ToggleGroup`, text links («Descargar»), focus ring (`ring`), as in Phases 2-5.
 3. Sidebar-surface focus ring uses `sidebar-ring` (gold), see below; `brand-gold` / `sidebar-ring` is **never** text.
 
@@ -185,13 +188,13 @@ Voice: tuteo, short sentences, sentence case, no exclamations, no emojis. Dates 
 | Not-found: `document.title` | Página no encontrada · Expediente |
 | Route error: eyebrow / `h1` | Expediente / Algo ha fallado |
 | Route error: body | No se pudo mostrar esta pantalla. Inténtalo de nuevo o vuelve a Mis candidaturas. |
-| Route error: primary action | Reintentar |
+| Route error: primary action | Volver a cargar la pantalla |
 | Route error: secondary action (outline, plain `<a href="/applications">`) | Volver a Mis candidaturas |
 | Route error: `document.title` | Algo ha fallado · Expediente |
 | Close attempt while an upload is in flight (live line, plain muted text) | Cancela la subida para cerrar. |
 | Close attempt while another dialog is saving or deleting (live line, optional per Interaction §3) | Espera a que termine para cerrar. |
 
-The server's or the thrown error's message is **never** rendered (same rule as `ListError`: fixed copy). The error is logged with `console.error` only.
+The existing list-error «Reintentar» (and its tests) is not renamed; the longer label above is specific to the route-error screen, where the action reloads the whole screen. The server's or the thrown error's message is **never** rendered (same rule as `ListError`: fixed copy). The error is logged with `console.error` only.
 
 ### Existing copy that must not change (the demo and the tests depend on it)
 
@@ -226,17 +229,21 @@ Both render the same card, `section` with `mx-auto flex w-full max-w-xl flex-col
 ```
 
 - `h1` carries `tabIndex={-1}` and takes focus on mount (the screen replaced the content the user was on; screen readers announce the heading). Not-found is a plain `section`; the route-error card has `role="alert"`.
-- Route error: `CircleAlert` (`size-4`, `text-foreground`, `aria-hidden`) before the body, buttons in `flex flex-wrap gap-2`: «Reintentar» (`Button` default, `RotateCcw`, calls `reset()` then `router.invalidate()`), then «Volver a Mis candidaturas» (`Button variant="outline" asChild` over a plain `<a href="/applications">`, so it works even when router state is broken; a full reload is acceptable there).
+- Route error: `CircleAlert` (`size-4`, `text-foreground`, `aria-hidden`) before the body, buttons in `flex flex-wrap gap-2`: «Volver a cargar la pantalla» (`Button` default, `RotateCcw`, calls `reset()` then `router.invalidate()`), then «Volver a Mis candidaturas» (`Button variant="outline" asChild` over a plain `<a href="/applications">`, so it works even when router state is broken; a full reload is acceptable there).
 - Not-found action: `Button asChild` over TanStack `Link to="/applications"`, `ArrowLeft` icon.
 - Placement: `defaultNotFoundComponent` and `defaultErrorComponent` on the router render inside the shell's `<main>` (sidebar and header visible). If the root route itself fails, the root `errorComponent` renders the same card standalone: `min-h-screen bg-background text-foreground flex items-center justify-center p-4`, no shell.
 - Both set `document.title` as in Copywriting.
 - 360 px: the card is `w-full`, buttons `w-full sm:w-auto`, text wraps; no horizontal scroll.
+
+**Focal points (visual hierarchy, inherited, stated so they are protected).** E2 error screens: the `h1` (28 px serif) on the card, the single default Button as secondary anchor. E3 list: the card title (serif `h2`, first card in the sorted list) is the anchor, the status badge on each card is the secondary anchor; «Añadir candidatura» is the page's one default Button. E4 detail: the `h1` (job title) is the anchor, the status badge beside it the secondary. E5 form: the `h1` is the anchor, the offer-text area of the AI panel the secondary (first field the eye lands on, directly above the form). No phase 6 change may promote a control or an icon above these; the accent stays on the single default Button per view.
 
 ### 2. Shell (`layouts/app-layout.tsx`)
 
 - **Skip link** is the first child of the layout: `<a href="#main-content">`. Hidden until focused (`sr-only focus:not-sr-only`), then `focus:fixed focus:left-4 focus:top-4 focus:z-50 focus:inline-flex focus:h-11 focus:items-center focus:rounded-md focus:border focus:border-input focus:bg-card focus:px-4 focus:text-sm focus:font-semibold focus:text-foreground focus:ring-2 focus:ring-ring`. Activating it calls `preventDefault()` and focuses `<main id="main-content" tabIndex={-1} className="… outline-none">` (no `#main-content` appended to the URL, no router interference).
 - Sidebar and mobile bar focus: Amendment A5 (colour section). Nav links: `outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring`.
 - Touch targets: «Abrir menú» `size-11` (was `size-9` via `size="icon"`), nav links and ThemeToggle items `min-h-11`.
+- Wordmark: `font-serif text-[28px] leading-[1.2] font-normal` in the three places (Typography rules, A8).
+- **ThemeToggle layout (A9).** Each of the three items is a column: 16 px icon above a 14 px / 600 label («Sistema», «Claro», «Oscuro»), `ITEM_CLASS = "h-auto min-h-11 flex-1 flex-col gap-1 px-1 py-1"` (text size and weight come from the `toggle` primitive; no `text-xs`). Measurement: the narrowest container is the 224 px desktop sidebar (256 px minus `p-4`; the Sheet at 360 px gives 238 px), so each item is about 74 px; the longest label «Sistema» is about 51 px at 14 px / 600, plus 8 px of padding is about 59 px, leaving about 15 px free. Side by side (icon 16 + `gap-2` 8 + label 51 + padding 8 = 83 px) does not fit, which is why the layout is stacked rather than the padding squeezed. Item height is about 49 px (4 + 16 + 4 + 21 + 4), above the 44 px target. The planner verifies at 360 px (`scrollWidth <= clientWidth`, no label clipped) in the UAT pass.
 - The current route's link keeps `aria-current="page"` (TanStack `Link` sets it; assert it in the test). «Tablero» stays a non-focusable `aria-disabled` span with «Próximamente».
 - After choosing a link inside the Sheet the menu closes (existing). Esc closes the Sheet and focus returns to «Abrir menú» (Radix default; assert).
 - Route changes: every scene sets `document.title` (list, detail, form, documents already do; the two new screens do); scenes that arrive after a mutation keep focusing their `h1` through `useArrivalNotice` (existing, unchanged).
@@ -327,7 +334,7 @@ Applicable state considerations resolved: 24 covered, 5 backstop, 2 dismissed, 0
 | long-text | E3 Card with a 70-120 character title | 🧪 backstop | `min-w-0 break-words`; checked at 360 px in the manual pass with the seeded long title (jsdom cannot evaluate CSS). |
 | overflow | E3 Card and filter panel at 360 px | 🧪 backstop | Manual three-viewport pass (Layout §5); `scrollWidth <= clientWidth` recorded in UAT. |
 | error | E2 Unknown route | ✅ covered | `RouteNotFound` in Spanish with the link back (Layout §1); never TanStack's English default. |
-| error | E2 Route render error | ✅ covered | `RouteError` with fixed copy, «Reintentar» and a plain-anchor way out; the error message is never rendered. |
+| error | E2 Route render error | ✅ covered | `RouteError` with fixed copy, «Volver a cargar la pantalla» and a plain-anchor way out; the error message is never rendered. |
 | a11y | E2 Focus on arrival | ✅ covered | `h1` takes focus on mount; document title set. |
 | loading | E4 Detail load | ✅ covered | Existing skeleton + sr-only status; axe runs on the loaded detail. |
 | error | E4 404 and other load errors | ✅ covered | Existing cards «No encontramos esta candidatura» / «No se pudo cargar la candidatura» with their actions. |
@@ -345,7 +352,7 @@ Applicable state considerations resolved: 24 covered, 5 backstop, 2 dismissed, 0
 | error | E7 Close attempt while an operation is in flight | ✅ covered | X `aria-disabled` + dim, sentence in the polite line for X, Esc and overlay (Layout §3, 05 WR-03). |
 | a11y | E1 Focus ring on the sidebar and sheet | ✅ covered | `sidebar-ring` on every sidebar-surface control (A5); class assertion in the test plus the manual pass in light theme. |
 | a11y | E1 Skip link | ✅ covered | First tab stop, visible on focus, moves focus to `<main>`. |
-| overflow | E1 Sheet navigation and theme toggle at 360 px | 🧪 backstop | Manual 360 px pass (the toggle keeps its Phase 1 `px-1.5` / `text-xs`). |
+| overflow | E1 Sheet navigation and theme toggle at 360 px | 🧪 backstop | Manual 360 px pass; the toggle is stacked (14 px label, `px-1`, about 15 px free per item, Layout §2 / A9) and the 28 px wordmark is checked in the 56 px bar. |
 | a11y | All screens: AA contrast, light and dark | ✅ covered | `contrast.test.ts` over the token pairs of the Color section (jsdom cannot run axe `color-contrast`) plus the manual pass. |
 | populated | E8 Seeded list of 12 | ✅ covered | All 7 statuses, `+N`, long title, no-salary, no-location cases (Layout §9). |
 | loading / error | E1 Theme toggle | ➖ dismissed | Static control: no fetch, no submit; persistence is a Phase 1 concern. |
@@ -377,6 +384,9 @@ Applicable state considerations resolved: 24 covered, 5 backstop, 2 dismissed, 0
 | A5 | Focus ring on `bg-sidebar` surfaces is `sidebar-ring`; skip link added | `docs/DESIGN.md` Shell and Accesibilidad |
 | A6 | In-flight dialogs: X `aria-disabled` + sentence in the polite line | `05-UI-SPEC.md` §1 Uploading |
 | A7 | Spanish not-found and route-error screens | `docs/DESIGN.md` Pantallas |
+| A8 | Brand wordmark uses the Display size (28 px, weight 400) in sidebar, Sheet title and mobile bar (was 24 / 24 / 20 px) | `docs/DESIGN.md` Shell («marca en serifa») |
+| A9 | `ThemeToggle` items: stacked icon + 14 px label, `h-auto min-h-11 px-1 py-1` (was `px-1.5 text-xs`) | `docs/DESIGN.md` Shell («Toggle de tema al pie») |
+| A10 | `AiMark`: `font-semibold` (was `font-bold`) and `px-2` (was `px-1.5`) | `docs/DESIGN.md` «Marca IA» (literal class string) |
 
 ---
 
