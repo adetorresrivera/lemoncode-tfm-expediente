@@ -4,10 +4,10 @@ current_phase: 6
 current_phase_name: Pulido de demo
 status: planning
 stopped_at: Phase 05 complete, ready to plan Phase 6
-last_updated: "2026-11-06T09:14:41.123Z"
+last_updated: "2026-11-06T09:20:28.235Z"
 last_activity: 2026-11-06
-last_activity_desc: Phase 05 complete, transitioned to Phase 6
-state_head: c0ec3d3aa571b8534d0dc40a4cc8abe24cb03907
+last_activity_desc: "Phase 05 shipped as PR #5"
+state_head: 4ec11be11e412097a4fe5e67597f69bca19ba569
 progress:
   total_phases: 7
   completed_phases: 5
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-06)
 Phase: 6 — Pulido de demo
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-11-06 — Phase 05 complete, transitioned to Phase 6
+Last activity: 2026-11-06 -- Phase 05 shipped as PR #5
 
 Progress: [███████░░░] 71%
 
