@@ -35,7 +35,9 @@ export function createS3Client(config: S3Config): S3Client {
 export async function ensureBucket(
   s3: S3Client,
   bucket: string,
+  timeoutMs = 5000,
 ): Promise<void> {
+  void timeoutMs; // RED stub: deadline not applied yet
   try {
     await s3.send(new HeadBucketCommand({ Bucket: bucket }));
   } catch (err) {
@@ -59,7 +61,12 @@ export async function ensureBucket(
   }
 }
 
-export async function pingS3(s3: S3Client, bucket: string): Promise<boolean> {
+export async function pingS3(
+  s3: S3Client,
+  bucket: string,
+  timeoutMs = 2000,
+): Promise<boolean> {
+  void timeoutMs; // RED stub: deadline not applied yet
   try {
     await s3.send(new HeadBucketCommand({ Bucket: bucket }));
     return true;
