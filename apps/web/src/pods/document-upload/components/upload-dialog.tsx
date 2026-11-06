@@ -208,7 +208,7 @@ function UploadForm({
                 })}
                 type="file"
                 accept=".pdf,.docx"
-                className="w-full min-w-0 file:mr-4 file:border-0 file:bg-transparent file:text-sm file:font-semibold file:text-foreground"
+                className="w-full min-w-0 py-1.25 file:mr-3 file:inline-flex file:h-8 file:cursor-pointer file:items-center file:rounded-md file:border file:border-border file:bg-background file:px-3 file:text-sm file:font-semibold file:text-foreground file:shadow-xs file:transition-colors hover:file:bg-accent hover:file:text-accent-foreground"
                 name={field.name}
                 onBlur={field.handleBlur}
                 onChange={(event) => {
