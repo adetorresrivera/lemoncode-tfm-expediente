@@ -1,4 +1,5 @@
-import { dirname, resolve } from "node:path";
+import { existsSync } from "node:fs";
+import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { serve } from "@hono/node-server";
 import { createApp } from "./app.js";
@@ -51,6 +52,16 @@ const webDistDir =
   (config.NODE_ENV === "production"
     ? resolve(here, "../../web/dist")
     : undefined);
+
+// A production start without the built SPA would serve 404s for every page: fail loudly instead.
+if (
+  config.NODE_ENV === "production" &&
+  webDistDir !== undefined &&
+  !existsSync(join(webDistDir, "index.html"))
+) {
+  console.error("Web build not found: index.html missing");
+  process.exit(1);
+}
 
 const app = createApp({
   pingMongo: () => pingMongo(db),

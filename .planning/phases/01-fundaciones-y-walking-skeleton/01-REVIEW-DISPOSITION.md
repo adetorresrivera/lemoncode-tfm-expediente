@@ -45,7 +45,7 @@ findings:
     title: "Unknown routes and route errors render TanStack's English default screens"
   - id: WR-08
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "SPA fallback answers missing static files with `200 text/html`, and a missing `index.html` is silent"
   - id: IN-04
     severity: info
@@ -71,7 +71,7 @@ findings:
     severity: warning
     disposition: fixed
     title: "`pingS3` has no abort"
-open: 15
+open: 14
 total: 17
 recorded: 2026-10-29T22:23:46.944Z
 ---
@@ -90,7 +90,7 @@ recorded: 2026-10-29T22:23:46.944Z
 | WR-05 | warning | open | - (not in the current review) |
 | WR-06 | warning | open | - (not in the current review) |
 | WR-07 | warning | open | - (not in the current review) |
-| WR-08 | warning | open | - (not in the current review) |
+| WR-08 | warning | fixed | - (not in the current review); fixed in 06-04 |
 | IN-04 | info | open | - (not in the current review) |
 | IN-05 | info | open | - (not in the current review) |
 | IN-06 | info | open | - (not in the current review) |
