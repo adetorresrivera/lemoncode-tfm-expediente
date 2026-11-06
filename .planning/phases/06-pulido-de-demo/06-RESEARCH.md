@@ -16,6 +16,7 @@
 - **D-04:** 12 varied applications: every status from `docs/DOMAIN.md` present, realistic distribution (more `enviada` / `en_entrevistas`, a few `oferta`, `rechazada`, `descartada`, etc. — Claude picks), 3 with several interview rounds, status histories coherent with the domain rules, realistic grouped tags, 2 CVs and 1 cover letter linked.
 - **D-05:** Dates are relative to the moment the seed runs: everything falls within the last 6 weeks, so the list looks recent on 9 Nov; upcoming rounds may be in the near future.
 - **D-06:** The seed writes through the API services (applications, interviews, documents/storage) so domain rules apply (`tagKey`, `updatedAt`, `enviada → en_entrevistas`, magic-byte file checks). After that it patches dates/history timestamps and the `seed: true` mark directly in Mongo.
+  - *Amended 2026-11-06 in CONTEXT.md (user, plan review):* dates and history timestamps come from an injected clock passed to the services, advanced before each call; only the `seed: true` mark is written directly in Mongo (this is Pattern 1 below).
 - **D-07:** The 3 demo PDFs (2 CVs, 1 cover letter) are committed, small, readable PDFs in `apps/api/src/scripts/assets/`, copied to `dist` by the build. No PDF library. They must pass the Phase 5 file-type checks.
 - **D-08:** The 3 offer fixtures are **not** seeded as applications. They exist only to be pasted live; the 12 seeded applications use other invented offers, so the demo offer is never already in the list.
 - **D-09:** The fixtures **move** to `docs/demo/ofertas/*.txt` as the single source of truth (`remote-senior.txt`, `onsite-junior.txt`, `english-nice-to-have.txt`). `apps/api/src/offers/__fixtures__/fixtures.ts`, its tests and `src/scripts/try-extract.ts` read from there. — **Reversibility:** reversible — a path change in one module.
@@ -27,6 +28,7 @@
 - **D-13:** Accessibility: full keyboard walkthrough, labelled fields, visible focus, `aria-live="polite"` on load/error/AI results; automated axe checks on list, detail and form.
 - **D-14:** Mock mode documented: `LLM_PROVIDER=mock docker compose up`.
 - **D-15:** Image: reasonable size, every version pinned, healthchecks on every service, cold start tested after `docker compose down -v`.
+- **D-26 (added 2026-11-06 in CONTEXT.md, user, plan review):** `compose.yml` sets `OLLAMA_KEEP_ALIVE: "30m"` on the `ollama` service and the README documents a warm-up extraction before presenting (resolves Open Question 5).
 
 **Open review findings folded into this phase** (fixed as Phase 6 plans on the phase branch, not via `/gsd-code-review NN --fix`; each fix flips its entry in the owning `NN-REVIEW-DISPOSITION.md` to `fixed`)
 - **D-16:** Startup and live failures: API startup hanging/dying when Mongo/S3 are slow and `pingS3` without abort (Phase 1, see `01-REVIEW-DISPOSITION.md`); 02 WR-04 list shows «no results» during refetch; 02 WR-03 stale delete-dialog error after cancel and reopen.
@@ -189,10 +191,10 @@ apps/api/src/scripts/
 ├── assets/
 │   ├── cv-frontend.pdf      # committed binary, ASCII-only PDF 1.4
 │   ├── cv-fullstack.pdf
-│   └── carta-presentacion.pdf
+│   └── cover-letter.pdf      # English file names (CLAUDE.md); renamed at plan revision 2026-11-06
 └── try-extract.ts           # existing; reads fixtures from docs/demo/ofertas
 docs/demo/ofertas/{remote-senior,onsite-junior,english-nice-to-have}.txt   # moved with git mv
-docs/img/lista-candidaturas.png                                              # human-captured
+docs/img/application-list.png                                                # human-captured (English file name, CLAUDE.md)
 apps/web/src/common/components/{route-not-found,route-error}.tsx
 apps/web/src/test/axe.ts, apps/web/src/common/lib/contrast.ts (+ test)
 ```
@@ -464,18 +466,27 @@ In `application-list.component.tsx` the empty branches run whenever `application
 | A5 | Mixed Spanish/English tags and invented companies are acceptable "realistic" content | Seed content | Content-only, trivial to edit |
 | A6 | `fs.cpSync` is acceptable in the Docker build stage (same Node 22.23.2) | Code Examples | Verified on Node 22.23.4 locally; the image uses 22.23.2 (not run) |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All seven questions were resolved before planning closed; each carries an inline **RESOLVED** line naming the decision and the plan that implements it (plan numbers as revised on 2026-11-06).
 
 1. **DEMO-01 / ROADMAP success criterion 1 say the seed loads "the 3 fixture offers"; D-08 says they are not seeded.**
    - What we know: D-08 and UI-SPEC §9 are explicit (the fixtures exist only to be pasted live; the 12 seeded apps use other offers). `REQUIREMENTS.md` DEMO-01 and the ROADMAP text were written earlier.
    - What's unclear: whether the user wants the wording changed.
    - Recommendation: follow D-08 (locked). In the phase, rewrite DEMO-01 and ROADMAP SC1 to "...loads demo applications and documents into Mongo and Silo; the 3 fixture offers are available in `docs/demo/ofertas/`", and have the seed's final log line print that path. Flag it for the user at plan review.
+   - **RESOLVED:** D-08 stays locked and wins over the old wording. Plan 06-16 (Task 2) rewrites DEMO-01 in `REQUIREMENTS.md` and ROADMAP Phase 6 SC1; plan 06-02 (Task 3) makes the seed print «Ofertas para pegar en la demo: docs/demo/ofertas/» as its last line.
 2. **Which validation drafts really need closing (D-24)?** `03-VALIDATION.md` is already validated and compliant; `02-VALIDATION.md` is `draft`, `nyquist_compliant: false`, `wave_0_complete: false`; `05-VALIDATION.md` is `draft`, `nyquist_compliant: true`, `wave_0_complete: false`, all rows `⬜ pending` (the tests exist and pass). Recommendation: plan one task per phase 02 and 05 that maps each requirement/row to its existing test file (they exist: for example `applications.status.test.ts`, `applications.interviews.test.ts`, `applications.documents.test.ts`, `documents.upload.test.ts`, `document-list.test.tsx`), flips rows to `✅ green`, ticks Wave 0 boxes, and sets frontmatter; for 03 only record "verified, no change" (Nyquist audit table already shows 0 gaps).
+   - **RESOLVED:** D-24. Plan 06-15 closes `02-VALIDATION.md` (Task 2) and `05-VALIDATION.md` (Task 3) with run evidence; `03-VALIDATION.md` is recorded as verified with no change.
 3. **The Phase 1 startup/ping findings have no disposition row (Pitfall 8).** Recommendation: add rows with new ids and a Source note rather than editing WR-01/WR-02.
+   - **RESOLVED:** D-16. Plan 06-04 (Task 1) adds rows `WR-01a` and `WR-02a` with a Source note about the reused ids and sets them to `fixed`.
 4. **Forks-worker flake (D-17): which mitigation?** Options: (a) in-repo, recommended: the web workspace's `test` script runs Vitest through a ~25-line Node wrapper that reruns **once** only when the output contains `Failed to start` + `worker` and no test result was produced; plus a README/UAT note; (b) real fix: a Docker named volume for `node_modules` in `.devcontainer/docker-compose.yml` (requires a container rebuild, a `checkpoint:human-action`; previously declined on 2026-10-30 [CITED: `02-VALIDATION.md` Wave 0 decision]). Recommend (a) now and offer (b) to the user.
+   - **RESOLVED:** option (a), D-17. Plan 06-13 (Task 1) adds `apps/web/scripts/run-vitest.mjs`, a one-shot retry only on the worker-start failure; the devcontainer volume stays declined (2026-10-30).
 5. **Ollama keep-alive/warm-up (Pitfall 9):** add `OLLAMA_KEEP_ALIVE: "30m"` to the compose `ollama` service and a README "warm up" command (one `docker compose exec ollama ollama run gemma4:e2b "hola"` or a `try-extract` run), or leave compose untouched and only document. Needs the user's nod because it changes compose.
-6. **Human-only steps:** README screenshot (`docs/img/lista-candidaturas.png`, 1280x800 light theme, from the seeded app), the S1-S11 x 3 viewports x 2 themes pass, the keyboard walk, `prefers-reduced-motion`, and the timed 2-minute demo with Ollama and with `mock`. No browser, Playwright or Chromium exists in the devcontainer [VERIFIED: `which chromium ... ` and `~/.cache/ms-playwright` absent]. Plan these as `checkpoint:human-verify` tasks writing `06-UAT.md`; the user's host browser reaches the dev ports through devcontainer forwarding and the compose port on `127.0.0.1:8080`.
+   - **RESOLVED:** the user chose the keep-alive option at plan review on 2026-11-06 (D-26). Plan 06-16 (Task 3) adds `OLLAMA_KEEP_ALIVE: "30m"` to the `ollama` service and the README «Calentar el modelo antes de la demo» step; no execution-time checkpoint remains.
+6. **Human-only steps:** README screenshot (`docs/img/application-list.png`, 1280x800 light theme, from the seeded app), the S1-S11 x 3 viewports x 2 themes pass, the keyboard walk, `prefers-reduced-motion`, and the timed 2-minute demo with Ollama and with `mock`. No browser, Playwright or Chromium exists in the devcontainer [VERIFIED: `which chromium ... ` and `~/.cache/ms-playwright` absent]. Plan these as `checkpoint:human-verify` tasks writing `06-UAT.md`; the user's host browser reaches the dev ports through devcontainer forwarding and the compose port on `127.0.0.1:8080`.
+   - **RESOLVED:** plan 06-17 runs one consolidated human pass (Task 2) recorded in `06-UAT.md`, and Task 3 fixes every reported layout or keyboard issue with a guard test before recording; the screenshot is `docs/img/application-list.png`.
 7. **Image size target (Claude's discretion):** the current `tfm-app:0.1.0` is 397 MB (node:22-slim base, 42 MB prod `node_modules`, 356 KB api dist, 1.3 MB web dist) [VERIFIED: `docker images`, `du` in the image]. Recommend a documented ceiling of 450 MB asserted in the smoke script.
+   - **RESOLVED:** 450 MB ceiling (Claude's discretion, D-15), asserted by `bash scripts/compose-smoke.sh --cold` in plan 06-16 (Task 1).
 
 ## Environment Availability
 

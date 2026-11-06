@@ -46,7 +46,8 @@ Filled by the planner/executor per PLAN.md. Requirement → test map from RESEAR
 | DEMO-01 | Two runs leave 12 seed apps / 3 docs, histories coherent, `--reset` wipes all, `seed` not exposed | integration | `npm run test -w @tfm/api -- src/scripts/seed/seed.run.test.ts` | ❌ W0 | ⬜ pending |
 | DEMO-01 / DEMO-05 | Seed + mock extraction work in the image after cold start | compose smoke | `bash scripts/compose-smoke.sh --cold` | ❌ W0 | ⬜ pending |
 | DEMO-02 | README covers run/seed/`--reset`/mock/`LLM_MODEL`/fixtures, no phase notes | grep | `grep -q "LLM_PROVIDER=mock" README.md && ! grep -q "fase 1" README.md` | n/a | ⬜ pending |
-| DEMO-03 | Layout class backstops for no horizontal overflow | component | `npm run test -w @tfm/web -- src/layouts src/common` | partial | ⬜ pending |
+| DEMO-03 | 360 px risk-point guards on screens S1-S11 (D-12) plus shell class backstops | component | `npm run test -w @tfm/web -- src/test/responsive.test.tsx src/layouts src/common` | ❌ W0 (`src/test/responsive.test.tsx`, plan 06-11) | ⬜ pending |
+| DEMO-03 / DEMO-04 | Loading, error and empty states of list, detail, form and documents (D-11) | component | `npm run test -w @tfm/web -- src/test/view-states.test.tsx` | ❌ W0 (`src/test/view-states.test.tsx`, plan 06-11) | ⬜ pending |
 | DEMO-04 | axe (non-contrast) on list, detail, form, documents, dialog, Sheet, error screens | component | `npm run test -w @tfm/web -- src/test src/core/router` | ❌ W0 | ⬜ pending |
 | DEMO-04 | AA contrast of token pairs, light and dark | unit | `npm run test -w @tfm/web -- src/common/lib/contrast.test.ts` | ❌ W0 | ⬜ pending |
 | DEMO-06 | Mapper gaps closed, DOMAIN rules traced, 05 WR-01 stable | unit/component | `npm run test -w @tfm/web -- src/pods` · `npm run test -w @tfm/api -- src/applications src/documents` | partial | ⬜ pending |
@@ -62,6 +63,7 @@ Filled by the planner/executor per PLAN.md. Requirement → test map from RESEAR
 - [ ] `apps/web/src/common/lib/contrast.ts` + `contrast.test.ts` — DEMO-04
 - [ ] Mapper unit tests (web pods + api mappers) — DEMO-06 (D-23)
 - [ ] `--cold` mode in `scripts/compose-smoke.sh` — DEMO-01/05 (D-15)
+- [ ] `apps/web/src/test/view-states.test.tsx` and `apps/web/src/test/responsive.test.tsx` — DEMO-03/04 (D-11, D-12)
 
 ---
 
@@ -69,10 +71,10 @@ Filled by the planner/executor per PLAN.md. Requirement → test map from RESEAR
 
 | Behavior | Requirement | Why Manual | Test Instructions |
 |----------|-------------|------------|-------------------|
-| No horizontal scroll at 360/768/1280, both themes | DEMO-03 | No browser in the devcontainer; jsdom has no layout | Walk screens S1-S11 at each viewport, record in UAT |
+| No horizontal scroll at 360/768/1280, both themes | DEMO-03 | No browser in the devcontainer; jsdom has no layout | Walk screens S1-S11 at each viewport, record in UAT; every reported overflow is fixed with a guard in 06-17 Task 3 |
 | Full keyboard walkthrough, visible focus, reduced motion | DEMO-04 | Real focus rendering needs a browser | Tab through the demo flow, record in UAT |
 | Demo flow under 2 minutes with Ollama and with mock | DEMO-05 | Timed human run | Run the flow twice with a timer, record times in UAT |
-| README screenshot | DEMO-02 | Needs a browser capture | Capture seeded list, light theme, store under `docs/` |
+| README screenshot | DEMO-02 | Needs a browser capture | Capture seeded list, light theme, store as `docs/img/application-list.png` |
 
 ---
 

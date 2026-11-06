@@ -315,13 +315,15 @@ The 12 seeded applications are the demo's first impression, so the data must exe
 
 ### 10. README screenshot (D-22)
 
-One image: the seeded `/applications` list, **light** theme, viewport **1280 × 800**, device scale factor 1, no filters or search active, no dialog, no dev overlay or browser chrome, system fonts not substituted (the three DS fonts loaded). Saved as `docs/img/lista-candidaturas.png` (PNG, under 300 KB; resize or quantize if needed). Referenced from the README with Spanish alt text: «Lista de candidaturas de Expediente con el tema claro». Captured from the app after `npm run seed`, never from a mock.
+One image: the seeded `/applications` list, **light** theme, viewport **1280 × 800**, device scale factor 1, no filters or search active, no dialog, no dev overlay or browser chrome, system fonts not substituted (the three DS fonts loaded). Saved as `docs/img/application-list.png` (PNG, under 300 KB; resize or quantize if needed; English file name per CLAUDE.md, renamed at plan revision on 2026-11-06). Referenced from the README with Spanish alt text: «Lista de candidaturas de Expediente con el tema claro». Captured from the app after `npm run seed`, never from a mock.
 
 ---
 
 ## UI Considerations
 
 Empty / error / loading **copy** lives in the Copywriting Contract above and in the approved Phase 2-5 contracts; this table covers state coverage per view and references them. Elements: E1 shell (nav, skip link, theme toggle, sheet), E2 not-found / route-error screens, E3 application list, E4 application detail, E5 application form and AI panel, E6 `/documents` screen, E7 dialogs with an in-flight lock, E8 seeded demo data.
+
+**Row identifiers (UIC).** Plans cite a row of the table below as `UIC <element> <row label>` (for example `UIC E3 List refetch` or `UIC E7 Close attempt while an operation is in flight`): `UIC` names this «UI Considerations» table, `E1`-`E8` are the elements listed above, and the row label is the text of the «Element(s)» cell after the element code. `UIC backstops` means every row whose Status is 🧪 backstop.
 
 Applicable state considerations resolved: 36 covered, 8 backstop, 5 dismissed, 0 unresolved (49 rows). Researcher rows completed by the engine probe of `/gsd-ui-phase` Step 9.5 on 2026-11-06 (52 probe items; E7 kinds confirmed by the user as modal + form; gap resolutions confirmed by the user).
 
