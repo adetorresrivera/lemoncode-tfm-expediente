@@ -1,0 +1,8 @@
+# Override for `compose-smoke.sh --cold`: the isolated cold project publishes no host ports, so it
+# never clashes with a running `expediente` stack on 8080 or 9001. `!reset` needs Docker Compose
+# v2.24 or later.
+services:
+  app:
+    ports: !reset []
+  s3:
+    ports: !reset []
