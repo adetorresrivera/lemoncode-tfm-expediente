@@ -37,7 +37,7 @@ export function DeleteDialog({ title, company, state, onConfirm }: Props) {
     <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogTrigger asChild>
         <Button type="button" variant="outline" className="h-11">
-          <Trash2 aria-hidden="true" className="text-destructive" />
+          <Trash2 aria-hidden="true" />
           Eliminar
         </Button>
       </AlertDialogTrigger>
