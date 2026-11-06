@@ -1,5 +1,5 @@
 ---
-status: complete
+status: diagnosed
 phase: 05-documentos-en-s3
 source: [05-VERIFICATION.md]
 started: 2026-11-04T20:35:00Z
@@ -47,5 +47,13 @@ blocked: 0
   reason: "User reported: The tooltip Seleection archivo - Ningun archivo seleccionado. Looks missaligned"
   severity: cosmetic
   test: 4
-  artifacts: []
-  missing: []
+  root_cause: "The file input reuses the shared Input (h-11, px-4, text-base, no vertical padding). Native file inputs do not vertically centre their content inside a fixed height, and the ::file-selector-button is styled text-sm with no height while the «Ningún archivo seleccionado» label inherits text-base, so the button and label sit on different baselines near the top of the 44 px box."
+  artifacts:
+    - path: "apps/web/src/pods/document-upload/components/upload-dialog.tsx"
+      issue: "File input className (line ~210) sets file: styles without a height/alignment and mismatches the label font size"
+    - path: "apps/web/src/common/components/ui/input.tsx"
+      issue: "Base Input has fixed h-11 and no py, which suits text inputs but not type=file"
+  missing:
+    - "Give the file input vertical padding (e.g. py-2) and a fixed-height, vertically centred file: button (file:h-7 file:inline-flex file:items-center), with matching text size for button and label (text-sm), so both sit centred in the 44 px control at 360 px and desktop"
+    - "Keep the change local to the upload dialog (do not alter the shared Input for text fields)"
+  debug_session: ""
