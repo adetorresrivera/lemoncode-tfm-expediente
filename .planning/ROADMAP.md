@@ -224,7 +224,7 @@ Plans:
 **Target**: 7 Nov 2026 · **Branch**: `phase/06-pulido-demo`
 **Requirements**: DEMO-01, DEMO-02, DEMO-03, DEMO-04, DEMO-05, DEMO-06
 **Success Criteria** (what must be TRUE):
-  1. `npm run seed` (and `docker compose exec app npm run seed`) loads demo applications, documents and the 3 fixture offers into Mongo and Silo, leaving a list worth demoing.
+  1. `npm run seed` (and `docker compose exec app npm run seed`) loads demo applications and documents into Mongo and Silo, leaving a list worth demoing; the 3 fixture offers are available to paste from `docs/demo/ofertas/`.
   2. The README lets someone on a clean machine run the project, seed it, switch `LLM_PROVIDER`, and recover with `mock` when Ollama fails.
   3. Every screen is usable from 360 px width without horizontal scroll, and fully operable with the keyboard alone, with visible focus, labelled fields, `aria-live="polite"` on load, error and AI results, and AA contrast in light and dark themes.
   4. The full demo flow (paste offer → autofill → review → save → add round → attach CV → change status → see it filtered) completes in under 2 minutes on a clean machine, both with Ollama and with `mock`.
