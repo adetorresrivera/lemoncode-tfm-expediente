@@ -187,7 +187,7 @@ Plans:
   3. In the application form the user can link one CV and one cover letter, choosing an existing document or uploading a new one without leaving the form (the document section of the form lands in this phase).
   4. The application detail shows the linked documents and the user can download each of them.
   5. Deleting a document that is linked to any application is rejected with 409 `DOCUMENT_IN_USE`.
-**Plans**: 9/10 plans executed (1 gap closure from UAT 2026-11-06 pending)
+**Plans**: 10/10 plans executed (1 gap closure from UAT 2026-11-06 pending)
 Plans:
 **Wave 1**
 - [x] 05-01-PLAN.md — API tracer: multipart POST /api/documents → body cap, signature check (ZIP central directory), slugged key → real Silo + Mongo with compensation; contracts `fileName` and list item `usedBy`; every 400/413/415 limit (wave 1)
@@ -211,7 +211,7 @@ Plans:
 - [x] 05-09-PLAN.md — Compose smoke documents round trip, DOMAIN/ARCHITECTURE/DESIGN updates and the phase gate (wave 6)
 
 **Gap closure wave 1** *(UAT 2026-11-06)*
-- [ ] 05-10-PLAN.md — G-05-4: the upload dialog's native file button styled as the DS outline/sm button (border, fill, hover, Label role) and centred beside the Body-role file name in the 44 px control (local className, shared Input unchanged), class test and UI-SPEC «Archivo» row; closes only on the human check (UAT test 4, both themes), with an in-plan fallback
+- [x] 05-10-PLAN.md — G-05-4: the upload dialog's native file button styled as the DS outline/sm button (border, fill, hover, Label role) and centred beside the Body-role file name in the 44 px control (local className, shared Input unchanged), class test and UI-SPEC «Archivo» row; closes only on the human check (UAT test 4, both themes), with an in-plan fallback
 **UI hint**: yes
 
 ### Phase 6: Pulido de demo
@@ -265,6 +265,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Candidaturas | 12/12 | Complete    | 2026-10-31 |
 | 3. Autocompletado con IA | 12/12 | Complete    | 2026-11-01 |
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
-| 5. Documentos en S3 | 9/9 | In Progress | - |
+| 5. Documentos en S3 | 10/10 | In Progress | - |
 | 6. Pulido de demo | 0/TBD | Not started | - |
 | 7. Documentación y defensa | 0/TBD | Not started | - |
