@@ -3,11 +3,11 @@ gsd_state_version: "1.0"
 current_phase: 6
 current_phase_name: Pulido de demo
 status: planning
-stopped_at: Phase 05 complete, ready to plan Phase 6
-last_updated: "2026-11-06T09:20:28.235Z"
+stopped_at: Phase 6 context gathered
+last_updated: "2026-11-06T09:34:52.867Z"
 last_activity: 2026-11-06
 last_activity_desc: "Phase 05 shipped as PR #5"
-state_head: 4ec11be11e412097a4fe5e67597f69bca19ba569
+state_head: 03a17fa6e372efe938d3c58f6ae5435798ff93f9
 progress:
   total_phases: 7
   completed_phases: 5
@@ -117,6 +117,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T09:20:00Z
-Stopped at: Phase 05 complete, ready to plan Phase 6
-Resume file: None
+Last session: 2026-11-06T09:34:52.075Z
+Stopped at: Phase 6 context gathered
+Resume file: .planning/phases/06-pulido-de-demo/06-CONTEXT.md
