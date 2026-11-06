@@ -240,10 +240,16 @@ describe("AppLayout", () => {
     const user = userEvent.setup();
     await renderShell();
 
-    const wordmarks = screen
-      .getAllByText("Expediente")
-      .filter((node) => node.tagName === "P");
-    expect(wordmarks).toHaveLength(2);
+    const header = screen
+      .getByRole("button", { name: "Abrir menú" })
+      .closest("header");
+    if (header === null) {
+      throw new Error("The menu button is not inside a header");
+    }
+    const wordmarks = [
+      within(screen.getByRole("complementary")).getByText("Expediente"),
+      within(header).getByText("Expediente"),
+    ];
 
     await user.click(screen.getByRole("button", { name: "Abrir menú" }));
     const title = await screen.findByRole("heading", { name: "Expediente" });

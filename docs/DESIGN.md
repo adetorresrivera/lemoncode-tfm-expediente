@@ -25,8 +25,11 @@ Tuteo, frases cortas, verbos de acción («Añadir candidatura», «Autocompleta
 ## Pantallas
 
 ### Shell (`layouts/app-layout.tsx`)
-- Escritorio (≥1024 px): barra lateral fija `bg-sidebar text-sidebar-foreground`, marca «Expediente» en serifa, navegación: «Mis candidaturas» y «Documentos» activas (la entrada de la ruta actual lleva `aria-current="page"`); «Tablero» desactivada con «Próximamente». Toggle de tema al pie (Sistema / Claro / Oscuro).
-- Móvil: cabecera con botón de menú que abre un `Sheet` con la misma navegación.
+- Escritorio (≥1024 px): barra lateral fija `bg-sidebar text-sidebar-foreground`, marca «Expediente» en serifa a 28 px y peso 400 (misma en la barra lateral, el título del `Sheet` y la cabecera móvil), navegación: «Mis candidaturas» y «Documentos» activas (la entrada de la ruta actual lleva `aria-current="page"`); «Tablero» desactivada con «Próximamente». Toggle de tema al pie (Sistema / Claro / Oscuro), apilado: icono encima de una etiqueta de 14 px, cada opción de al menos 44 px de alto.
+- Móvil: cabecera con botón de menú de 44 px (`size-11`) que abre un `Sheet` con la misma navegación. Esc lo cierra y el foco vuelve al botón.
+- Los enlaces de navegación miden al menos 44 px (`min-h-11`, `font-semibold`).
+- Enlace «Saltar al contenido»: primer elemento enfocable de la página; oculto hasta recibir foco, y al activarlo mueve el foco a `<main id="main-content">` sin cambiar la URL.
+- Foco sobre `bg-sidebar`: todo control de la barra lateral, la cabecera móvil y el `Sheet` (enlaces, «Abrir menú», opciones del toggle de tema, botón de cierre) usa el anillo `sidebar-ring` (`focus-visible:ring-2 focus-visible:ring-sidebar-ring`); `ring` no se ve sobre ese fondo.
 
 ### Mis candidaturas (`/applications`)
 - Cabecera: eyebrow «Expediente», h1 «Mis candidaturas», contador, botón primary «Añadir candidatura».
@@ -52,4 +55,4 @@ Tuteo, frases cortas, verbos de acción («Añadir candidatura», «Autocompleta
 - Acciones: primary «Guardar candidatura», «Descartar cambios». Validación con el esquema de contracts; errores junto al campo.
 
 ## Accesibilidad y responsive
-Mobile-first desde 360 px sin scroll horizontal. Labels en todos los campos, foco visible (`ring`), `aria-live="polite"` en carga/errores/resultado de IA, contraste AA (los tokens ya lo cumplen; `brand-gold` nunca como texto pequeño, usar `brand-gold-ink`). Todo operable con teclado; diálogos de shadcn con foco atrapado.
+Mobile-first desde 360 px sin scroll horizontal. Labels en todos los campos, foco visible (`ring` sobre las superficies de página, `sidebar-ring` sobre `bg-sidebar`), enlace «Saltar al contenido» como primer elemento enfocable, `aria-live="polite"` en carga/errores/resultado de IA, contraste AA (los tokens ya lo cumplen; `brand-gold` nunca como texto pequeño, usar `brand-gold-ink`). Todo operable con teclado; diálogos de shadcn con foco atrapado.

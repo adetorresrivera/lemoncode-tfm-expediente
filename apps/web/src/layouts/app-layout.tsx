@@ -1,6 +1,6 @@
 import { Link, Outlet } from "@tanstack/react-router";
 import { Briefcase, FileText, LayoutDashboard, Menu } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { ThemeToggle } from "@/common/components/theme-toggle";
 import { Button } from "@/common/components/ui/button";
 import {
@@ -12,8 +12,10 @@ import {
   SheetTrigger,
 } from "@/common/components/ui/sheet";
 
+const WORDMARK_CLASS = "font-serif text-[28px] leading-[1.2] font-normal";
+
 const NAV_ITEM_CLASS =
-  "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium";
+  "flex min-h-11 items-center gap-2 rounded-md px-4 text-sm font-semibold outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring";
 
 interface MainNavProps {
   onNavigate?: () => void;
@@ -70,11 +72,22 @@ function MainNav({ onNavigate }: MainNavProps) {
 
 export function AppLayout() {
   const [menuOpen, setMenuOpen] = useState(false);
+  const mainRef = useRef<HTMLElement>(null);
 
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <a
+        href="#main-content"
+        onClick={(event) => {
+          event.preventDefault();
+          mainRef.current?.focus();
+        }}
+        className="sr-only focus:not-sr-only focus:fixed focus:top-4 focus:left-4 focus:z-50 focus:inline-flex focus:h-11 focus:items-center focus:rounded-md focus:border focus:border-input focus:bg-card focus:px-4 focus:text-sm focus:font-semibold focus:text-foreground focus:ring-2 focus:ring-ring"
+      >
+        Saltar al contenido
+      </a>
       <aside className="hidden lg:flex lg:fixed lg:inset-y-0 lg:w-64 flex-col gap-6 bg-sidebar text-sidebar-foreground border-r border-sidebar-border p-4">
-        <p className="font-serif text-2xl">Expediente</p>
+        <p className={WORDMARK_CLASS}>Expediente</p>
         <MainNav />
         <div className="mt-auto">
           <ThemeToggle />
@@ -88,7 +101,7 @@ export function AppLayout() {
               variant="ghost"
               size="icon"
               aria-label="Abrir menú"
-              className="hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+              className="size-11 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
             >
               <Menu strokeWidth={1.5} className="size-5" aria-hidden="true" />
             </Button>
@@ -96,9 +109,12 @@ export function AppLayout() {
           <SheetContent
             side="left"
             className="bg-sidebar text-sidebar-foreground border-sidebar-border"
+            closeButtonClassName="focus:ring-sidebar-ring"
           >
             <SheetHeader>
-              <SheetTitle className="font-serif text-2xl font-normal text-sidebar-foreground">
+              <SheetTitle
+                className={`${WORDMARK_CLASS} text-sidebar-foreground`}
+              >
                 Expediente
               </SheetTitle>
               <SheetDescription className="sr-only">
@@ -113,10 +129,15 @@ export function AppLayout() {
             </div>
           </SheetContent>
         </Sheet>
-        <p className="font-serif text-xl">Expediente</p>
+        <p className={WORDMARK_CLASS}>Expediente</p>
       </header>
 
-      <main className="lg:pl-64">
+      <main
+        id="main-content"
+        ref={mainRef}
+        tabIndex={-1}
+        className="lg:pl-64 outline-none"
+      >
         <div className="mx-auto w-full max-w-5xl px-4 py-6 lg:px-8 lg:py-8">
           <Outlet />
         </div>
