@@ -37,9 +37,9 @@ export async function ensureBucket(
   bucket: string,
   timeoutMs = 5000,
 ): Promise<void> {
-  void timeoutMs; // RED stub: deadline not applied yet
+  const options = { abortSignal: AbortSignal.timeout(timeoutMs) };
   try {
-    await s3.send(new HeadBucketCommand({ Bucket: bucket }));
+    await s3.send(new HeadBucketCommand({ Bucket: bucket }), options);
   } catch (err) {
     if (
       !(err instanceof S3ServiceException) ||
@@ -47,7 +47,7 @@ export async function ensureBucket(
     )
       throw err;
     try {
-      await s3.send(new CreateBucketCommand({ Bucket: bucket }));
+      await s3.send(new CreateBucketCommand({ Bucket: bucket }), options);
     } catch (createErr) {
       // Raced with the s3-init container: the bucket already exists.
       const tolerated = ["BucketAlreadyOwnedByYou", "BucketAlreadyExists"];
@@ -66,9 +66,10 @@ export async function pingS3(
   bucket: string,
   timeoutMs = 2000,
 ): Promise<boolean> {
-  void timeoutMs; // RED stub: deadline not applied yet
   try {
-    await s3.send(new HeadBucketCommand({ Bucket: bucket }));
+    await s3.send(new HeadBucketCommand({ Bucket: bucket }), {
+      abortSignal: AbortSignal.timeout(timeoutMs),
+    });
     return true;
   } catch {
     return false;

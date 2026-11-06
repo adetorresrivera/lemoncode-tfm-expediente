@@ -5,6 +5,7 @@ import { createApp } from "./app.js";
 import { loadConfig, type Config } from "./config.js";
 import { connectMongo, pingMongo } from "./db/mongo.js";
 import { createLlmClient } from "./llm/llm.client.js";
+import { retryStartup } from "./startup.js";
 import {
   createDocumentStorage,
   createS3Client,
@@ -20,9 +21,28 @@ try {
   process.exit(1);
 }
 
-const { client: mongoClient, db } = await connectMongo(config.MONGO_URL);
 const s3 = createS3Client(config);
-await ensureBucket(s3, config.S3_BUCKET);
+let connection: Awaited<ReturnType<typeof connectMongo>>;
+try {
+  // A cold machine starts Mongo and Silo after the API: retry instead of dying on the first error.
+  connection = await retryStartup(
+    async () => {
+      const conn = await connectMongo(config.MONGO_URL);
+      try {
+        await ensureBucket(s3, config.S3_BUCKET);
+        return conn;
+      } catch (err) {
+        await conn.client.close();
+        throw err;
+      }
+    },
+    { attempts: 10, delayMs: 2000, log: console.error },
+  );
+} catch {
+  console.error("API startup failed after 10 attempts");
+  process.exit(1);
+}
+const { client: mongoClient, db } = connection;
 const llm = createLlmClient(config);
 
 const here = dirname(fileURLToPath(import.meta.url));

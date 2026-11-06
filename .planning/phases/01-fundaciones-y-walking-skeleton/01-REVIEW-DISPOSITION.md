@@ -63,8 +63,16 @@ findings:
     severity: info
     disposition: open
     title: "Duplicated base-URL normalisation and repo-wide `legacy-peer-deps`"
+  - id: WR-01a
+    severity: warning
+    disposition: fixed
+    title: "API startup hangs or dies when Mongo/S3 are slow"
+  - id: WR-02a
+    severity: warning
+    disposition: fixed
+    title: "`pingS3` has no abort"
 open: 15
-total: 15
+total: 17
 recorded: 2026-10-29T22:23:46.944Z
 ---
 
@@ -87,6 +95,8 @@ recorded: 2026-10-29T22:23:46.944Z
 | IN-05 | info | open | - (not in the current review) |
 | IN-06 | info | open | - (not in the current review) |
 | IN-07 | info | open | - (not in the current review) |
+| WR-01a | warning | fixed | first review (commit b578856); id reused by the second review; fixed in 06-04 |
+| WR-02a | warning | fixed | first review (commit b578856); id reused by the second review; fixed in 06-04 |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
