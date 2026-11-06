@@ -187,7 +187,7 @@ Plans:
   3. In the application form the user can link one CV and one cover letter, choosing an existing document or uploading a new one without leaving the form (the document section of the form lands in this phase).
   4. The application detail shows the linked documents and the user can download each of them.
   5. Deleting a document that is linked to any application is rejected with 409 `DOCUMENT_IN_USE`.
-**Plans**: 9/9 plans executed
+**Plans**: 9/10 plans executed (1 gap closure from UAT 2026-11-06 pending)
 Plans:
 **Wave 1**
 - [x] 05-01-PLAN.md — API tracer: multipart POST /api/documents → body cap, signature check (ZIP central directory), slugged key → real Silo + Mongo with compensation; contracts `fileName` and list item `usedBy`; every 400/413/415 limit (wave 1)
@@ -209,6 +209,9 @@ Plans:
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [x] 05-09-PLAN.md — Compose smoke documents round trip, DOMAIN/ARCHITECTURE/DESIGN updates and the phase gate (wave 6)
+
+**Gap closure wave 1** *(UAT 2026-11-06)*
+- [ ] 05-10-PLAN.md — G-05-4: the upload dialog's file input centres the native button and the file name on one baseline in the 44 px control (local className, shared Input unchanged), class test and UI-SPEC amendment
 **UI hint**: yes
 
 ### Phase 6: Pulido de demo
