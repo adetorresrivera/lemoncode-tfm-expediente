@@ -229,14 +229,14 @@ Plans:
   3. Every screen is usable from 360 px width without horizontal scroll, and fully operable with the keyboard alone, with visible focus, labelled fields, `aria-live="polite"` on load, error and AI results, and AA contrast in light and dark themes.
   4. The full demo flow (paste offer → autofill → review → save → add round → attach CV → change status → see it filtered) completes in under 2 minutes on a clean machine, both with Ollama and with `mock`.
   5. Tests pending from earlier phases are written, and `npm run typecheck && npm run test` pass on a clean checkout.
-**Plans**: 17 plans
+**Plans**: 5/17 plans executed
 Plans:
 **Wave 1**
-- [ ] 06-01-PLAN.md — Seed tracer: `npm run seed` → compiled `dist/scripts/seed.js` → services with an injected clock → Mongo + Silo, idempotent `seed: true` mark, one linked CV and one application (wave 1)
-- [ ] 06-03-PLAN.md — Offer fixtures moved to `docs/demo/ofertas/`, loader and `try-extract` re-pointed, fixture code kept out of `dist` (wave 1)
-- [ ] 06-04-PLAN.md — API start and static fallback: bounded startup retry, S3 deadlines, extension-aware SPA fallback, loud missing `index.html` (wave 1)
-- [ ] 06-05-PLAN.md — Bounded inputs and clean smoke: 256 KiB body limit on applications, `.max()` bounds in contracts, cleanup trap in the compose smoke (wave 1)
-- [ ] 06-14-PLAN.md — Direct mapper tests for the five web pods and both API mappers, incl. the storage-only `seed` field (wave 1)
+- [x] 06-01-PLAN.md — Seed tracer: `npm run seed` → compiled `dist/scripts/seed.js` → services with an injected clock → Mongo + Silo, idempotent `seed: true` mark, one linked CV and one application (wave 1)
+- [x] 06-03-PLAN.md — Offer fixtures moved to `docs/demo/ofertas/`, loader and `try-extract` re-pointed, fixture code kept out of `dist` (wave 1)
+- [x] 06-04-PLAN.md — API start and static fallback: bounded startup retry, S3 deadlines, extension-aware SPA fallback, loud missing `index.html` (wave 1)
+- [x] 06-05-PLAN.md — Bounded inputs and clean smoke: 256 KiB body limit on applications, `.max()` bounds in contracts, cleanup trap in the compose smoke (wave 1)
+- [x] 06-14-PLAN.md — Direct mapper tests for the five web pods and both API mappers, incl. the storage-only `seed` field (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 06-02-PLAN.md — Demo list and rehearsal reset: 12 applications / 3 PDFs (pure plan, TDD), coherent histories, `--reset` with announced counts, strict options, user-linked documents kept, interrupted-run recovery, in-image command check (wave 2)
@@ -308,5 +308,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Autocompletado con IA | 12/12 | Complete    | 2026-11-01 |
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
 | 5. Documentos en S3 | 11/11 | Complete    | 2026-11-06 |
-| 6. Pulido de demo | 0/12 | Planned | - |
+| 6. Pulido de demo | 5/17 | In Progress | - |
 | 7. Documentación y defensa | 0/TBD | Not started | - |
