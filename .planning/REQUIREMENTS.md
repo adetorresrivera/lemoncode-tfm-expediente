@@ -59,12 +59,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Documents (DOC)
 
-- [ ] **DOC-01**: User can upload a PDF or DOCX up to 5 MB with type (CV / carta), name and version, stored in S3 bucket `tfm-assets`
-- [ ] **DOC-02**: Upload rejects oversize files with 413 `FILE_TOO_LARGE` and other types with 415 `UNSUPPORTED_FILE_TYPE`, with a friendly message in the UI
-- [ ] **DOC-03**: User can link one CV and one cover letter to an application, choosing an existing document or uploading a new one from the form
-- [ ] **DOC-04**: User can download linked documents from the detail
-- [ ] **DOC-05**: Deleting a document linked to any application is rejected with 409 `DOCUMENT_IN_USE`
-- [ ] **DOC-06**: User can list documents, optionally filtered by type
+- [x] **DOC-01**: User can upload a PDF or DOCX up to 5 MB with type (CV / carta), name and version, stored in S3 bucket `tfm-assets`
+- [x] **DOC-02**: Upload rejects oversize files with 413 `FILE_TOO_LARGE` and other types with 415 `UNSUPPORTED_FILE_TYPE`, with a friendly message in the UI
+- [x] **DOC-03**: User can link one CV and one cover letter to an application, choosing an existing document or uploading a new one from the form
+- [x] **DOC-04**: User can download linked documents from the detail
+- [x] **DOC-05**: Deleting a document linked to any application is rejected with 409 `DOCUMENT_IN_USE`
+- [x] **DOC-06**: User can list documents, optionally filtered by type
 
 ### Demo readiness (DEMO)
 
@@ -154,12 +154,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INT-03 | Phase 4 | Complete |
 | INT-04 | Phase 4 | Complete |
 | INT-05 | Phase 4 | Complete |
-| DOC-01 | Phase 5 | Pending |
-| DOC-02 | Phase 5 | Pending |
-| DOC-03 | Phase 5 | Pending |
-| DOC-04 | Phase 5 | Pending |
-| DOC-05 | Phase 5 | Pending |
-| DOC-06 | Phase 5 | Pending |
+| DOC-01 | Phase 5 | Complete |
+| DOC-02 | Phase 5 | Complete |
+| DOC-03 | Phase 5 | Complete |
+| DOC-04 | Phase 5 | Complete |
+| DOC-05 | Phase 5 | Complete |
+| DOC-06 | Phase 5 | Complete |
 | DEMO-01 | Phase 6 | Pending |
 | DEMO-02 | Phase 6 | Pending |
 | DEMO-03 | Phase 6 | Pending |

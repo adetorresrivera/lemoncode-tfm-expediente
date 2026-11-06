@@ -9,11 +9,13 @@ import {
   deleteApplication,
   deleteInterview,
   getApplication,
+  getDocument,
   patchApplicationStatus,
   updateInterview,
 } from "./api/api";
 import {
   mapApplicationFromApiToDetailVm,
+  mapDocumentFromApiToDetailVm,
   mapInterviewFormToApiInput,
   validateInterviewForm,
   withOptimisticStatus,
@@ -21,6 +23,9 @@ import {
 import type {
   ApplicationDetailVm,
   DeleteState,
+  DetailDocumentSlotVm,
+  DetailDocumentVm,
+  DetailDocumentsVm,
   InterviewActions,
   InterviewFormMode,
   InterviewFormValues,
@@ -41,6 +46,12 @@ interface Mutation {
   feedback: StatusFeedback | null;
 }
 
+// The outcome of the document requests of one application, tagged with the key they were sent for.
+interface DocumentsResult {
+  key: string;
+  slots: DetailDocumentsVm;
+}
+
 const SUCCESS_VISIBLE_MS = 5000;
 const STATUS_ERROR_MESSAGE =
   "No se pudo cambiar el estado. Inténtalo de nuevo.";
@@ -56,6 +67,7 @@ export interface ApplicationDetailState {
   remove: () => void;
   deleteState: DeleteState;
   interviewActions: InterviewActions;
+  documents: DetailDocumentsVm;
 }
 
 interface Options {
@@ -71,6 +83,8 @@ export const useApplicationDetail = (
 ): ApplicationDetailState => {
   const [result, setResult] = useState<Result | null>(null);
   const [attempt, setAttempt] = useState(0);
+  const [documentsResult, setDocumentsResult] =
+    useState<DocumentsResult | null>(null);
   const [mutations, setMutations] = useState<Record<string, Mutation>>({});
   const [deletion, setDeletion] = useState<{
     key: string;
@@ -118,6 +132,45 @@ export const useApplicationDetail = (
     return () => controller.abort();
   }, [applicationId, key]);
 
+  // The documents are requested once the application is loaded, one request per link, in
+  // parallel. The key holds the application, the attempt and both link ids: a mutation that keeps
+  // the links keeps the key (no refetch), another application or another link set changes it.
+  const loadedLinks =
+    result?.key === key && result.outcome === "ok"
+      ? result.vm.documentLinks
+      : null;
+  const cvLink = loadedLinks?.cv ?? null;
+  const coverLetterLink = loadedLinks?.coverLetter ?? null;
+  const documentsKey = `${key}:${cvLink ?? ""}:${coverLetterLink ?? ""}`;
+  const linksLoaded = loadedLinks !== null;
+
+  useEffect(() => {
+    if (!linksLoaded || (cvLink === null && coverLetterLink === null)) return;
+    const controller = new AbortController();
+    const settle = (
+      outcome: PromiseSettledResult<DetailDocumentVm | null>,
+    ): DetailDocumentSlotVm => {
+      if (outcome.status === "rejected") return { kind: "error" };
+      return outcome.value === null
+        ? { kind: "none" }
+        : { kind: "ok", document: outcome.value };
+    };
+    const load = (id: string | null) =>
+      id === null
+        ? Promise.resolve(null)
+        : getDocument(id, controller.signal).then(mapDocumentFromApiToDetailVm);
+    Promise.allSettled([load(cvLink), load(coverLetterLink)]).then(
+      ([cv, coverLetter]) => {
+        if (controller.signal.aborted) return;
+        setDocumentsResult({
+          key: documentsKey,
+          slots: { cv: settle(cv), coverLetter: settle(coverLetter) },
+        });
+      },
+    );
+    return () => controller.abort();
+  }, [linksLoaded, cvLink, coverLetterLink, documentsKey]);
+
   useEffect(() => {
     mountedRef.current = true;
     const timers = successTimersRef.current;
@@ -129,6 +182,15 @@ export const useApplicationDetail = (
   }, []);
 
   const current = result?.key === key ? result : null;
+  const slotOf = (
+    link: string | null,
+    slot: keyof DetailDocumentsVm,
+  ): DetailDocumentSlotVm => {
+    if (link === null) return { kind: "none" };
+    return documentsResult?.key === documentsKey
+      ? documentsResult.slots[slot]
+      : { kind: "loading" };
+  };
   const currentMutation = mutations[key] ?? null;
 
   // Writes only while the result still belongs to the application the request was sent for.
@@ -383,6 +445,10 @@ export const useApplicationDetail = (
       add: addInterview,
       update: updateRound,
       remove: removeRound,
+    },
+    documents: {
+      cv: slotOf(cvLink, "cv"),
+      coverLetter: slotOf(coverLetterLink, "coverLetter"),
     },
   };
 };

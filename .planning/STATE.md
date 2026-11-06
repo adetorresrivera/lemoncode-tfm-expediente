@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 5
-current_phase_name: Documentos en S3
+current_phase: 6
+current_phase_name: Pulido de demo
 status: planning
-stopped_at: Phase 04 complete, ready to plan Phase 5
-last_updated: "2026-11-03T21:21:21.756Z"
-last_activity: 2026-11-03
-last_activity_desc: "Phase 04 shipped as PR #4 (stacked on #1-#3)"
-state_head: d1d8a6edcd2383a982ffef93645254bb1e84e878
+stopped_at: Phase 05 complete, ready to plan Phase 6
+last_updated: "2026-11-06T09:20:28.235Z"
+last_activity: 2026-11-06
+last_activity_desc: "Phase 05 shipped as PR #5"
+state_head: 4ec11be11e412097a4fe5e67597f69bca19ba569
 progress:
   total_phases: 7
-  completed_phases: 4
-  total_plans: 34
-  completed_plans: 34
-  percent: 57
+  completed_phases: 5
+  total_plans: 45
+  completed_plans: 45
+  percent: 71
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-03)
+See: .planning/PROJECT.md (updated 2026-11-06)
 
 **Core value:** Pegar una oferta y obtener un expediente casi completo y revisable en segundos, con el flujo entero (pegar → guardar → ronda → CV → estado → filtrar) demostrable en menos de 2 minutos con `docker compose up`.
-**Current focus:** Phase 5 — Documentos en S3
+**Current focus:** Phase 6 — Pulido de demo
 
 ## Current Position
 
-Phase: 5 — Documentos en S3
+Phase: 6 — Pulido de demo
 Plan: Not started
 Status: Ready to plan
-Last activity: 2026-11-03 -- Phase 04 shipped as PR #4 (stacked on #1-#3)
+Last activity: 2026-11-06 -- Phase 05 shipped as PR #5
 
-Progress: [██████░░░░] 57%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 34
+- Total plans completed: 45
 - Average duration: - min
 - Total execution time: 0.0 hours
 
@@ -49,6 +49,7 @@ Progress: [██████░░░░] 57%
 | 02 | 12 | - | - |
 | 03 | 12 | - | - |
 | 04 | 4 | - | - |
+| 05 | 11 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -74,6 +75,7 @@ Recent decisions affecting current work:
 - [Phase 3]: Prompt changes need user approval and a new sha256 fingerprint (D-25); current approved fingerprint `deeed808…`. Spoken languages come through the model-only `idiomas` field; `@tfm/contracts` unchanged.
 
 - [Phase 4]: 4 plans on `phase/04-rondas-entrevista`; verified 4/4 (regenerated after review fix 2ea14e0), UAT 6/6, security 0 open threats, UI review done. No new dependency. Interview mutations go through the applications service; the `enviada → en_entrevistas` rule runs inside the same pipeline `findOneAndUpdate`.
+- [Phase 5]: 11 plans (9 + 2 gap-closure for the upload-dialog file button) on `phase/05-documentos-s3`; verified, UAT 4/4, security 38/38 closed (5 accepted low), UI review 19/24 kept as an improvement list (`05-UI-REVIEW.md`), not applied. No new dependency. `fileName` added to `documentSchema` (D-05); file type by magic bytes + extension without a library.
 
 ### Pending Todos
 
@@ -94,6 +96,7 @@ None yet.
 - [Phase 1]: `npm run format:check` flags the untracked GSD artifact `.gsd/dispatch-isolation-sentinel.json`; add `.gsd` to `.prettierignore` when convenient.
 
 - [Phase 4]: Open findings in `04-REVIEW-DISPOSITION.md`: WR-01 the `busy` lock (`busyRef`) is still one slot while feedback and timers are per application (a second mutation on A is possible after A → B → A with A pending); WR-02 the unmount-cancels-timers test only asserts `clearTimeout` ≥ 1; IN-01 `endBusy` own-lock guard untested; IN-02 `deletingRef`/`onDeleted` not scoped per application; IN-03 per-key error feedback never pruned. `/gsd-code-review 04 --fix` applies the warnings. `04-01/02-SUMMARY.md` key-files list paths without the `apps/web/src/` prefix.
+- [Phase 5]: Open findings in `05-REVIEW-DISPOSITION.md` (WR-01..WR-03, IN-01..IN-06), incl. a possibly flaky timer test and an untested idle outside-pointer case. UI review top fixes not applied: error icons tinted `text-destructive` against the UI-SPEC, dialog X silently ignored during upload, `mt-0.5`/`file:mr-3` off-scale. `05-VALIDATION.md` still draft (`/gsd-validate-phase 05` not run). Several 05-SUMMARY key-files lack the `apps/*/src/` prefix.
 
 ### Quick Tasks Completed
 
@@ -114,6 +117,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T21:00:00Z
-Stopped at: Phase 04 complete, ready to plan Phase 5
+Last session: 2026-11-06T09:20:00Z
+Stopped at: Phase 05 complete, ready to plan Phase 6
 Resume file: None

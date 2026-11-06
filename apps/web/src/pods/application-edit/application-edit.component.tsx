@@ -7,8 +7,10 @@ import type {
   FormMessage,
   OfferPanelModel,
   RenderCancelLink,
+  RenderDocumentPicker,
 } from "./application-edit.vm";
 import { ConditionsSection } from "./components/conditions-section";
+import { DocumentsSection } from "./components/documents-section";
 import { JobSection } from "./components/job-section";
 import { OfferPanel } from "./components/offer-panel";
 import { TagsSection } from "./components/tags-section";
@@ -24,6 +26,7 @@ interface Props {
   formMessage: FormMessage | null;
   offerPanel: OfferPanelModel;
   renderCancelLink: RenderCancelLink;
+  renderDocumentPicker: RenderDocumentPicker;
 }
 
 export function ApplicationEditComponent({
@@ -34,6 +37,7 @@ export function ApplicationEditComponent({
   formMessage,
   offerPanel,
   renderCancelLink,
+  renderDocumentPicker,
 }: Props) {
   return (
     <form
@@ -63,6 +67,10 @@ export function ApplicationEditComponent({
         form={form}
         mode={mode}
         currentStatus={summary?.status}
+      />
+      <DocumentsSection
+        form={form}
+        renderDocumentPicker={renderDocumentPicker}
       />
       <div role="status" aria-live="polite">
         {formMessage ? (

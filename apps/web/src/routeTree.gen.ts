@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ApplicationsIndexRouteImport } from './routes/applications/index'
 import { Route as ApplicationsNewRouteImport } from './routes/applications/new'
+import { Route as DocumentsIndexRouteImport } from './routes/documents/index'
 import { Route as ApplicationsApplicationIdIndexRouteImport } from './routes/applications/$applicationId/index'
 import { Route as ApplicationsApplicationIdEditRouteImport } from './routes/applications/$applicationId/edit'
 
@@ -28,6 +29,11 @@ const ApplicationsIndexRoute = ApplicationsIndexRouteImport.update({
 const ApplicationsNewRoute = ApplicationsNewRouteImport.update({
   id: '/applications/new',
   path: '/applications/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DocumentsIndexRoute = DocumentsIndexRouteImport.update({
+  id: '/documents/',
+  path: '/documents/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApplicationsApplicationIdIndexRoute =
@@ -47,6 +53,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/applications/new': typeof ApplicationsNewRoute
   '/applications/': typeof ApplicationsIndexRoute
+  '/documents/': typeof DocumentsIndexRoute
   '/applications/$applicationId/edit': typeof ApplicationsApplicationIdEditRoute
   '/applications/$applicationId/': typeof ApplicationsApplicationIdIndexRoute
 }
@@ -54,6 +61,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/applications/new': typeof ApplicationsNewRoute
   '/applications': typeof ApplicationsIndexRoute
+  '/documents': typeof DocumentsIndexRoute
   '/applications/$applicationId/edit': typeof ApplicationsApplicationIdEditRoute
   '/applications/$applicationId': typeof ApplicationsApplicationIdIndexRoute
 }
@@ -62,6 +70,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/applications/new': typeof ApplicationsNewRoute
   '/applications/': typeof ApplicationsIndexRoute
+  '/documents/': typeof DocumentsIndexRoute
   '/applications/$applicationId/edit': typeof ApplicationsApplicationIdEditRoute
   '/applications/$applicationId/': typeof ApplicationsApplicationIdIndexRoute
 }
@@ -71,6 +80,7 @@ export interface FileRouteTypes {
     | '/'
     | '/applications/new'
     | '/applications/'
+    | '/documents/'
     | '/applications/$applicationId/edit'
     | '/applications/$applicationId/'
   fileRoutesByTo: FileRoutesByTo
@@ -78,6 +88,7 @@ export interface FileRouteTypes {
     | '/'
     | '/applications/new'
     | '/applications'
+    | '/documents'
     | '/applications/$applicationId/edit'
     | '/applications/$applicationId'
   id:
@@ -85,6 +96,7 @@ export interface FileRouteTypes {
     | '/'
     | '/applications/new'
     | '/applications/'
+    | '/documents/'
     | '/applications/$applicationId/edit'
     | '/applications/$applicationId/'
   fileRoutesById: FileRoutesById
@@ -93,6 +105,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ApplicationsNewRoute: typeof ApplicationsNewRoute
   ApplicationsIndexRoute: typeof ApplicationsIndexRoute
+  DocumentsIndexRoute: typeof DocumentsIndexRoute
   ApplicationsApplicationIdEditRoute: typeof ApplicationsApplicationIdEditRoute
   ApplicationsApplicationIdIndexRoute: typeof ApplicationsApplicationIdIndexRoute
 }
@@ -120,6 +133,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApplicationsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/documents/': {
+      id: '/documents/'
+      path: '/documents'
+      fullPath: '/documents/'
+      preLoaderRoute: typeof DocumentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/applications/$applicationId/': {
       id: '/applications/$applicationId/'
       path: '/applications/$applicationId'
@@ -141,6 +161,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ApplicationsNewRoute: ApplicationsNewRoute,
   ApplicationsIndexRoute: ApplicationsIndexRoute,
+  DocumentsIndexRoute: DocumentsIndexRoute,
   ApplicationsApplicationIdEditRoute: ApplicationsApplicationIdEditRoute,
   ApplicationsApplicationIdIndexRoute: ApplicationsApplicationIdIndexRoute,
 }

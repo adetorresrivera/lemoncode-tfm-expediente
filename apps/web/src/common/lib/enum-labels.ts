@@ -1,6 +1,7 @@
 import type {
   ApplicationStatus,
   ContractType,
+  DocumentType,
   InterviewMode,
   InterviewOutcome,
   InterviewType,
@@ -59,6 +60,11 @@ export const INTERVIEW_OUTCOME_LABELS: Record<InterviewOutcome, string> = {
   pendiente: "Pendiente",
   superada: "Superada",
   no_superada: "No superada",
+};
+
+export const DOCUMENT_TYPE_LABELS: Record<DocumentType, string> = {
+  cv: "CV",
+  carta: "Carta",
 };
 
 /** Display order of tag groups: card, detail and filters. */

@@ -10,10 +10,14 @@ import { z } from "zod";
 import { createApplicationsRepository } from "./applications/applications.repository.js";
 import { applicationsRoutes } from "./applications/applications.routes.js";
 import { createApplicationsService } from "./applications/applications.service.js";
+import { createDocumentsRepository } from "./documents/documents.repository.js";
+import { documentsRoutes } from "./documents/documents.routes.js";
+import { createDocumentsService } from "./documents/documents.service.js";
 import { ApiError } from "./errors.js";
 import type { LlmClient } from "./llm/llm.client.js";
 import { offersRoutes } from "./offers/extract.routes.js";
 import { createExtractService } from "./offers/extract.service.js";
+import type { DocumentStorage } from "./storage/s3.js";
 import { tagsRoutes } from "./tags/tags.routes.js";
 
 export type AppDeps = {
@@ -23,6 +27,7 @@ export type AppDeps = {
   webDistDir?: string;
   db?: Db;
   llm?: LlmClient;
+  storage?: DocumentStorage;
   now?: () => Date;
 };
 
@@ -70,13 +75,27 @@ export function createApp(deps: AppDeps): Hono {
   });
 
   // Mounted before serveStatic so the production image never answers index.html for an API path.
-  if (deps.db) {
+  const documentsRepository = deps.db
+    ? createDocumentsRepository(deps.db)
+    : undefined;
+  if (deps.db && documentsRepository) {
     const service = createApplicationsService(
       createApplicationsRepository(deps.db),
+      (ids) => documentsRepository.findTypes(ids),
       deps.now,
     );
     app.route("/api/applications", applicationsRoutes(service));
     app.route("/api/tags", tagsRoutes(service));
+  }
+
+  // The documents endpoints need both Mongo (metadata) and the bucket (bytes).
+  if (documentsRepository && deps.storage) {
+    const documents = createDocumentsService(
+      documentsRepository,
+      deps.storage,
+      deps.now,
+    );
+    app.route("/api/documents", documentsRoutes(documents));
   }
 
   // The extraction endpoint needs the LLM client only: it reads and writes no database.

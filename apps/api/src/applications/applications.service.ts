@@ -6,6 +6,7 @@ import {
   type ApplicationQuery,
   type ApplicationInput,
   type ApplicationStatus,
+  type DocumentType,
   type InterviewInput,
   type TagSummary,
 } from "@tfm/contracts";
@@ -45,11 +46,17 @@ export const INTERVIEW_STATUS_RULE: InterviewStatusRule = {
   to: "en_entrevistas",
 };
 
+// Read-only lookup of document types by id (ids that are not documents are absent from the map).
+// The applications service receives this function instead of the documents service, so it can do
+// nothing with documents but read their type.
+export type DocumentTypeLookup = (
+  ids: readonly string[],
+) => Promise<Map<string, DocumentType>>;
+
 // Copies the editable keys one by one (no rest, no spread): status, statusHistory, interviews,
-// ownerId, createdAt and the document links in the input can never reach Mongo. offerText is
-// written as sent (null clears it), so the edit form always sends the loaded value back.
-// Phase 5 (cvDocumentId, coverLetterDocumentId) must add its fields here and make the form
-// always send them, otherwise a save would wipe them.
+// ownerId and createdAt in the input can never reach Mongo. offerText and the document links are
+// written as sent (null clears them), so the edit form always sends the loaded values back. The
+// links are validated by `validateDocumentLinks` before this runs.
 function toEditableFields(input: ApplicationInput): EditableFields {
   return {
     title: input.title,
@@ -69,13 +76,50 @@ function toEditableFields(input: ApplicationInput): EditableFields {
     appliedAt: input.appliedAt !== null ? new Date(input.appliedAt) : null,
     notes: input.notes,
     offerText: input.offerText,
+    cvDocumentId: input.cvDocumentId,
+    coverLetterDocumentId: input.coverLetterDocumentId,
   };
 }
 
 export function createApplicationsService(
   repository: ApplicationsRepository,
+  findDocumentTypes: DocumentTypeLookup,
   now: () => Date = () => new Date(),
 ): ApplicationsService {
+  // D-12: a link must point to an existing document of the right type. Errors are reported per
+  // field in the same shape as the global ZodError mapping, so the form shows them on the field.
+  async function validateDocumentLinks(input: ApplicationInput): Promise<void> {
+    const ids = [input.cvDocumentId, input.coverLetterDocumentId].filter(
+      (id): id is string => id !== null,
+    );
+    if (ids.length === 0) return;
+    const types = await findDocumentTypes(ids);
+    const fieldErrors: Record<string, string[]> = {};
+    const check = (
+      field: "cvDocumentId" | "coverLetterDocumentId",
+      expected: DocumentType,
+      wrongType: string,
+    ): void => {
+      const id = input[field];
+      if (id === null) return;
+      const type = types.get(id);
+      if (type === undefined) fieldErrors[field] = ["El documento no existe"];
+      else if (type !== expected) fieldErrors[field] = [wrongType];
+    };
+    check("cvDocumentId", "cv", "El documento no es un CV");
+    check(
+      "coverLetterDocumentId",
+      "carta",
+      "El documento no es una carta de presentación",
+    );
+    if (Object.keys(fieldErrors).length > 0) {
+      throw new ApiError(400, "VALIDATION_ERROR", "Datos no válidos", {
+        formErrors: [],
+        fieldErrors,
+      });
+    }
+  }
+
   async function get(id: ObjectId): Promise<Application> {
     const doc = await repository.findById(id);
     if (doc === null) {
@@ -100,6 +144,7 @@ export function createApplicationsService(
     get,
 
     async create(input) {
+      await validateDocumentLinks(input);
       const at = now();
       // Built field by field (no spread): id, createdAt, statusHistory, interviews and ownerId
       // sent by the client can never reach Mongo.
@@ -140,6 +185,7 @@ export function createApplicationsService(
     },
 
     async update(id, input) {
+      await validateDocumentLinks(input);
       const doc = await repository.updateEditable(
         id,
         toEditableFields(input),

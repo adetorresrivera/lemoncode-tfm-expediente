@@ -2,6 +2,7 @@ import {
   interviewInputSchema,
   type Application,
   type ApplicationStatus,
+  type Document,
   type Interview,
 } from "@tfm/contracts";
 import {
@@ -15,12 +16,14 @@ import {
 import {
   formatDate,
   formatDateTime,
+  formatFileSize,
   formatSalaryRange,
   isoToLocalInput,
   localInputToIso,
 } from "@/common/lib/format";
 import type {
   ApplicationDetailVm,
+  DetailDocumentVm,
   DetailTagGroupVm,
   InterviewFormField,
   InterviewFormMode,
@@ -242,6 +245,16 @@ export const validateInterviewForm = (
   return { fields };
 };
 
+export const mapDocumentFromApiToDetailVm = (
+  document: Document,
+): DetailDocumentVm => ({
+  id: document.id,
+  label: `${document.name} · ${document.version} · ${formatDate(document.createdAt)}`,
+  sizeLabel: formatFileSize(document.size),
+  downloadHref: `/api/documents/${encodeURIComponent(document.id)}/download`,
+  downloadLabel: `Descargar ${document.name}`,
+});
+
 export const mapApplicationFromApiToDetailVm = (
   application: Application,
 ): ApplicationDetailVm => {
@@ -276,6 +289,10 @@ export const mapApplicationFromApiToDetailVm = (
     newInterviewValues: newInterviewFormValues(
       nextInterviewRound(application.interviews),
     ),
+    documentLinks: {
+      cv: application.cvDocumentId,
+      coverLetter: application.coverLetterDocumentId,
+    },
   };
 };
 

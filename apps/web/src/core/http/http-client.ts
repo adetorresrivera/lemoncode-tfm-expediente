@@ -65,7 +65,10 @@ export async function request<T>(
 ): Promise<T> {
   const { method = "GET", body, signal } = options;
   const init: RequestInit = { method, signal };
-  if (body !== undefined) {
+  if (body instanceof FormData) {
+    // No content-type: the browser writes multipart/form-data with its own boundary.
+    init.body = body;
+  } else if (body !== undefined) {
     init.headers = { "content-type": "application/json" };
     init.body = JSON.stringify(body);
   }

@@ -1,6 +1,7 @@
 import type {
   ApplicationStatus,
   ContractType,
+  DocumentType,
   Seniority,
   TagGroup,
   WorkMode,
@@ -34,6 +35,10 @@ export interface ApplicationFormValues {
   // The analyzed offer, "" when there is none. Only a successful analysis sets it (D-10); the
   // textarea draft lives in the extraction hook and never reaches this value by typing.
   offerText: string;
+  // Ids of the linked CV and cover letter, "" = no document; the picker of the Documentos section
+  // writes them. They always travel back on save so an edit never wipes a link (D-13).
+  cvDocumentId: string;
+  coverLetterDocumentId: string;
 }
 
 export type FormFieldName = keyof ApplicationFormValues;
@@ -54,6 +59,8 @@ export const EMPTY_FORM_VALUES: ApplicationFormValues = {
   sourceUrl: "",
   notes: "",
   offerText: "",
+  cvDocumentId: "",
+  coverLetterDocumentId: "",
 };
 
 // Form-level message shown in the always-mounted polite status slot above the actions.
@@ -67,6 +74,16 @@ export interface FormMessage {
 export type RenderCancelLink = (link: {
   className?: string;
   children: ReactNode;
+}) => ReactElement;
+
+// The seam for the document pickers of the «Documentos» section (D-14): the scene fills it with
+// the upload pod, so this pod never imports it. `error` is the field's first error («Revisa este
+// campo.») so the picker can mark its own select.
+export type RenderDocumentPicker = (picker: {
+  type: DocumentType;
+  selectedId: string;
+  onSelected: (id: string) => void;
+  error?: string;
 }) => ReactElement;
 
 // Same seam for the link to the list (the not-found state of the edit load).

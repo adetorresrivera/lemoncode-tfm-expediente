@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   formatDate,
   formatDateTime,
+  formatFileSize,
   formatMoney,
   formatSalaryRange,
   isoToLocalInput,
@@ -138,5 +139,20 @@ describe("localInputToIso and isoToLocalInput", () => {
   it("gives null for an empty or unparsable value", () => {
     expect(localInputToIso("")).toBeNull();
     expect(localInputToIso("nope")).toBeNull();
+  });
+});
+
+describe("formatFileSize", () => {
+  it.each([
+    [512, "512 B"],
+    [1023, "1023 B"],
+    [1024, "1 KB"],
+    [1536, "1,5 KB"],
+    [235520, "230 KB"],
+    [1048575, "1 MB"],
+    [1258291, "1,2 MB"],
+    [5242880, "5 MB"],
+  ])("prints %i bytes as «%s»", (bytes, expected) => {
+    expect(formatFileSize(bytes)).toBe(expected);
   });
 });

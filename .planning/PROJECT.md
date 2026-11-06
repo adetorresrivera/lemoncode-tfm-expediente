@@ -20,9 +20,10 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 
 - ✓ **INT**: rondas de entrevista (crear, editar, borrar) en un diálogo del detalle, número automático (máx + 1, editable), paso atómico de `enviada` a `en_entrevistas` con historial, lista ordenada por ronda — Fase 4 (INT-01..INT-05, verificado 4/4, UAT 6/6, seguridad 0 amenazas abiertas). Avisos de revisión abiertos y no bloqueantes: candado `busy` de un solo hueco (WR-01) y aserción débil de temporizadores (WR-02)
 
+- ✓ **DOC**: subir PDF/DOCX ≤5 MB a Silo (firma y extensión deben coincidir, DOCX por directorio central), listado `/documents` con filtro por tipo, descarga con `Content-Disposition: attachment`, vincular CV y carta desde el formulario (incluida subida en diálogo), borrado bloqueado con 409 si está en uso — Fase 5 (DOC-01..DOC-06, verificado, UAT 4/4, seguridad 38/38 cerradas con 5 riesgos bajos aceptados, UI 19/24 como lista de mejoras). Avisos de revisión abiertos y no bloqueantes en `05-REVIEW-DISPOSITION.md` (WR-01..WR-03)
+
 ### Active
 
-- [ ] **DOC**: subir PDF/DOCX ≤5 MB a S3, vincular CV y carta, descargar, bloquear borrado si está en uso
 - [ ] **DEMO**: seed de datos, README, responsive desde 360 px y accesibilidad AA, modo mock
 - [ ] **PRES**: documentación y material de defensa (deck, guion de demo, `docs/ia-en-el-proyecto.md`, `docs/decisiones.md`, preguntas del tribunal)
 
@@ -43,6 +44,7 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 - Frontend con la arquitectura del curso: `core/`, `common/`, `layouts/`, `scenes/`, `pods/` (API model + view model + mapper por pod). Datos con hooks propios y `fetch` + `AbortController`, sin React Query.
 - Fase 1 cerrada (29 oct): esqueleto andante con monorepo, contratos Zod, API Hono con `/api/health`, shell web con tema y compose funcionando. Metodología GSD + Claude Code; rama por fase (`phase/NN-nombre`), una PR por fase.
 - Fase 2 cerrada (31 oct, rama `phase/02-candidaturas`): CRUD completo de candidaturas en API y web, filtros en la URL, detalle con historial, formulario compartido crear/editar con TanStack Form; 471 tests y smoke de compose con ida y vuelta CRUD.
+- Fase 5 cerrada (6 nov, rama `phase/05-documentos-s3`): documentos en S3 con API multipart limitada a 5 MB, compensación del objeto si falla el insert, picker y diálogo de subida en el formulario, sección de documentos en el detalle; 1079 tests.
 - Fase 4 cerrada (3 nov, rama `phase/04-rondas-entrevista`): rondas de entrevista en API y web con diálogo accesible, fechas `datetime-local` que conservan el instante guardado al editar; 870 tests y smoke de compose con ida y vuelta de rondas.
 
 ## Constraints
@@ -74,6 +76,8 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 | `@tanstack/react-form` 1.33.5 fijado exacto | Mandado por el stack; única dependencia nueva de la Fase 2, aprobada en checkpoint humano | ✓ Fase 2 |
 | Regla de rondas `enviada → en_entrevistas` en el servicio, evaluada en el mismo `findOneAndUpdate` (pipeline) que calcula máx + 1 | Número y cambio de estado leen el documento guardado en una sola escritura atómica | ✓ Fase 4: el repositorio no contiene literales de estado |
 | `DELETE` de ronda responde 200 con la `Application` completa; `PUT` sin `round` conserva el número guardado | El cliente refresca el detalle con una sola respuesta; otros clientes no reasignan rondas por omisión | ✓ Fase 4 (D-06, D-28) |
+| Tipo de archivo por magic bytes + extensión, sin dependencias (DOCX por el directorio central del ZIP); `mimeType` guardado sale de la detección | Un HTML renombrado nunca se guarda ni se sirve como PDF; sin librería nueva | ✓ Fase 5 (D-02) |
+| Subir a S3 con id generado antes y, si falla el insert, borrar el objeto sin tapar el error original | Sin objetos huérfanos en Silo ni metadatos sin objeto | ✓ Fase 5 (D-04) |
 | Feedback de mutaciones y temporizadores de éxito por candidatura en el hook del detalle | Dos candidaturas mutando a la vez no se pisan mensajes ni temporizadores | ✓ Fase 4 (fix 2ea14e0); queda el candado `busy` de un solo hueco como aviso |
 | Roadmap de 7 fases fijado por el autor | MVP completo y demostrable antes que funcionalidades a medias | — Pending |
 
@@ -95,4 +99,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-03 after Phase 4*
+*Last updated: 2026-11-06 after Phase 5*

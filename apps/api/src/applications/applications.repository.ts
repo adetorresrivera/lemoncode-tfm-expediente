@@ -90,7 +90,8 @@ export interface InterviewChanges {
 }
 
 // The only fields PUT may write (D-07, D-08). Status, history, interviews, ownership, creation
-// instant and document links are deliberately absent.
+// instant are deliberately absent. The document links are editable (D-13): the service validates
+// them and the form always sends the loaded values back.
 export interface EditableFields {
   title: string;
   company: string;
@@ -106,6 +107,8 @@ export interface EditableFields {
   appliedAt: Date | null;
   notes: string | null;
   offerText: string | null;
+  cvDocumentId: string | null;
+  coverLetterDocumentId: string | null;
 }
 
 export interface ApplicationsRepository {
@@ -228,6 +231,8 @@ export function createApplicationsRepository(db: Db): ApplicationsRepository {
             appliedAt: fields.appliedAt,
             notes: fields.notes,
             offerText: fields.offerText,
+            cvDocumentId: fields.cvDocumentId,
+            coverLetterDocumentId: fields.coverLetterDocumentId,
             updatedAt: now,
           },
         },

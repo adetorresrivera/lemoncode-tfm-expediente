@@ -1,5 +1,9 @@
 import { createMemoryHistory, RouterProvider } from "@tanstack/react-router";
-import { applicationSchema } from "@tfm/contracts";
+import {
+  applicationSchema,
+  documentListItemSchema,
+  documentSchema,
+} from "@tfm/contracts";
 import {
   act,
   fireEvent,
@@ -672,5 +676,492 @@ describe("edit an application", () => {
       }),
     ).toBeInTheDocument();
     expect(router.state.location.pathname).toBe("/applications");
+  });
+});
+
+describe("/documents", () => {
+  const storedDocument = documentSchema.parse({
+    id: "d1",
+    type: "cv",
+    name: "CV Frontend",
+    version: "v3",
+    fileName: "CV Frontend.pdf",
+    s3Key: "documents/d1/cv-frontend.pdf",
+    mimeType: "application/pdf",
+    size: 1024,
+    createdAt: "2026-11-04T10:00:00.000Z",
+  });
+
+  it("renders the page header, sets the title and uploads a PDF from the dialog", async () => {
+    const fetchMock = mockFetch({
+      "POST /api/documents": () => jsonResponse(storedDocument, 201),
+    });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/documents"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Documentos" }),
+    ).toBeInTheDocument();
+    expect(
+      within(screen.getByRole("main")).getByText("Expediente"),
+    ).toBeInTheDocument();
+    expect(document.title).toBe("Documentos · Expediente");
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Subir documento" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Subir documento",
+    });
+    await user.upload(
+      within(dialog).getByLabelText(/Archivo/),
+      new File([new Uint8Array(1024)], "CV Frontend.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    await user.type(within(dialog).getByLabelText(/Versión/), "v3");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Subir documento" }),
+    );
+
+    expect(await screen.findByText("Documento subido.")).toBeInTheDocument();
+    const posts = fetchMock.mock.calls.filter(
+      ([, init]) => init?.method === "POST",
+    );
+    expect(posts).toHaveLength(1);
+    expect(posts[0]?.[1]?.body).toBeInstanceOf(FormData);
+  });
+
+  it("opens the dialog with Carta selected at /documents?type=carta", async () => {
+    mockFetch({});
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/documents?type=carta"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: "Subir documento" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Subir documento",
+    });
+
+    expect(
+      within(dialog).getByRole("radio", { name: "Carta" }),
+    ).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("renders the page with CV selected at /documents?type=zzz", async () => {
+    mockFetch({});
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/documents?type=zzz"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Documentos" }),
+    ).toBeInTheDocument();
+    await userEvent.click(
+      screen.getByRole("button", { name: "Subir documento" }),
+    );
+    const dialog = await screen.findByRole("dialog", {
+      name: "Subir documento",
+    });
+
+    expect(within(dialog).getByRole("radio", { name: "CV" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+  });
+});
+
+describe("/documents library", () => {
+  const listItem = (overrides: Record<string, unknown>) =>
+    documentListItemSchema.parse({
+      id: "d1",
+      type: "cv",
+      name: "CV Frontend",
+      version: "v3",
+      fileName: "CV Frontend.pdf",
+      s3Key: "documents/d1/cv-frontend.pdf",
+      mimeType: "application/pdf",
+      size: 235520,
+      createdAt: "2026-10-12T10:00:00.000Z",
+      usedBy: 1,
+      ...overrides,
+    });
+  const cv = listItem({});
+  const carta = listItem({
+    id: "d2",
+    type: "carta",
+    name: "Carta Lemoncode",
+    version: "v1",
+    createdAt: "2026-10-11T10:00:00.000Z",
+    usedBy: 0,
+  });
+
+  // The API answers by `type`, like the real endpoint.
+  const listByType = (url: URL) => {
+    const type = url.searchParams.get("type");
+    return jsonResponse(
+      [cv, carta].filter((item) => type === null || item.type === type),
+    );
+  };
+
+  const listRequests = (fetchMock: ReturnType<typeof mockFetch>) =>
+    fetchMock.mock.calls
+      .filter(
+        ([input, init]) =>
+          String(input).startsWith("/api/documents") &&
+          (init?.method ?? "GET") === "GET",
+      )
+      .map(([input]) => new URL(String(input), "http://localhost"));
+
+  const openRoute = (entry: string) => {
+    const history = createMemoryHistory({ initialEntries: [entry] });
+    const router = createAppRouter(history);
+    render(<RouterProvider router={router} />);
+    return { router, history };
+  };
+
+  it("renders the header with the eyebrow, the heading, the counter and the upload button", async () => {
+    mockFetch({ "GET /api/documents": listByType });
+    openRoute("/documents");
+
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "Documentos",
+    });
+    const header = within(screen.getByRole("main")).getByRole("banner");
+
+    expect(within(header).getByText("Expediente")).toBeInTheDocument();
+    expect(within(header).getByText(/^Documentos$/)).toBe(heading);
+    expect(await within(header).findByText("2 documentos")).toBeInTheDocument();
+    expect(
+      within(header).getByRole("button", { name: "Subir documento" }),
+    ).toBeInTheDocument();
+    expect(
+      await screen.findByRole("list", { name: "Documentos" }),
+    ).toBeInTheDocument();
+  });
+
+  it("puts the chosen type in the URL replacing the entry and requests it; Todos removes it", async () => {
+    const fetchMock = mockFetch({ "GET /api/documents": listByType });
+    const user = userEvent.setup();
+    const { router, history } = openRoute("/documents");
+    await screen.findByRole("list", { name: "Documentos" });
+
+    await user.click(screen.getByRole("radio", { name: "Carta" }));
+
+    await waitFor(() =>
+      expect(router.state.location.search).toStrictEqual({ type: "carta" }),
+    );
+    expect(router.state.location.href).toBe("/documents?type=carta");
+    await waitFor(() =>
+      expect(
+        listRequests(fetchMock).some(
+          (url) => url.searchParams.get("type") === "carta",
+        ),
+      ).toBe(true),
+    );
+    expect(await screen.findByText("1 documento")).toBeInTheDocument();
+    expect(screen.queryByText("CV Frontend")).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("radio", { name: "Todos" }));
+
+    await waitFor(() => expect(router.state.location.href).toBe("/documents"));
+    expect(await screen.findByText("2 documentos")).toBeInTheDocument();
+    expect(history.length).toBe(1);
+  });
+
+  it("keeps the filter of the URL after a reload", async () => {
+    const fetchMock = mockFetch({ "GET /api/documents": listByType });
+    openRoute("/documents?type=carta");
+
+    expect(await screen.findByText("Carta Lemoncode")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Carta" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(listRequests(fetchMock)[0]?.searchParams.get("type")).toBe("carta");
+  });
+
+  const uploadCarta = async (
+    user: ReturnType<typeof userEvent.setup>,
+    pickCarta: boolean,
+  ) => {
+    await user.click(screen.getByRole("button", { name: "Subir documento" }));
+    const dialog = await screen.findByRole("dialog", {
+      name: "Subir documento",
+    });
+    if (pickCarta) {
+      await user.click(within(dialog).getByRole("radio", { name: "Carta" }));
+    }
+    await user.upload(
+      within(dialog).getByLabelText(/Archivo/),
+      new File([new Uint8Array(1024)], "Carta nueva.pdf", {
+        type: "application/pdf",
+      }),
+    );
+    await user.type(within(dialog).getByLabelText(/Versión/), "v2");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Subir documento" }),
+    );
+  };
+
+  const uploaded = listItem({
+    id: "d3",
+    type: "carta",
+    name: "Carta nueva",
+    version: "v2",
+    usedBy: 0,
+  });
+
+  it("switches the filter to the uploaded type so the new row is visible", async () => {
+    const items = [cv, carta];
+    const fetchMock = mockFetch({
+      "GET /api/documents": (url: URL) => {
+        const type = url.searchParams.get("type");
+        return jsonResponse(
+          items.filter((item) => type === null || item.type === type),
+        );
+      },
+      "POST /api/documents": () => {
+        items.push(uploaded);
+        return jsonResponse(uploaded, 201);
+      },
+    });
+    const user = userEvent.setup();
+    const { router } = openRoute("/documents?type=cv");
+    await screen.findByText("CV Frontend");
+
+    await uploadCarta(user, true);
+
+    expect(await screen.findByText("Documento subido.")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(router.state.location.href).toBe("/documents?type=carta"),
+    );
+    expect(await screen.findByText("Carta nueva")).toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "Carta" })).toHaveAttribute(
+      "aria-checked",
+      "true",
+    );
+    expect(
+      listRequests(fetchMock).some(
+        (url) => url.searchParams.get("type") === "carta",
+      ),
+    ).toBe(true);
+  });
+
+  it("reloads once in Todos without touching the URL", async () => {
+    const items = [cv, carta];
+    const fetchMock = mockFetch({
+      "GET /api/documents": () => jsonResponse(items),
+      "POST /api/documents": () => {
+        items.push(uploaded);
+        return jsonResponse(uploaded, 201);
+      },
+    });
+    const user = userEvent.setup();
+    const { router } = openRoute("/documents");
+    await screen.findByText("CV Frontend");
+    expect(listRequests(fetchMock)).toHaveLength(1);
+
+    await uploadCarta(user, true);
+
+    expect(await screen.findByText("Documento subido.")).toBeInTheDocument();
+    expect(await screen.findByText("Carta nueva")).toBeInTheDocument();
+    expect(screen.getByText("3 documentos")).toBeInTheDocument();
+    expect(listRequests(fetchMock)).toHaveLength(2);
+    expect(router.state.location.href).toBe("/documents");
+  });
+
+  it("reloads without changing the filter when the uploaded type is the active one", async () => {
+    const items = [cv, carta];
+    const fetchMock = mockFetch({
+      "GET /api/documents": (url: URL) => {
+        const type = url.searchParams.get("type");
+        return jsonResponse(
+          items.filter((item) => type === null || item.type === type),
+        );
+      },
+      "POST /api/documents": () => {
+        items.push(uploaded);
+        return jsonResponse(uploaded, 201);
+      },
+    });
+    const user = userEvent.setup();
+    const { router } = openRoute("/documents?type=carta");
+    await screen.findByText("Carta Lemoncode");
+
+    await uploadCarta(user, false);
+
+    expect(await screen.findByText("Carta nueva")).toBeInTheDocument();
+    expect(router.state.location.href).toBe("/documents?type=carta");
+    expect(listRequests(fetchMock)).toHaveLength(2);
+  });
+});
+
+describe("documents in the application form", () => {
+  type StoredDocument = ReturnType<typeof documentSchema.parse>;
+
+  // A library that remembers what the form uploads: POST /api/documents stores the document of the
+  // multipart body, GET /api/documents?type= lists it.
+  const libraryRoutes = (library: StoredDocument[]) => ({
+    "GET /api/documents": (url: URL) =>
+      jsonResponse(
+        library
+          .filter((item) => item.type === url.searchParams.get("type"))
+          .map((item) => ({ ...item, usedBy: 0 })),
+      ),
+    "POST /api/documents": (_url: URL, init: RequestInit | undefined) => {
+      const body = init?.body;
+      if (!(body instanceof FormData)) return jsonResponse({}, 400);
+      const type = body.get("type") === "carta" ? "carta" : "cv";
+      const uploaded = documentSchema.parse({
+        id: type === "cv" ? "d1" : "c1",
+        type,
+        name: String(body.get("name")),
+        version: String(body.get("version")),
+        fileName: type === "cv" ? "CV Frontend.pdf" : "Carta Acme.pdf",
+        s3Key: `documents/${type}/file.pdf`,
+        mimeType: "application/pdf",
+        size: 1024,
+        createdAt: "2026-11-04T10:00:00.000Z",
+      });
+      library.push(uploaded);
+      return jsonResponse(uploaded, 201);
+    },
+  });
+
+  const pdfFile = (name: string) =>
+    new File([new Uint8Array(1024)], name, { type: "application/pdf" });
+
+  const uploadFromPicker = async (
+    user: ReturnType<typeof userEvent.setup>,
+    picker: "cv" | "carta",
+    fileName: string,
+    version: string,
+  ) => {
+    // The pickers load their lists; «Subir nuevo» stays inert until the list arrived.
+    const label = picker === "cv" ? "CV" : "Carta de presentación";
+    const select = await screen.findByRole("combobox", { name: label });
+    await waitFor(() => expect(select).not.toHaveAttribute("aria-busy"));
+    const buttons = screen.getAllByRole("button", { name: "Subir nuevo" });
+    const opener = picker === "cv" ? buttons[0] : buttons[1];
+    if (opener === undefined) throw new Error("Subir nuevo not found");
+    await user.click(opener);
+    const dialog = await screen.findByRole("dialog", {
+      name: picker === "cv" ? "Subir CV" : "Subir carta de presentación",
+    });
+    await user.upload(
+      within(dialog).getByLabelText(/Archivo/),
+      pdfFile(fileName),
+    );
+    await user.type(within(dialog).getByLabelText(/Versión/), version);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Subir documento" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+    return select;
+  };
+
+  it("uploads a CV from the form, selects it and saves the application linked to it", async () => {
+    const library: StoredDocument[] = [];
+    const fetchMock = mockFetch({
+      "GET /api/applications": [],
+      "POST /api/applications": () =>
+        jsonResponse({ ...createdApplication, cvDocumentId: "d1" }, 201),
+      "GET /api/applications/new1": createdApplication,
+      ...libraryRoutes(library),
+    });
+    const user = userEvent.setup({ applyAccept: false });
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/applications/new"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    await user.type(
+      await screen.findByLabelText("Puesto *"),
+      "Frontend Developer",
+    );
+    await user.type(screen.getByLabelText("Empresa *"), "Acme");
+    const select = await uploadFromPicker(user, "cv", "CV Frontend.pdf", "v3");
+
+    expect(select).toHaveValue("d1");
+    expect(
+      within(select).getByRole("option", {
+        name: "CV Frontend · v3 · 4 nov. 2026",
+        selected: true,
+      }),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Documento subido.")).toBeInTheDocument();
+    expect(methodCalls(fetchMock, "POST")).toHaveLength(1);
+
+    await user.click(
+      screen.getByRole("button", { name: "Guardar candidatura" }),
+    );
+
+    await screen.findByRole("heading", {
+      level: 1,
+      name: "Frontend Developer",
+    });
+    const posts = methodCalls(fetchMock, "POST");
+    expect(posts).toHaveLength(2);
+    const saved: unknown = JSON.parse(String(posts[1]?.[1]?.body));
+    expect(saved).toMatchObject({
+      title: "Frontend Developer",
+      company: "Acme",
+      cvDocumentId: "d1",
+      coverLetterDocumentId: null,
+    });
+    expect(router.state.location.pathname).toBe("/applications/new1");
+  });
+
+  it("keeps a document uploaded from the form after «Descartar cambios» and lists it in the next form", async () => {
+    const library: StoredDocument[] = [];
+    const fetchMock = mockFetch({
+      "GET /api/applications": [],
+      ...libraryRoutes(library),
+    });
+    const user = userEvent.setup({ applyAccept: false });
+    const router = createAppRouter(
+      createMemoryHistory({
+        initialEntries: ["/applications", "/applications/new"],
+      }),
+    );
+    render(<RouterProvider router={router} />);
+
+    const select = await uploadFromPicker(
+      user,
+      "carta",
+      "Carta Acme.pdf",
+      "v1",
+    );
+    expect(select).toHaveValue("c1");
+
+    await user.click(screen.getByRole("link", { name: "Descartar cambios" }));
+    await screen.findByRole("heading", { level: 1, name: "Mis candidaturas" });
+    expect(router.state.location.pathname).toBe("/applications");
+    expect(methodCalls(fetchMock, "DELETE")).toHaveLength(0);
+
+    await user.click(
+      await screen.findByRole("link", {
+        name: "Añadir la primera candidatura",
+      }),
+    );
+    const next = await screen.findByRole("combobox", {
+      name: "Carta de presentación",
+    });
+    expect(
+      await within(next).findByRole("option", {
+        name: "Carta Acme · v1 · 4 nov. 2026",
+      }),
+    ).toBeInTheDocument();
+    expect(next).toHaveValue("");
+    expect(methodCalls(fetchMock, "DELETE")).toHaveLength(0);
   });
 });

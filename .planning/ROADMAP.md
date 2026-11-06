@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Candidaturas** - Listado, detalle, alta/edición manual, estado e historial (target 31 Oct) (completed 2026-10-31)
 - [x] **Phase 3: Autocompletado con IA** - Paste an offer and get a reviewable draft that never overwrites user data (target 2 Nov) (completed 2026-11-01)
 - [x] **Phase 4: Rondas de entrevista** - Create, edit and delete interview rounds with the automatic move to `en_entrevistas` (target 3 Nov) (completed 2026-11-03)
-- [ ] **Phase 5: Documentos en S3** - Upload CV and cover letters, link them to applications, download them (target 5 Nov)
+- [x] **Phase 5: Documentos en S3** - Upload CV and cover letters, link them to applications, download them (target 5 Nov) (completed 2026-11-06)
 - [ ] **Phase 6: Pulido de demo** - Seed, README, responsive and accessibility pass, pending tests (target 7 Nov)
 - [ ] **Phase 7: Documentación y defensa** - Deck, demo script, AI-usage doc, ADRs and examiner Q&A (target 8 Nov)
 
@@ -187,7 +187,34 @@ Plans:
   3. In the application form the user can link one CV and one cover letter, choosing an existing document or uploading a new one without leaving the form (the document section of the form lands in this phase).
   4. The application detail shows the linked documents and the user can download each of them.
   5. Deleting a document that is linked to any application is rejected with 409 `DOCUMENT_IN_USE`.
-**Plans**: TBD
+**Plans**: 11/11 plans complete (gap closure 05-11 from UAT re-test 2026-11-06 pending)
+Plans:
+**Wave 1**
+- [x] 05-01-PLAN.md — API tracer: multipart POST /api/documents → body cap, signature check (ZIP central directory), slugged key → real Silo + Mongo with compensation; contracts `fileName` and list item `usedBy`; every 400/413/415 limit (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 05-02-PLAN.md — API list with `usedBy` and type filter, GET /api/documents/:id, streamed download with Content-Disposition, DELETE with 409 `DOCUMENT_IN_USE`; Silo contract test (wave 2)
+- [x] 05-04-PLAN.md — Web tracer: /documents route and scene → «Subir documento» dialog → FormData through http-client → «Documento subido.»; validation, 413/415 messages, cancel and focus (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 05-03-PLAN.md — Links that hold: applications service validates cvDocumentId/coverLetterDocumentId by type, PUT writes them, the form carries the loaded ids; rules 4 and 5 end to end (wave 3, after 05-02: shared documents repository)
+- [x] 05-07-PLAN.md — Detail aside «Documentos» with two fixed rows, size and «Descargar», per-row degradation; `formatFileSize`; delete-dialog sentence of rule 5 (wave 3, after 05-02: GET /api/documents/:id and the download)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 05-05-PLAN.md — Form «Documentos» section: `renderDocumentPicker` slot, picker of existing CVs and cover letters with loading, error, empty and missing-option states (wave 4)
+- [x] 05-08-PLAN.md — /documents library: list, filter in the URL, «En uso en N candidaturas», download, delete with the 409 in the dialog, refresh after upload, «Documentos» nav active (wave 4, after 05-07: `formatFileSize`)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 05-06-PLAN.md — «Subir nuevo» from the picker (same dialog, isolated from the application form), auto-select; router end-to-end «adjuntar CV» (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 05-09-PLAN.md — Compose smoke documents round trip, DOMAIN/ARCHITECTURE/DESIGN updates and the phase gate (wave 6)
+
+**Gap closure wave 1** *(UAT 2026-11-06)*
+- [x] 05-10-PLAN.md — G-05-4: the upload dialog's native file button styled as the DS outline/sm button (border, fill, hover, Label role) and centred beside the Body-role file name in the 44 px control (local className, shared Input unchanged), class test and UI-SPEC «Archivo» row; closes only on the human check (UAT test 4, both themes), with an in-plan fallback
+
+**Gap closure wave 2** *(UAT re-test 2026-11-06, after 05-10)*
+- [x] 05-11-PLAN.md — G-05-4b: the «Archivo» file input loses its box (no border, fill or side padding, min 44 px) and the native file button takes the h-11 / px-4 outline look of «Descartar subida», with the invalid state on the button border (local className, shared Input unchanged), class test and UI-SPEC «Archivo» row; closes only on the human re-test (UAT test 4, both themes, both modes)
 **UI hint**: yes
 
 ### Phase 6: Pulido de demo
@@ -241,6 +268,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Candidaturas | 12/12 | Complete    | 2026-10-31 |
 | 3. Autocompletado con IA | 12/12 | Complete    | 2026-11-01 |
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
-| 5. Documentos en S3 | 0/TBD | Not started | - |
+| 5. Documentos en S3 | 11/11 | Complete    | 2026-11-06 |
 | 6. Pulido de demo | 0/TBD | Not started | - |
 | 7. Documentación y defensa | 0/TBD | Not started | - |
