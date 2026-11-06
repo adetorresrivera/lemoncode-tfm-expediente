@@ -65,6 +65,8 @@ export interface ApplicationDetailState {
   pendingStatus: ApplicationStatus | null;
   statusFeedback: StatusFeedback | null;
   remove: () => void;
+  // Clears a failed delete so the confirmation reopens clean; never hides a request in flight.
+  resetDeleteError: () => void;
   deleteState: DeleteState;
   interviewActions: InterviewActions;
   documents: DetailDocumentsVm;
@@ -429,6 +431,9 @@ export const useApplicationDetail = (
     );
   };
 
+  const resetDeleteError = () =>
+    setDeletion((current) => (current?.state === "error" ? null : current));
+
   return {
     status: current === null ? "loading" : current.outcome,
     vm: current?.outcome === "ok" ? current.vm : null,
@@ -438,6 +443,7 @@ export const useApplicationDetail = (
     pendingStatus: currentMutation?.pendingStatus ?? null,
     statusFeedback: currentMutation?.feedback ?? null,
     remove,
+    resetDeleteError,
     deleteState: deletion?.key === key ? deletion.state : "idle",
     interviewActions: {
       busy,

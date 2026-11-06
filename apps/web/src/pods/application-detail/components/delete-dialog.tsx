@@ -19,17 +19,26 @@ interface Props {
   company: string;
   state: DeleteState;
   onConfirm: () => void;
+  // Called when the dialog opens, so a stale error from a previous attempt is cleared first.
+  onOpen?: () => void;
 }
 
 // Initial focus lands on «Conservar candidatura» (Radix focuses the cancel button). While the
 // DELETE is pending the dialog ignores every close request and both buttons are aria-disabled;
 // the confirm button never closes the dialog by itself, the scene navigates away on success.
-export function DeleteDialog({ title, company, state, onConfirm }: Props) {
+export function DeleteDialog({
+  title,
+  company,
+  state,
+  onConfirm,
+  onOpen,
+}: Props) {
   const [open, setOpen] = useState(false);
   const deleting = state === "deleting";
 
   const handleOpenChange = (next: boolean) => {
     if (!next && deleting) return;
+    if (next) onOpen?.();
     setOpen(next);
   };
 
