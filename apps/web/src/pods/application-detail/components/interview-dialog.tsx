@@ -4,7 +4,7 @@ import {
   interviewTypeSchema,
 } from "@tfm/contracts";
 import { CircleAlert } from "lucide-react";
-import { useRef, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { RequestStatus } from "@/common/components/request-status";
 import { Button } from "@/common/components/ui/button";
 import {
@@ -69,14 +69,25 @@ export function InterviewDialog({
   onClose,
   onCloseAutoFocus,
 }: DialogProps) {
+  // Set when a close is requested while the round is saving, so the status line can say why
+  // nothing happened. Cleared during render when the save ends (no setState in an effect).
+  const [closeBlocked, setCloseBlocked] = useState(false);
+  if (closeBlocked && !saving) setCloseBlocked(false);
+
   const handleOpenChange = (next: boolean) => {
-    if (!next && !saving) onClose();
+    if (next) return;
+    if (saving) setCloseBlocked(true);
+    else onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        onInteractOutside={(event) => event.preventDefault()}
+        closeDisabled={saving}
+        onInteractOutside={(event) => {
+          event.preventDefault();
+          if (saving) setCloseBlocked(true);
+        }}
         onCloseAutoFocus={onCloseAutoFocus}
       >
         <DialogTitle>{title}</DialogTitle>
@@ -85,6 +96,7 @@ export function InterviewDialog({
           mode={mode}
           initialValues={initialValues}
           saving={saving}
+          closeBlocked={closeBlocked && saving}
           onSave={onSave}
           onClose={onClose}
         />
@@ -97,6 +109,7 @@ interface FormProps {
   mode: InterviewFormMode;
   initialValues: InterviewFormValues;
   saving: boolean;
+  closeBlocked: boolean;
   onSave: (values: InterviewFormValues) => Promise<void>;
   onClose: () => void;
 }
@@ -107,6 +120,7 @@ function InterviewForm({
   mode,
   initialValues,
   saving,
+  closeBlocked,
   onSave,
   onClose,
 }: FormProps) {
@@ -319,7 +333,11 @@ function InterviewForm({
         }}
       </form.Field>
       <div role="status" aria-live="polite">
-        {saveFailed ? (
+        {closeBlocked ? (
+          <p className="text-sm text-muted-foreground">
+            Espera a que termine para cerrar.
+          </p>
+        ) : saveFailed ? (
           <RequestStatus
             kind="error"
             message="No se pudo guardar la ronda. Inténtalo de nuevo."

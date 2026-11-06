@@ -1098,6 +1098,40 @@ describe("edit a round", () => {
     );
   });
 
+  it("marks the X aria-disabled and explains why a close attempt does nothing while the PUT is pending", async () => {
+    const put = deferred();
+    mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "PUT /api/applications/a1/interviews/i2": () => put.promise,
+    });
+    renderDetail();
+    const { dialog } = await openEditDialog(2);
+    const close = within(dialog).getByRole("button", { name: "Cerrar" });
+    expect(close).not.toHaveAttribute("aria-disabled");
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Guardar ronda" }),
+    );
+    await within(dialog).findByRole("button", { name: "Guardando…" });
+
+    expect(close).toHaveAttribute("aria-disabled", "true");
+    expect(close).not.toBeDisabled();
+    expect(within(dialog).getByRole("status")).not.toHaveTextContent(
+      "Espera a que termine para cerrar.",
+    );
+    await userEvent.keyboard("{Escape}");
+    expect(within(dialog).getByRole("status")).toHaveTextContent(
+      "Espera a que termine para cerrar.",
+    );
+    await userEvent.click(close);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+
+    put.resolve(jsonResponse(threeRounds()));
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
+  });
+
   it("disables the row actions while a status change is pending", async () => {
     const patch = deferred();
     mockFetch({
