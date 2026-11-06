@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Candidaturas** - Listado, detalle, alta/edición manual, estado e historial (target 31 Oct) (completed 2026-10-31)
 - [x] **Phase 3: Autocompletado con IA** - Paste an offer and get a reviewable draft that never overwrites user data (target 2 Nov) (completed 2026-11-01)
 - [x] **Phase 4: Rondas de entrevista** - Create, edit and delete interview rounds with the automatic move to `en_entrevistas` (target 3 Nov) (completed 2026-11-03)
-- [ ] **Phase 5: Documentos en S3** - Upload CV and cover letters, link them to applications, download them (target 5 Nov)
+- [x] **Phase 5: Documentos en S3** - Upload CV and cover letters, link them to applications, download them (target 5 Nov) (completed 2026-11-06)
 - [ ] **Phase 6: Pulido de demo** - Seed, README, responsive and accessibility pass, pending tests (target 7 Nov)
 - [ ] **Phase 7: Documentación y defensa** - Deck, demo script, AI-usage doc, ADRs and examiner Q&A (target 8 Nov)
 
@@ -187,7 +187,7 @@ Plans:
   3. In the application form the user can link one CV and one cover letter, choosing an existing document or uploading a new one without leaving the form (the document section of the form lands in this phase).
   4. The application detail shows the linked documents and the user can download each of them.
   5. Deleting a document that is linked to any application is rejected with 409 `DOCUMENT_IN_USE`.
-**Plans**: 11/11 plans executed (gap closure 05-11 from UAT re-test 2026-11-06 pending)
+**Plans**: 11/11 plans complete (gap closure 05-11 from UAT re-test 2026-11-06 pending)
 Plans:
 **Wave 1**
 - [x] 05-01-PLAN.md — API tracer: multipart POST /api/documents → body cap, signature check (ZIP central directory), slugged key → real Silo + Mongo with compensation; contracts `fileName` and list item `usedBy`; every 400/413/415 limit (wave 1)
@@ -268,6 +268,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 2. Candidaturas | 12/12 | Complete    | 2026-10-31 |
 | 3. Autocompletado con IA | 12/12 | Complete    | 2026-11-01 |
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
-| 5. Documentos en S3 | 11/11 | In Progress | - |
+| 5. Documentos en S3 | 11/11 | Complete    | 2026-11-06 |
 | 6. Pulido de demo | 0/TBD | Not started | - |
 | 7. Documentación y defensa | 0/TBD | Not started | - |
