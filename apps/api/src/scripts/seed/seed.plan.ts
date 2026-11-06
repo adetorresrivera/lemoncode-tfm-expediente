@@ -68,8 +68,8 @@ function tagsOf({ stack, nice = [], language = [] }: TagGroups): Tag[] {
 }
 
 export function buildSeedPlan(now: Date): SeedPlan {
-  const daysAgo = (days: number): Date =>
-    new Date(now.getTime() - days * DAY_MS);
+  const origin = now.getTime();
+  const daysAgo = (days: number): Date => new Date(origin - days * DAY_MS);
 
   const daysAhead10h = (days: number): Date =>
     new Date(
