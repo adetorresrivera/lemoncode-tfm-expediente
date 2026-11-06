@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 05-documentos-en-s3
 source: [05-VERIFICATION.md]
 started: 2026-11-04T20:35:00Z
-updated: 2026-11-06T08:18:32.720Z
+updated: 2026-11-06T09:09:21.227Z
 ---
 
 ## Current Test
@@ -25,19 +25,17 @@ expected: Normal download saves the file with its original name; the 404 case do
 result: pass
 
 ### 4. Check /documents, the upload dialog and the application form documents section at 360 px width, keyboard only
-expected: No horizontal scroll, controls reachable by keyboard, focus returns to «Subir nuevo» after the dialog closes
-result: issue
-reported: "I think it would look better if we move the button outside the white square and make it a bit bigger so it maches the other buttons"
-severity: cosmetic
+expected: No horizontal scroll, controls reachable by keyboard, focus returns to «Subir nuevo» after the dialog closes; «Seleccionar archivo» sits outside the input box and matches the other dialog buttons
+result: pass
 previous_result: issue
-previous_reported: "The tooltip Seleection archivo - Ningun archivo seleccionado. Looks missaligned"
-retest_after: 05-10-PLAN.md
+previous_reported: "I think it would look better if we move the button outside the white square and make it a bit bigger so it maches the other buttons"
+retest_after: 05-11-PLAN.md
 
 ## Summary
 
 total: 4
-passed: 3
-issues: 1
+passed: 4
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
@@ -65,10 +63,12 @@ blocked: 0
   debug_session: ""
 - gap_id: G-05-4b
   truth: "In the upload dialog (both modes), the file-selection button sits outside the white «Archivo» input box and matches the size and look of the other dialog buttons, at 360 px and 1280 px, Claro and Oscuro, keyboard operable"
-  status: failed
+  status: resolved
   reason: "User reported: I think it would look better if we move the button outside the white square and make it a bit bigger so it maches the other buttons"
   severity: cosmetic
   test: 4
+  resolved_by: 05-11-PLAN.md
+  resolved_at: 2026-11-06
   root_cause: "The «Seleccionar archivo» button is the native ::file-selector-button, a pseudo-element drawn inside the <input type=file>. That input reuses the shared Input box (border border-input bg-card h-11 px-4), so the button always renders inside the white bordered square, and 05-10 sized it as outline/sm (h-8, px-3) while every other dialog button («Subir documento», «Descartar subida») is h-11. This is a design change request, not a defect."
   artifacts:
     - path: "apps/web/src/pods/document-upload/components/upload-dialog.tsx"
