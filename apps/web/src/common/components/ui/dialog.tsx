@@ -29,11 +29,17 @@ function DialogOverlay({
 // The close button is the last child, after the caller's content, so the first tabbable element
 // (and Radix's initial focus) is the form's first field while the X stays visually top-right.
 // Every Radix content prop passes through (`onCloseAutoFocus`, `onInteractOutside`, ...).
+// `closeDisabled` only dresses the X as unavailable (`aria-disabled`, never the `disabled`
+// attribute, so it stays focusable): the close request still reaches `onOpenChange`, where the
+// caller decides to ignore it and say why.
 function DialogContent({
   className,
   children,
+  closeDisabled = false,
   ...props
-}: React.ComponentProps<typeof DialogPrimitive.Content>) {
+}: React.ComponentProps<typeof DialogPrimitive.Content> & {
+  closeDisabled?: boolean;
+}) {
   return (
     <DialogPrimitive.Portal>
       <DialogOverlay />
@@ -50,8 +56,9 @@ function DialogContent({
           <Button
             type="button"
             variant="ghost"
-            className="absolute top-2 right-2 size-11"
+            className="absolute top-2 right-2 size-11 aria-disabled:opacity-50"
             aria-label="Cerrar"
+            aria-disabled={closeDisabled || undefined}
           >
             <X aria-hidden="true" strokeWidth={1.5} className="size-4" />
           </Button>

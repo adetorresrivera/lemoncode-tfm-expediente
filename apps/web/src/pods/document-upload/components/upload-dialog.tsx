@@ -1,6 +1,6 @@
 import { documentTypeSchema, type DocumentType } from "@tfm/contracts";
 import { CircleAlert } from "lucide-react";
-import { useEffect, useRef, type ReactNode, type Ref } from "react";
+import { useEffect, useRef, useState, type ReactNode, type Ref } from "react";
 import { RequestStatus } from "@/common/components/request-status";
 import { Button } from "@/common/components/ui/button";
 import {
@@ -62,14 +62,25 @@ export function UploadDialog({
   onCancel,
   onCloseAutoFocus,
 }: DialogProps) {
+  // Set when a close is requested while a request is in flight, so the live line can say why
+  // nothing happened. Cleared during render when the upload ends (no setState in an effect).
+  const [closeBlocked, setCloseBlocked] = useState(false);
+  if (closeBlocked && !uploading) setCloseBlocked(false);
+
   const handleOpenChange = (next: boolean) => {
-    if (!next && !uploading) onClose();
+    if (next) return;
+    if (uploading) setCloseBlocked(true);
+    else onClose();
   };
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent
-        onInteractOutside={(event) => event.preventDefault()}
+        closeDisabled={uploading}
+        onInteractOutside={(event) => {
+          event.preventDefault();
+          if (uploading) setCloseBlocked(true);
+        }}
         onCloseAutoFocus={onCloseAutoFocus}
       >
         <DialogTitle>
@@ -85,6 +96,7 @@ export function UploadDialog({
           initialType={initialType}
           uploading={uploading}
           liveMessage={liveMessage}
+          closeBlocked={closeBlocked && uploading}
           handlers={handlers}
           onClose={onClose}
           onCancel={onCancel}
@@ -99,6 +111,7 @@ interface FormProps {
   initialType: DocumentType;
   uploading: boolean;
   liveMessage: UploadLiveMessage | null;
+  closeBlocked: boolean;
   handlers: UploadFormHandlers;
   onClose: () => void;
   onCancel: () => void;
@@ -111,6 +124,7 @@ function UploadForm({
   initialType,
   uploading,
   liveMessage,
+  closeBlocked,
   handlers,
   onClose,
   onCancel,
@@ -279,7 +293,13 @@ function UploadForm({
         </form.Field>
       </div>
       <div role="status" aria-live="polite">
-        <LiveLine message={liveMessage} />
+        {closeBlocked ? (
+          <p className="text-sm text-muted-foreground">
+            Cancela la subida para cerrar.
+          </p>
+        ) : (
+          <LiveLine message={liveMessage} />
+        )}
       </div>
       <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
         <Button
