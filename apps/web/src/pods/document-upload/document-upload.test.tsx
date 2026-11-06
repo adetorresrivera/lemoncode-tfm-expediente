@@ -568,6 +568,44 @@ describe("DocumentUploadContainer", () => {
     });
   });
 
+  it("styles the native file button as an outline button centred in the 44 px control", async () => {
+    mockFetch({});
+    const user = setup();
+    render(<DocumentUploadContainer />);
+    const dialog = await openDialog(user);
+
+    expect(fileInput(dialog)).toHaveClass(
+      "h-11",
+      "w-full",
+      "min-w-0",
+      "py-1.25",
+      "text-base",
+      "file:inline-flex",
+      "file:items-center",
+      "file:h-8",
+      "file:px-3",
+      "file:mr-3",
+      "file:rounded-md",
+      "file:border",
+      "file:border-border",
+      "file:bg-background",
+      "file:shadow-xs",
+      "file:text-sm",
+      "file:font-semibold",
+      "file:text-foreground",
+      "file:cursor-pointer",
+      "file:transition-colors",
+      "hover:file:bg-accent",
+      "hover:file:text-accent-foreground",
+      "focus-visible:ring-2",
+      "focus-visible:ring-ring",
+    );
+    expect(fileInput(dialog)).not.toHaveClass("file:bg-transparent");
+    expect(fileInput(dialog)).not.toHaveClass("file:border-0");
+    expect(nameInput(dialog)).toHaveClass("h-11", "text-base");
+    expect(nameInput(dialog)).not.toHaveClass("py-1.25");
+  });
+
   it("clears the success line 5 s after the upload", async () => {
     mockFetch({ "POST /api/documents": () => jsonResponse(stored, 201) });
     vi.useFakeTimers({ shouldAdvanceTime: true });
