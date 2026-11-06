@@ -229,7 +229,35 @@ Plans:
   3. Every screen is usable from 360 px width without horizontal scroll, and fully operable with the keyboard alone, with visible focus, labelled fields, `aria-live="polite"` on load, error and AI results, and AA contrast in light and dark themes.
   4. The full demo flow (paste offer → autofill → review → save → add round → attach CV → change status → see it filtered) completes in under 2 minutes on a clean machine, both with Ollama and with `mock`.
   5. Tests pending from earlier phases are written, and `npm run typecheck && npm run test` pass on a clean checkout.
-**Plans**: TBD
+**Plans**: 12 plans
+Plans:
+**Wave 1**
+- [ ] 06-01-PLAN.md — Seed tracer: `npm run seed` → compiled `dist/scripts/seed.js` → services with an injected clock → Mongo + Silo, idempotent `seed: true` mark; pure 12-application / 3-PDF plan and integration evidence (wave 1)
+- [ ] 06-03-PLAN.md — API robustness: bounded startup retry, S3 deadlines, extension-aware SPA fallback, 256 KiB body limit on applications and `.max()` bounds in contracts (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 06-02-PLAN.md — `--reset` with announced counts, strict options, user-linked seed documents kept, interrupted-run recovery; offer fixtures moved to their docs folder; DEMO-01 / SC1 wording per D-08 (wave 2)
+- [ ] 06-04-PLAN.md — Spanish not-found and route-error screens; shell skip link, sidebar focus ring, 44 px targets, wordmark and stacked theme toggle (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 06-05-PLAN.md — Token and spacing sweep: no destructive icon tint, on-scale offsets, AiMark and status badge on the scales; UI-SPEC write-backs (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 06-06-PLAN.md — Dialog close lock with spoken feedback, reset-on-open delete dialogs, list refetch without an empty flash (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 06-07-PLAN.md — axe-core (test only) on every screen in both themes, AA token contrast from the CSS, live-region inventory (wave 5)
+- [ ] 06-10-PLAN.md — Compose smoke cleanup trap and `--cold` mode: isolated fresh project, seed in the image, mock extraction, image size, pins and healthchecks (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 06-08-PLAN.md — Deterministic timer tests, one-shot worker-start retry wrapper, direct mapper tests for the web pods and the API (wave 6)
+- [ ] 06-11-PLAN.md — Keep-alive decision checkpoint and the final Spanish README (run, seed, switch model, mock recovery) (wave 6, not autonomous)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 06-09-PLAN.md — DOMAIN rule coverage table and the closed Nyquist validations of phases 02 and 05 (wave 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 06-12-PLAN.md — Phase gate: clean checkout, full suite and both smokes, then one human pass (screenshot, 3 viewports × 2 themes, keyboard, reduced motion, timed demo with mock and Ollama) recorded in 06-UAT.md (wave 8, not autonomous)
 **UI hint**: yes
 
 ### Phase 7: Documentación y defensa
@@ -269,5 +297,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Autocompletado con IA | 12/12 | Complete    | 2026-11-01 |
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
 | 5. Documentos en S3 | 11/11 | Complete    | 2026-11-06 |
-| 6. Pulido de demo | 0/TBD | Not started | - |
+| 6. Pulido de demo | 0/12 | Planned | - |
 | 7. Documentación y defensa | 0/TBD | Not started | - |
