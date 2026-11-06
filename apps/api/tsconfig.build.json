@@ -7,5 +7,9 @@
     "sourceMap": true
   },
   "include": ["src"],
-  "exclude": ["src/**/*.test.ts"]
+  "exclude": [
+    "src/**/*.test.ts",
+    "src/offers/__fixtures__/**",
+    "src/scripts/try-extract.ts"
+  ]
 }
