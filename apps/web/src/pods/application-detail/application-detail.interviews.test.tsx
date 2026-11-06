@@ -1371,6 +1371,36 @@ describe("delete a round", () => {
     );
   });
 
+  it("reopens the round dialog without the previous error after a failed delete and a cancel", async () => {
+    mockFetch({
+      "GET /api/applications/a1": threeRounds(),
+      "DELETE /api/applications/a1/interviews/i2": serverError,
+    });
+    renderDetail();
+    const { opener, dialog } = await openDeleteDialog(2);
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar ronda" }),
+    );
+    await within(dialog).findByText(
+      "No se pudo eliminar la ronda. Inténtalo de nuevo.",
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Conservar ronda" }),
+    );
+    await vi.waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    await userEvent.click(opener);
+
+    const reopened = await screen.findByRole("alertdialog");
+    expect(
+      within(reopened).queryByText(
+        "No se pudo eliminar la ronda. Inténtalo de nuevo.",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
   it("disables the delete button while a status change is pending", async () => {
     const patch = deferred();
     mockFetch({

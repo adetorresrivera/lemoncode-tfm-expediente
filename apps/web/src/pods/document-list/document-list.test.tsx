@@ -570,6 +570,36 @@ describe("delete from the library", () => {
     ).toBeInTheDocument();
   });
 
+  it("reopens the document dialog without the previous message after a failed delete and a cancel", async () => {
+    mockFetch({
+      "GET /api/documents": [cv, carta],
+      "DELETE /api/documents/d1": inUse,
+    });
+    const user = userEvent.setup();
+    renderList();
+    const dialog = await openDialog(user);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Eliminar documento" }),
+    );
+    await within(dialog).findByText(
+      "Este documento está vinculado a alguna candidatura. Desvincúlalo antes de eliminarlo.",
+    );
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Conservar documento" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    const reopened = await openDialog(user);
+
+    expect(
+      within(reopened).queryByText(
+        "Este documento está vinculado a alguna candidatura. Desvincúlalo antes de eliminarlo.",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
   it("removes the row only after the 204, without a new GET, and announces it", async () => {
     const pending = deferred();
     const fetchMock = mockFetch({

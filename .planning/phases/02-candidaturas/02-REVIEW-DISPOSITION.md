@@ -15,8 +15,9 @@ findings:
     note: "trap in scripts/compose-smoke.sh, 06-05"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Delete dialog shows a stale error after cancel and reopen"
+    note: "Fixed in 06-10"
   - id: WR-04
     severity: warning
     disposition: fixed
