@@ -290,6 +290,22 @@ describe("PUT /api/applications/:id links", () => {
     expect(await getApplication(created.id)).toEqual(before);
   });
 
+  it("rejects a link to a document that does not exist with the error in the field and keeps the stored fields (rule 4)", async () => {
+    const created = await createApplication({ title: "Original" });
+    const before = await getApplication(created.id);
+
+    await expectLinkErrors(
+      await put(created.id, {
+        title: "Changed",
+        company: "Other",
+        coverLetterDocumentId: UNKNOWN_ID,
+      }),
+      { coverLetterDocumentId: "El documento no existe" },
+    );
+
+    expect(await getApplication(created.id)).toEqual(before);
+  });
+
   it("validates input before existence: bad link on unknown id is 400, valid links on unknown id is 404", async () => {
     const cv = await uploadPdf("cv", "Mi CV");
     const carta = await uploadPdf("carta", "Carta");

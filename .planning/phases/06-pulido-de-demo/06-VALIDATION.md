@@ -67,6 +67,43 @@ Filled by the planner/executor per PLAN.md. Requirement → test map from RESEAR
 
 ---
 
+## DOMAIN rule coverage (D-23)
+
+Each rule of `docs/DOMAIN.md` «Reglas de negocio» traced to the test that proves it. Every test below passed in plan 06-15 (`npm run test -w @tfm/api -- src/applications src/documents` and `npm run test -w @tfm/web -- src/pods/application-edit src/pods/application-detail`). Titles marked «(rule N)» were added or already carried the rule in plan 06-15 or earlier.
+
+| Rule | Clause | Test file | Test title | Command |
+|------|--------|-----------|------------|---------|
+| 1 | Any status moves to any other, each move adds one history entry | `apps/api/src/applications/applications.status.test.ts` | allows a move between any two of the seven statuses and records each in the history (rule 1) | `npm run test -w @tfm/api -- src/applications/applications.status.test.ts` |
+| 1 | A move appends `{ status, at }` and sets `updatedAt` to that instant | `apps/api/src/applications/applications.status.test.ts` | answers 200 with the new status, one new history entry and updatedAt equal to its instant | `npm run test -w @tfm/api -- src/applications/applications.status.test.ts` |
+| 1 | Unchanged status adds no history entry | `apps/api/src/applications/applications.status.test.ts` | is idempotent for the current status: 200, same document, no history entry, updatedAt kept | `npm run test -w @tfm/api -- src/applications/applications.status.test.ts` |
+| 1 | Concurrent moves to the same status add one entry only | `apps/api/src/applications/applications.status.test.ts` | writes exactly one extra history entry for three concurrent moves to enviada | `npm run test -w @tfm/api -- src/applications/applications.status.test.ts` |
+| 2 | First `enviada` sets `appliedAt` to the history instant | `apps/api/src/applications/applications.status.test.ts` | sets appliedAt to the instant of the history entry on the move to enviada | `npm run test -w @tfm/api -- src/applications/applications.status.test.ts` |
+| 2 | Other statuses leave `appliedAt` empty | `apps/api/src/applications/applications.status.test.ts` | does not fill appliedAt on a move to any other status | `npm run test -w @tfm/api -- src/applications/applications.status.test.ts` |
+| 2 | Only the first `enviada` counts | `apps/api/src/applications/applications.status.test.ts` | keeps the first appliedAt through guardada -> enviada -> guardada -> enviada | `npm run test -w @tfm/api -- src/applications/applications.status.test.ts` |
+| 2 | A value the user set is never overwritten | `apps/api/src/applications/applications.status.test.ts` | never overwrites an appliedAt the user set | `npm run test -w @tfm/api -- src/applications/applications.status.test.ts` |
+| 3 | A round while `enviada` moves to `en_entrevistas` with a history entry | `apps/api/src/applications/applications.interviews.test.ts` | creates round 1, moves an enviada application to en_entrevistas and sets updatedAt | `npm run test -w @tfm/api -- src/applications/applications.interviews.test.ts` |
+| 3 | From any other status the status and history stay | `apps/api/src/applications/applications.interviews.test.ts` | rule 3 only fires from enviada > keeps status and history when the status is %s | `npm run test -w @tfm/api -- src/applications/applications.interviews.test.ts` |
+| 3 | A second round while `en_entrevistas` adds no history entry | `apps/api/src/applications/applications.interviews.test.ts` | adds no history entry for a second round while en_entrevistas and numbers it 2 | `npm run test -w @tfm/api -- src/applications/applications.interviews.test.ts` |
+| 4 | A linked document cannot be deleted (409 `DOCUMENT_IN_USE`, Spanish message) | `apps/api/src/documents/documents.test.ts` | answers 409 DOCUMENT_IN_USE and keeps everything when %s links it | `npm run test -w @tfm/api -- src/documents/documents.test.ts` |
+| 4 | Deletable again once the link is cleared | `apps/api/src/applications/applications.documents.test.ts` | makes a linked document undeletable until the link is cleared (rule 4) | `npm run test -w @tfm/api -- src/applications/applications.documents.test.ts` |
+| 4 | Wrong-type link on create is rejected with the field error | `apps/api/src/applications/applications.documents.test.ts` | rejects a cover letter as CV and a CV as cover letter, writing nothing | `npm run test -w @tfm/api -- src/applications/applications.documents.test.ts` |
+| 4 | Wrong-type link on edit is rejected with the field error | `apps/api/src/applications/applications.documents.test.ts` | rejects a wrong-type link with 400 and leaves every stored field unchanged | `npm run test -w @tfm/api -- src/applications/applications.documents.test.ts` |
+| 4 | Non-existent link on create is rejected with the field error | `apps/api/src/applications/applications.documents.test.ts` | reports a malformed and an unknown id together as nonexistent | `npm run test -w @tfm/api -- src/applications/applications.documents.test.ts` |
+| 4 | Non-existent link on edit is rejected with the field error | `apps/api/src/applications/applications.documents.test.ts` | rejects a link to a document that does not exist with the error in the field and keeps the stored fields (rule 4) | `npm run test -w @tfm/api -- src/applications/applications.documents.test.ts` |
+| 5 | Deleting an application asks for confirmation | `apps/web/src/pods/application-detail/application-detail.test.tsx` | delete dialog > opens with the title, the description with title and company, and focus on «Conservar candidatura» | `npm run test -w @tfm/web -- src/pods/application-detail/application-detail.test.tsx` |
+| 5 | Its documents stay in the library, unlinked and deletable | `apps/api/src/applications/applications.documents.test.ts` | keeps the documents of a deleted application, now deletable (rule 5) | `npm run test -w @tfm/api -- src/applications/applications.documents.test.ts` |
+| 5 | The documents collection is untouched by the delete | `apps/api/src/applications/applications.delete.test.ts` | leaves the documents collection untouched | `npm run test -w @tfm/api -- src/applications/applications.delete.test.ts` |
+| 6 | The draft fills only empty fields and keeps what the user typed | `apps/web/src/pods/application-edit/application-edit.merge.test.ts` | mergeExtractionIntoForm: the six-field rule > keeps the values the user typed | `npm run test -w @tfm/web -- src/pods/application-edit/application-edit.merge.test.ts` |
+| 6 | Tags merge without duplicates | `apps/web/src/pods/application-edit/application-edit.merge.test.ts` | mergeExtractionIntoForm: tags > adds the proposed tags after the existing ones, in model order, without duplicates | `npm run test -w @tfm/web -- src/pods/application-edit/application-edit.merge.test.ts` |
+| 6 | Nothing is persisted until the user saves | `apps/web/src/pods/application-edit/application-edit.ai.test.tsx` | saves the merged values only when the user presses «Guardar candidatura» | `npm run test -w @tfm/web -- src/pods/application-edit/application-edit.ai.test.tsx` |
+| 7 | `updatedAt` changes on a status change | `apps/api/src/applications/applications.status.test.ts` | answers 200 with the new status, one new history entry and updatedAt equal to its instant | `npm run test -w @tfm/api -- src/applications/applications.status.test.ts` |
+| 7 | `updatedAt` changes when a round is added | `apps/api/src/applications/applications.interviews.test.ts` | creates round 1, moves an enviada application to en_entrevistas and sets updatedAt | `npm run test -w @tfm/api -- src/applications/applications.interviews.test.ts` |
+| 7 | `updatedAt` changes when a round is edited | `apps/api/src/applications/applications.interviews.test.ts` | replaces the fields of one round, keeps its id and the other rounds, and sets updatedAt | `npm run test -w @tfm/api -- src/applications/applications.interviews.test.ts` |
+| 7 | `updatedAt` changes when a round is deleted | `apps/api/src/applications/applications.interviews.test.ts` | pulls one round, keeps the other numbers, answers 200 with the application and the next round is 4 | `npm run test -w @tfm/api -- src/applications/applications.interviews.test.ts` |
+| 7 | `updatedAt` changes when the fields are edited | `apps/api/src/applications/applications.update.test.ts` | updates the editable fields, normalizes tags and keeps status, history, interviews, createdAt and ownerId | `npm run test -w @tfm/api -- src/applications/applications.update.test.ts` |
+
+---
+
 ## Manual-Only Verifications
 
 | Behavior | Requirement | Why Manual | Test Instructions |
