@@ -10,8 +10,9 @@ findings:
     note: "body limit on /api/applications and .max on sourceUrl and document ids (06-05); salary bounds not applied, outside D-20"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "compose-smoke leaves the smoke record in the Mongo volume when a later step fails"
+    note: "trap in scripts/compose-smoke.sh, 06-05"
   - id: WR-03
     severity: warning
     disposition: open

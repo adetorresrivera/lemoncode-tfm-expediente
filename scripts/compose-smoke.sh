@@ -150,6 +150,28 @@ wait_health() {
   fail "health never returned $fragment within 60 s"
 }
 
+# Records the smoke creates in the demo volumes (D-20, 02 WR-02). Each section empties its variable
+# once it has deleted its own record, so the EXIT trap only acts on what a failure left behind.
+app_id=""
+doc_app_id=""
+doc_id=""
+
+# Best-effort cleanup on any exit. Every request ignores its own failure, so this can never replace
+# the original failure or its exit code. The application goes before the document: rule 4 refuses
+# the reverse order with a 409.
+cleanup_smoke_records() {
+  if [ -n "${doc_app_id:-}" ]; then
+    http_send DELETE "/api/applications/$doc_app_id" >/dev/null 2>&1 || true
+  fi
+  if [ -n "${app_id:-}" ]; then
+    http_send DELETE "/api/applications/$app_id" >/dev/null 2>&1 || true
+  fi
+  if [ -n "${doc_id:-}" ]; then
+    http_send DELETE "/api/documents/$doc_id" >/dev/null 2>&1 || true
+  fi
+  return 0
+}
+
 echo "== up =="
 # ollama-init is a one-shot (model pull) that exits 0 when done; `--wait` treats an exited
 # container as a failure, so it is started separately and never awaited. s3-init is pulled in
@@ -180,6 +202,7 @@ created="$(http_send POST /api/applications '{"title":"Smoke test","company":"Ex
 expect_status "POST /api/applications" 201 "$created"
 app_id="$(echo "$created" | grep -o '"id":"[0-9a-f]*"' | head -n 1 | cut -d'"' -f4)"
 [ -n "$app_id" ] || fail "POST /api/applications returned no id: $created"
+trap cleanup_smoke_records EXIT
 
 listed="$(http_send GET /api/applications)" || fail "GET /api/applications did not answer"
 expect_status "GET /api/applications" 200 "$listed"
@@ -228,6 +251,7 @@ expect_status "DELETE /api/applications/$app_id" 204 "$removed"
 
 gone="$(http_send GET "/api/applications/$app_id")" || true
 expect_status "GET /api/applications/$app_id after delete" 404 "$gone"
+app_id=""
 
 echo "== documents round trip =="
 # Writes one object into Silo and one record into Mongo and removes both before finishing (T-05-34).
@@ -266,6 +290,7 @@ echo "$doc_blocked" | grep -q 'DOCUMENT_IN_USE' || fail "the 409 body lacks DOCU
 doc_app_removed="$(http_send DELETE "/api/applications/$doc_app_id")" \
   || fail "DELETE /api/applications/$doc_app_id did not answer"
 expect_status "DELETE /api/applications/$doc_app_id" 204 "$doc_app_removed"
+doc_app_id=""
 doc_kept="$(http_send GET "/api/documents/$doc_id")" || fail "GET /api/documents/$doc_id did not answer"
 expect_status "GET /api/documents/$doc_id after deleting its application (rule 5)" 200 "$doc_kept"
 
@@ -273,6 +298,7 @@ doc_removed="$(http_send DELETE "/api/documents/$doc_id")" || fail "DELETE /api/
 expect_status "DELETE /api/documents/$doc_id" 204 "$doc_removed"
 doc_gone="$(http_send GET "/api/documents/$doc_id")" || true
 expect_status "GET /api/documents/$doc_id after delete" 404 "$doc_gone"
+doc_id=""
 
 doc_text="$(http_upload /api/documents notas.txt cv 64 TEXT)" || fail "POST /api/documents (.txt) did not answer"
 expect_status "POST /api/documents with a .txt" 415 "$doc_text"
