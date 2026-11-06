@@ -6,27 +6,27 @@ findings:
   - id: WR-01
     severity: warning
     disposition: open
-    title: "New styling test asserts class strings, not behavior, and part of it cannot fail"
+    title: "Success-line timer test can flake on fake-timer drift"
   - id: WR-02
     severity: warning
     disposition: open
-    title: "Timer test has a 100 ms margin and runs on a clock that advances in real time"
-  - id: IN-01
-    severity: info
-    disposition: open
-    title: "File-button vertical centring depends on three unrelated magic numbers"
-  - id: IN-02
-    severity: info
-    disposition: open
-    title: "Outline file button has very low boundary contrast"
+    title: "The \"outside pointer never closes it\" guard is not tested where it matters"
   - id: WR-03
     severity: warning
     disposition: open
-    title: "Deleting an already-deleted document leaves a ghost row the user cannot clear"
+    title: "Close «X» stays active-looking but does nothing while uploading"
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "Test asserts Tailwind class names, including ones inherited from the shared Input"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "Misleading helper name in a test"
   - id: IN-03
     severity: info
     disposition: open
-    title: "Compose smoke leaves a document, an object and an application behind on failure"
+    title: "`Field` and `controlProps` duplicated from the application form"
   - id: IN-04
     severity: info
     disposition: open
@@ -41,7 +41,7 @@ findings:
     title: "Filter change keeps the previous filter's rows and counter on screen"
 open: 9
 total: 9
-recorded: 2026-11-06T08:12:46.962Z
+recorded: 2026-11-06T09:03:29.696Z
 ---
 
 # Phase 05: Code Review Disposition
@@ -50,10 +50,10 @@ recorded: 2026-11-06T08:12:46.962Z
 |---------|----------|-------------|--------|
 | WR-01 | warning | open | - |
 | WR-02 | warning | open | - |
+| WR-03 | warning | open | - |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
-| WR-03 | warning | open | - (not in the current review) |
-| IN-03 | info | open | - (not in the current review) |
+| IN-03 | info | open | - |
 | IN-04 | info | open | - (not in the current review) |
 | IN-05 | info | open | - (not in the current review) |
 | IN-06 | info | open | - (not in the current review) |
