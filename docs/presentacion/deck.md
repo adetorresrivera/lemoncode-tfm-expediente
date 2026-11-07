@@ -55,6 +55,33 @@ Este documento es la fuente de las diapositivas de la defensa del 9 de noviembre
 - Un único `LlmClient` esconde el proveedor: Ollama, un endpoint compatible con OpenAI o el modo simulado.
 - `@tfm/contracts` es la única fuente de los modelos de la API: web y API importan los mismos esquemas Zod.
 
+```mermaid
+flowchart LR
+  N["Navegador"] --> W["Web: React y pods"]
+  W --> A["API Hono"]
+  A --> M[("MongoDB")]
+  A --> S["Silo, S3 local"]
+  A --> L["LlmClient"]
+  L --> O["Ollama local"]
+  L --> C["Endpoint compatible con OpenAI"]
+  L --> K["mock"]
+  T["@tfm/contracts, esquemas Zod"] -.-> W
+  T -.-> A
+```
+
+<!-- source: apps/api/src/llm/llm.client.ts#L18-L26 -->
+```ts
+export interface LlmClient {
+  extractStructured<T>(
+    system: string,
+    input: string,
+    schema: z.ZodType<T>,
+    options?: LlmCallOptions,
+  ): Promise<T>;
+  ping(): Promise<boolean>; // used by /api/health
+}
+```
+
 **Nota del orador:** Todo cabe en un compose. La pieza que me interesa es la interfaz de abajo: la API no sabe qué modelo hay detrás. Cambiar de Ollama a un endpoint compatible con OpenAI es una variable de entorno. Y el modelo entra con un esquema Zod, no con texto libre.
 
 **Tiempo:** 1:00
@@ -66,6 +93,17 @@ Este documento es la fuente de las diapositivas de la defensa del 9 de noviembre
 - El view model es propio del pod y no deriva del contrato: `StackTagOptionVm { label: string }`.
 - El mapper convierte el modelo de la API en el view model, y se aplica en el hook al recibir los datos.
 - El contrato llega siempre de `import type { Application, TagSummary } from "@tfm/contracts";`.
+
+<!-- source: apps/web/src/pods/application-list/application-list.mapper.ts#L43-L49 -->
+```ts
+// Only stack tags are offered as filters; the order is the one served (count desc).
+export const mapStackTagsFromApiToVm = (
+  tags: TagSummary[],
+): StackTagOptionVm[] =>
+  tags
+    .filter((tag) => tag.group === "stack")
+    .map((tag) => ({ label: tag.label }));
+```
 
 **Nota del orador:** Esta es la arquitectura del curso. El contenedor lleva los datos y el estado, el componente solo pinta props. Un pod nunca importa otro pod. Si cambia el contrato, el mapper es el único sitio que se rompe, y TypeScript me lo dice.
 
@@ -79,6 +117,8 @@ Este documento es la fuente de las diapositivas de la defensa del 9 de noviembre
 - Un segundo análisis sustituye solo los campos que siguen marcados.
 - Los campos que el modelo no encontró se resaltan para que los completes.
 
+![Formulario con las marcas IA tras autocompletar](capturas/formulario-ia-claro-1280.png)
+
 **Nota del orador:** Aquí está la decisión de producto más importante: el borrador de la IA nunca se guarda solo. Rellena, marca y avisa. Tú revisas campo a campo. Por eso puedo permitirme un modelo pequeño y local que a veces falla.
 
 **Tiempo:** 1:15
@@ -89,6 +129,10 @@ Este documento es la fuente de las diapositivas de la defensa del 9 de noviembre
 - Tests de axe en los dos temas, claro y oscuro, y un test de contraste AA.
 - Los chips medían entre 28 y 36 px; la pasada con navegador de la fase 6 los llevó a 44 px.
 - El tema sigue al sistema y tiene un selector: Sistema, Claro y Oscuro.
+
+![Lista de candidaturas en móvil, 360 px](capturas/lista-movil-360.png)
+
+![Lista de candidaturas en tema oscuro, 1280 px](capturas/lista-oscuro-1280.png)
 
 **Nota del orador:** La accesibilidad no es un apartado final, está en los tests. Pero los tests unitarios no vieron que los chips eran pequeños para un dedo; lo encontró una pasada con un navegador de verdad. Esa es la lección: probar en el sitio real.
 
@@ -102,6 +146,25 @@ Este documento es la fuente de las diapositivas de la defensa del 9 de noviembre
 - El prompt literal vive en `docs/AI-EXTRACTION.md` y un test lo compara byte a byte con el código.
 - Cambiar el prompt requiere mi aprobación y una huella sha256 nueva.
 
+```mermaid
+sequenceDiagram
+  actor U as Usuario
+  participant W as Web
+  participant A as API
+  participant L as LlmClient
+  participant M as Modelo
+  U->>W: Pega la oferta
+  W->>A: POST /api/offers/extract
+  A->>L: Prompt, texto y JSON Schema
+  L->>M: Petición
+  M-->>L: JSON
+  L-->>A: Borrador
+  A->>A: Valida con Zod y normaliza, un reintento
+  A-->>W: Borrador
+  W->>U: Rellena solo campos vacíos con marca IA
+  Note over U,A: No se guarda nada hasta pulsar Guardar
+```
+
 **Nota del orador:** El modelo es un componente más, con un contrato. Entra texto, sale JSON, se valida; si no cumple el esquema, se reintenta una vez. Y nada se guarda hasta que tú pulsas «Guardar». Eso es lo que me permite defender que una IA pequeña es suficiente.
 
 **Tiempo:** 1:00
@@ -112,6 +175,16 @@ Este documento es la fuente de las diapositivas de la defensa del 9 de noviembre
 - Cada plan se ejecuta en oleadas, con commits atómicos y un resumen por plan.
 - Yo decido en la fase de discusión, apruebo las dependencias y los cambios de prompt, hago la prueba de aceptación y fusiono la PR.
 - Los huecos que aparecen al verificar vuelven al plan y se cierran dentro de la misma fase.
+
+```mermaid
+flowchart LR
+  D["discuss: decisiones"] --> P["plan: research y plan-checker"]
+  P --> E["execute: oleadas, commits atómicos"]
+  E --> V["verify y UAT"]
+  V --> R["review y security"]
+  R --> S["ship: PR"]
+  V -->|huecos| P
+```
 
 **Nota del orador:** Claude Code escribe mucho código, pero yo decido el qué. Cada fase pasa por el mismo ciclo. Lo que más rinde es la verificación: la prueba de aceptación con una oferta real encontró fallos que ningún test unitario veía, y se arreglaron con planes de cierre de huecos.
 
