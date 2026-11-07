@@ -299,6 +299,130 @@ function countTests() {
 }
 
 // ---------------------------------------------------------------------------
+// Cost section: measured tokens times public prices (D-15)
+// ---------------------------------------------------------------------------
+
+const COST_SECTION = "Coste: local frente a la nube";
+const COST_KEYS = [
+  "tokens_entrada_media",
+  "tokens_entrada_media_sin_esquema",
+  "tokens_salida_media",
+];
+// Columns of the token table (index 0 is the offer name) and the key of the cost block each feeds.
+const TOKEN_COLUMNS = [
+  { name: "Caracteres", index: 1 },
+  { name: "Entrada Ollama", index: 2 },
+  { name: "Salida Ollama", index: 3 },
+  { name: "Entrada o200k con esquema", index: 4, key: COST_KEYS[0] },
+  { name: "Entrada o200k sin esquema", index: 5, key: COST_KEYS[1] },
+  { name: "Salida o200k", index: 6, key: COST_KEYS[2] },
+];
+const COST_COLUMNS = [
+  { name: "por oferta", index: 3, factor: 1 },
+  { name: "100 ofertas", index: 4, factor: 100 },
+  { name: "10 000 ofertas", index: 5, factor: 10000 },
+];
+
+/** Spanish number: decimal comma, spaces for thousands. */
+const parseNumber = (text) => Number(squash(text).replace(",", "."));
+const decimalsOf = (cell) => {
+  const m = /,(\d+)$/.exec(cell.trim());
+  return m ? m[1].length : 0;
+};
+const formatLike = (value, decimals) =>
+  value.toFixed(decimals).replace(".", ",");
+
+/** Table rows (cells and 1-based line) of a section, separators skipped. */
+function tableRows(doc, range) {
+  const rows = [];
+  for (let i = range.from; i < range.to; i++) {
+    if (doc.inFence[i] || !doc.lines[i].startsWith("|")) continue;
+    const cells = doc.lines[i]
+      .trim()
+      .replace(/^\|/, "")
+      .replace(/\|$/, "")
+      .split("|")
+      .map((c) => c.trim());
+    if (cells.every((c) => /^:?-+:?$/.test(c))) continue;
+    rows.push({ cells, line: i + 1 });
+  }
+  return rows;
+}
+
+/** Recomputes every average and every cost cell of the cost section. Returns how many it checked. */
+function checkCost(doc, fail) {
+  const range = sectionRange(doc, COST_SECTION);
+  if (!range) return { checked: 0, keys: [] };
+  const entries = readKeyBlock(doc, COST_SECTION) ?? [];
+  const block = new Map(entries.map(({ key, value }) => [key, value]));
+  let checked = 0;
+  for (const { key } of entries) {
+    if (!COST_KEYS.includes(key)) fail(`${key} no se puede comprobar`);
+  }
+  for (const key of COST_KEYS) {
+    if (!block.has(key))
+      fail(`${key} falta en el bloque de la sección de coste`);
+  }
+
+  let mode = null;
+  const tokenRows = [];
+  const costRows = [];
+  for (const row of tableRows(doc, range)) {
+    if (row.cells[0] === "Oferta") mode = "tokens";
+    else if (row.cells[0] === "Modelo") mode = "coste";
+    else if (mode === "tokens") tokenRows.push(row);
+    else if (mode === "coste") costRows.push(row);
+  }
+
+  // Token table: each «Media» cell is the rounded mean of its column; the block repeats three of them.
+  const mean = tokenRows.find((r) => r.cells[0] === "Media");
+  const offers = tokenRows.filter((r) => r.cells[0] !== "Media");
+  if (!mean || offers.length === 0) {
+    fail("coste tabla de tokens sin filas de oferta y fila Media");
+  } else {
+    for (const col of TOKEN_COLUMNS) {
+      const values = offers.map((r) => parseNumber(r.cells[col.index] ?? ""));
+      const real = String(
+        Math.round(values.reduce((a, b) => a + b, 0) / values.length),
+      );
+      const shown = squash(mean.cells[col.index] ?? "");
+      checked++;
+      if (shown !== real) fail(`media ${col.name} doc=${shown} real=${real}`);
+      if (col.key && block.has(col.key)) {
+        checked++;
+        if (block.get(col.key) !== real) {
+          fail(`${col.key} doc=${block.get(col.key)} real=${real}`);
+        }
+      }
+    }
+  }
+
+  // Cost table: per offer = (tokens in × price in + tokens out × price out) / 1 000 000.
+  const tokensIn = parseNumber(block.get(COST_KEYS[0]) ?? "");
+  const tokensOut = parseNumber(block.get(COST_KEYS[2]) ?? "");
+  if (costRows.length === 0) fail("coste tabla de precios sin filas de modelo");
+  for (const row of costRows) {
+    const [model] = row.cells;
+    const priceIn = parseNumber(row.cells[1] ?? "");
+    const priceOut = parseNumber(row.cells[2] ?? "");
+    const perOffer = (tokensIn * priceIn + tokensOut * priceOut) / 1_000_000;
+    for (const col of COST_COLUMNS) {
+      const cell = row.cells[col.index] ?? "";
+      const decimals = decimalsOf(cell);
+      const real = perOffer * col.factor;
+      checked++;
+      const tolerance = 0.5 * 10 ** -decimals + 1e-9;
+      if (!(Math.abs(parseNumber(cell) - real) <= tolerance)) {
+        fail(
+          `coste ${model} ${col.name} doc=${cell} real=${formatLike(real, decimals)}`,
+        );
+      }
+    }
+  }
+  return { checked, keys: entries.map(({ key }) => key) };
+}
+
+// ---------------------------------------------------------------------------
 // Prose rules (the prose may only repeat values of the «Cifras» block)
 // ---------------------------------------------------------------------------
 
@@ -431,9 +555,13 @@ function main() {
     fail(`suma_fases doc=${phaseSum} real=${docValues.get("commits_total")}`);
   }
 
+  // Cost section: averages and every cost cell (a no-op while the doc has no such section).
+  const cost = checkCost(doc, fail);
+  checked += cost.checked;
+
   // Prose rules on the doc and on every file given with --prose.
   const allowed = new Set(block.map(({ value }) => squash(value)));
-  const knownKeys = new Set(block.map(({ key }) => key));
+  const knownKeys = new Set([...block.map(({ key }) => key), ...cost.keys]);
   for (const file of [opts.doc, ...opts.prose]) {
     if (!existsSync(file)) {
       fail(`${file} no existe`);

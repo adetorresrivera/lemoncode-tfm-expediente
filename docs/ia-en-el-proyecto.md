@@ -163,3 +163,43 @@ Tres hechos más:
 - `LLM_PROVIDER` elige entre `ollama` (por defecto, con `gemma4:e2b`, sin conexión), un endpoint «compatible con OpenAI» y `mock`, que devuelve siempre el mismo borrador de ejemplo y sirve para los tests y como plan B.
 - La única línea de log lleva la longitud del texto y la duración. Nunca la oferta ni la respuesta del modelo.
 - El prompt y el modelo están fijados hasta que el autor aprueba un cambio.
+
+## Coste: local frente a la nube
+
+El coste en la nube es el de los tokens medidos multiplicado por el precio público. Los tokens salen de reproducir la petición real de una extracción, con el prompt de sistema incluido, sobre las tres ofertas de prueba de `docs/demo/ofertas/`, y de recontarlos con el tokenizador `o200k_base` de OpenAI. La medición se hizo el 2026-11-07 contra el Ollama local. Ollama no cuenta el esquema JSON como entrada, porque lo usa como gramática de decodificación. Por eso la entrada con esquema se recuenta aparte, con el esquema tal como lo envía el proveedor compatible con OpenAI.
+
+| Oferta | Caracteres | Entrada Ollama | Salida Ollama | Entrada o200k con esquema | Entrada o200k sin esquema | Salida o200k |
+|--------|-----------|----------------|---------------|---------------------------|---------------------------|--------------|
+| remote-senior | 2589 | 1004 | 263 | 1257 | 925 | 219 |
+| onsite-junior | 2101 | 884 | 175 | 1145 | 813 | 150 |
+| english-nice-to-have | 2371 | 922 | 216 | 1175 | 843 | 180 |
+| Media | 2354 | 937 | 218 | 1192 | 860 | 183 |
+
+Las medias de `o200k_base`, redondeadas, son las que usa la tabla de costes:
+
+```text
+tokens_entrada_media: 1192
+tokens_entrada_media_sin_esquema: 860
+tokens_salida_media: 183
+```
+
+Coste por oferta = (entrada media × precio de entrada + salida media × precio de salida) / 1 000 000. Los precios son del nivel estándar, texto, en USD por millón de tokens. La tabla recoge los modelos pequeños (mini y nano) de esa página, ordenados por coste.
+
+| Modelo | Entrada (USD/1M) | Salida (USD/1M) | Por oferta (USD) | 100 ofertas/mes (USD) | 10 000 ofertas/mes (USD) |
+|--------|------------------|-----------------|------------------|-----------------------|--------------------------|
+| gpt-5-nano | 0,05 | 0,40 | 0,000133 | 0,013 | 1,33 |
+| gpt-4o-mini | 0,15 | 0,60 | 0,000289 | 0,029 | 2,89 |
+| gpt-5.4-nano | 0,20 | 1,25 | 0,000467 | 0,047 | 4,67 |
+| gpt-5-mini | 0,25 | 2,00 | 0,000664 | 0,066 | 6,64 |
+| gpt-4.1-mini | 0,40 | 1,60 | 0,000770 | 0,077 | 7,70 |
+| gpt-5.4-mini | 0,75 | 4,50 | 0,001718 | 0,172 | 17,18 |
+
+Fuente de los precios: https://developers.openai.com/api/docs/pricing, consultada el 2026-11-07.
+
+Tres salvedades:
+
+- La entrada sin esquema, `tokens_entrada_media_sin_esquema` del bloque, es el límite inferior. La página de precios no dice si el esquema estricto se factura como entrada, y la tabla usa la entrada con esquema, que es la cifra prudente.
+- Un reintento duplica el peor caso, porque el servicio vuelve a pedir la respuesta una vez si no se puede leer (`MAX_ATTEMPTS = 2`).
+- Si un modelo activara tokens de razonamiento, se sumarían a la salida. Aquí se midió sin razonamiento.
+
+Con Ollama el coste marginal es cero. El precio es la latencia y el hardware: solo con CPU, sin GPU, una extracción tarda lo bastante como para que la demo caliente el modelo antes de empezar (mira [06-UAT.md](../.planning/phases/06-pulido-de-demo/06-UAT.md)). A cambio, la oferta no sale nunca de tu máquina. Un endpoint de modelos pequeños compatibles con OpenAI responde mucho más rápido, pero envía el texto de la oferta a un tercero y se paga por token, como muestra la tabla.

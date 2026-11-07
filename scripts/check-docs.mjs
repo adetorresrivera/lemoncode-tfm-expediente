@@ -471,12 +471,13 @@ function checkIa(root, problems) {
         `cost section needs a text block with ${keys.join(", ")}`,
       );
     }
-    const header = linesIn(doc, cost).find((l) => l.startsWith("|"));
-    if (
-      !header ||
-      !/100/.test(header) ||
-      !/10[ \u00a0\u202f]000/.test(header)
-    ) {
+    // The section holds two tables (measured tokens, then prices); the cost table is the one whose
+    // header names the 100 and the 10 000 offers per month.
+    const header = linesIn(doc, cost).find(
+      (l) =>
+        l.startsWith("|") && /100/.test(l) && /10[ \u00a0\u202f]000/.test(l),
+    );
+    if (!header) {
       fail(cost.from, "cost table header must contain 100 and 10 000");
     }
   }
