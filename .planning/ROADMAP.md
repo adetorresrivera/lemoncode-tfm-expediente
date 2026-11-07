@@ -283,13 +283,13 @@ Plans:
   3. `docs/ia-en-el-proyecto.md` explains how AI was used in development (GSD + Claude Code) and inside the product.
   4. `docs/decisiones.md` records the ADRs for the stack and architecture decisions.
   5. Likely examiner questions are documented with prepared answers.
-**Plans**: 1/6 plans executed
+**Plans**: 2/6 plans executed
 Plans:
 **Wave 1**
 - [x] 07-01-PLAN.md — Doc checker (links, anchors, voice, D-16 rules, one contract flag per deliverable, self-test) and the 12-ADR log `docs/decisiones.md` (wave 1)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 07-02-PLAN.md — `docs/ia-en-el-proyecto.md` with the «Cifras» block recomputed by `scripts/check-figures.mjs` at `c11ab61`, lessons with sources, product AI and measured cloud cost (wave 2)
+- [x] 07-02-PLAN.md — `docs/ia-en-el-proyecto.md` with the «Cifras» block recomputed by `scripts/check-figures.mjs` at `c11ab61`, lessons with sources, product AI and measured cloud cost (wave 2)
 
 **Wave 3** *(blocked on Wave 2 completion; after 07-02 because both load the local Ollama)*
 - [ ] 07-03-PLAN.md — Package-legitimacy checkpoint, then the throwaway Playwright runner: five screenshots and the Mermaid parse check (wave 3, not autonomous)
@@ -327,4 +327,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
 | 5. Documentos en S3 | 11/11 | Complete    | 2026-11-06 |
 | 6. Pulido de demo | 17/17 | Complete    | 2026-11-07 |
-| 7. Documentación y defensa | 1/6 | In Progress | - |
+| 7. Documentación y defensa | 2/6 | In Progress | - |
