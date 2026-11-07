@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Browser tools for the defense documents (07-03, D-17).
-# Usage: bash scripts/browser-tools.sh capture [shot,...]
+# Usage: bash scripts/browser-tools.sh capture [shot,...] | mermaid <file.md>... | mermaid --self-test
 #
 # Runs a throwaway container from the pinned Playwright image on the compose network, installs the
 # pinned packages INSIDE it (never in a package.json or the lockfile), runs the recipe against the
@@ -9,6 +9,9 @@
 #
 # `capture` takes the screenshots of docs/presentacion/capturas/ (all of them, or the comma
 # separated list given). It only reads and navigates: it never saves a candidatura.
+# `mermaid <file.md>...` parses every fenced `mermaid` block of the Markdown files with the pinned
+# mermaid in the container and exits 1 on `MERMAID FAIL` (zero blocks is a failure too).
+# `mermaid --self-test` proves the check accepts valid diagrams and rejects a broken one.
 #
 # Sandbox notes: a bind mount of a devcontainer path arrives empty, so files travel with `docker cp`;
 # the stdout of a foreground `docker exec` can be swallowed, so every command in the container runs
@@ -19,6 +22,7 @@ cd "$(dirname "${BASH_SOURCE[0]}")/.."
 
 IMAGE=mcr.microsoft.com/playwright:v1.56.1-noble
 PW=playwright@1.56.1
+MM=mermaid@11.17.2
 NET=expediente_default
 NAME=expediente-browser-$$
 
@@ -28,7 +32,7 @@ fail() {
 }
 
 usage() {
-  echo "Usage: bash scripts/browser-tools.sh capture [shot,...]" >&2
+  echo "Usage: bash scripts/browser-tools.sh capture [shot,...] | mermaid <file.md>... | mermaid --self-test" >&2
 }
 
 cleanup() {
@@ -37,7 +41,7 @@ cleanup() {
 
 SUBCOMMAND="${1:-}"
 case "$SUBCOMMAND" in
-  capture) shift ;;
+  capture | mermaid) shift ;;
   *)
     usage
     exit 2
@@ -123,6 +127,65 @@ run_capture() {
   echo "CAPTURE OK ($count PNG)"
 }
 
+# Parses the mermaid blocks of the given Markdown files in the (already started) container.
+# Prints the log and returns the exit code of the in-container check.
+mermaid_exec() {
+  local index=0 file args=""
+  docker exec "$NAME" mkdir -p /work/md
+  docker cp docs/presentacion/mermaid-check.mjs "$NAME":/tmp/mermaid-check.mjs
+  for file in "$@"; do
+    docker cp "$file" "$NAME":/work/md/$index.md
+    args="$args $(printf '%q' "$file=/work/md/$index.md")"
+    index=$((index + 1))
+  done
+  run_in mermaid 180 "node mermaid-check.mjs$args"
+}
+
+run_mermaid() {
+  [ "$#" -gt 0 ] || {
+    usage
+    exit 2
+  }
+  local file
+  if [ "$1" != "--self-test" ]; then
+    for file in "$@"; do
+      [ -f "$file" ] || fail "no such file: $file"
+    done
+  fi
+  preflight
+  start_container "$PW" "$MM"
+
+  if [ "$1" = "--self-test" ]; then
+    local dir good_out bad_out
+    dir="$(mktemp -d)"
+    printf '%s\n' '# Valid' '' '```mermaid' 'flowchart LR' '  A[Pegar oferta] --> B[Guardar]' '```' '' '```mermaid' 'sequenceDiagram' '  Usuario->>API: POST /api/offers/extract' '  API-->>Usuario: borrador' '```' >"$dir/good.md"
+    printf '%s\n' '# Broken' '' '```mermaid' 'flowchart LR' '  A[Pegar oferta --> B[Guardar' '  B ---> ???' '```' >"$dir/bad.md"
+    good_out="$(mermaid_exec "$dir/good.md")" || {
+      printf '%s\n' "$good_out"
+      rm -rf "$dir"
+      fail "SELF-TEST FAIL: a valid flowchart and sequenceDiagram were rejected"
+    }
+    printf '%s\n' "$good_out" | grep -q 'MERMAID OK (2 diagramas)' || {
+      rm -rf "$dir"
+      fail "SELF-TEST FAIL: the valid file did not report MERMAID OK (2 diagramas)"
+    }
+    if bad_out="$(mermaid_exec "$dir/bad.md")"; then
+      rm -rf "$dir"
+      fail "SELF-TEST FAIL: the broken block was accepted"
+    fi
+    printf '%s\n' "$bad_out" | grep -q 'MERMAID FAIL' || {
+      rm -rf "$dir"
+      fail "SELF-TEST FAIL: the broken file did not report MERMAID FAIL"
+    }
+    rm -rf "$dir"
+    echo "MERMAID SELF-TEST OK"
+    return 0
+  fi
+
+  mermaid_exec "$@" || exit 1
+}
+
 case "$SUBCOMMAND" in
   capture) run_capture "${1:-}" ;;
+  mermaid) run_mermaid "$@" ;;
 esac
