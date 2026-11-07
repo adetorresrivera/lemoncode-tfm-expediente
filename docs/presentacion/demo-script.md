@@ -1,0 +1,20 @@
+# Guion de la demo — Expediente
+
+La demo dura cinco minutos y se hace sobre los datos de demo. Pegas una sola oferta en directo y recorres el flujo entero: pegar, guardar, ronda, CV, estado y filtrar. Cada paso tiene un plan B (modo simulado) y un plan C (captura o vídeo) por si algo falla.
+
+## Guion
+
+| # | Tiempo | Paso | Qué dices | Plan B (mock) | Plan C |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 0:30 | En `/applications`, filtra por «Remoto» y por la etiqueta de stack «React». Salen 3 tarjetas: Tinta y Byte, Olivar Cloud y Cobalto Sistemas. Pulsa «Limpiar filtros». | «Esta es mi búsqueda de empleo. Filtro por remoto y React y me quedo con tres procesos.» | Igual: no depende del modelo. | [Lista en tema Claro](capturas/lista-claro-1280.png) |
+| 2 | 0:20 | Pulsa «Añadir candidatura» y luego «Pegar oferta». Pega el contenido de `docs/demo/ofertas/remote-senior.txt` (Nimbo Software, Frontend Senior, remoto) en «Texto de la oferta». | «Pego una oferta tal como la copio de la web. No escribo ni un campo a mano.» | Igual: no depende del modelo. | Vídeo, paso 2. |
+| 3 | 0:50 | Pulsa «Autocompletar con IA». Mientras trabaja, cuenta qué pasa por debajo. | «El modelo corre en local, con Ollama, sin salir de mi máquina. Devuelve un JSON y lo valido con el mismo esquema Zod que usa la API.» | La respuesta llega en menos de un segundo y es siempre la misma. Di: «el modo simulado devuelve siempre el mismo borrador de ejemplo; por eso aquí pone Lumen Analytics». | [Formulario con las marcas IA](capturas/formulario-ia-claro-1280.png). La captura es de Ollama y muestra Nimbo Software. |
+| 4 | 0:40 | Revisa las marcas «IA» y el aviso «Hemos rellenado …». Corrige un campo: añade «GraphQL» en «Se valora», que el modelo local no suele recoger, o cambia un salario. | «Esto es lo que ha entendido el modelo. Puede fallar, por eso nada se guarda solo; corrijo el campo y la marca IA desaparece.» | Corrige la empresa a «Nimbo Software» y di la misma frase de la marca IA. | [Formulario con las marcas IA](capturas/formulario-ia-claro-1280.png) |
+| 5 | 0:20 | Elige «Estado inicial: Enviada» y pulsa «Guardar candidatura». Llegas al detalle con el aviso «Candidatura creada.». | «La guardo como enviada, que es lo que haría justo después de mandar la candidatura.» | Igual: no depende del modelo. | [Detalle de un expediente](capturas/detalle-claro-1280.png). Es una candidatura del seed (Harbor Pine Software): así queda un expediente con rondas, CV e historial. |
+| 6 | 0:35 | Pulsa «Añadir ronda», elige un «Tipo» y pulsa «Guardar ronda». El estado pasa a «En entrevistas» sin que lo toques. Señala «Historial de estados»: «En entrevistas», marcado «Actual», sobre «Enviada». Las dos entradas llevan el mismo día, así que enseña el orden. | «No he tocado el estado; la regla la aplica el servicio: pasó de Enviada a En entrevistas al añadir la ronda.» | Igual: no depende del modelo. | [Detalle de un expediente](capturas/detalle-claro-1280.png). Muestra tres rondas y el historial. |
+| 7 | 0:35 | Pulsa «Editar», baja a «Documentos», elige «CV Frontend» y guarda. El detalle lista el documento con «Descargar». | «Vinculo el CV que enviaré. El archivo vive en Silo, un almacenamiento local compatible con S3.» | Igual: no depende del modelo. | [Detalle de un expediente](capturas/detalle-claro-1280.png). Muestra los documentos vinculados. |
+| 8 | 0:20 | Usa «Cambiar estado» y elige «Oferta recibida». | «Ha llegado la oferta. Cambio el estado y queda en el historial.» | Igual: no depende del modelo. | Vídeo, paso 8. |
+| 9 | 0:30 | Vuelve a la lista y filtra solo por el estado «Oferta recibida». Salen 2 tarjetas: la nueva arriba y Mercado Atlas. | «Filtro por ofertas recibidas: la nueva está arriba, junto a Mercado Atlas.» | Igual: no depende del modelo. | Vídeo, paso 9. |
+| 10 | 0:20 | Pulsa «Limpiar filtros» y vuelve a las diapositivas. | «Eso es Expediente. Sigo con las diapositivas: qué hay detrás.» | Igual: no depende del modelo. | Vídeo, paso 10. |
+
+Total: 5:00, hablando incluido. El flujo sin hablar dura mucho menos, así que el margen absorbe una extracción lenta.
