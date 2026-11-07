@@ -40,22 +40,34 @@ created: "2026-11-07"
 
 | Task ID | Plan | Wave | Requirement | Threat Ref | Secure Behavior | Test Type | Automated Command | File Exists | Status |
 |---------|------|------|-------------|------------|-----------------|-----------|-------------------|-------------|--------|
-| 7-xx-xx | TBD | TBD | PRES-01 | — | N/A | script | `node scripts/check-docs.mjs --deck` | ❌ W0 | ⬜ pending |
-| 7-xx-xx | TBD | TBD | PRES-02 | — | N/A | script | `node scripts/check-docs.mjs --demo` | ❌ W0 | ⬜ pending |
-| 7-xx-xx | TBD | TBD | PRES-03 | — | N/A | script | `node scripts/check-figures.mjs` | ❌ W0 | ⬜ pending |
-| 7-xx-xx | TBD | TBD | PRES-04 | — | N/A | script | `node scripts/check-docs.mjs` (12 `## ADR-` with 4 sub-headings) | ❌ W0 | ⬜ pending |
-| 7-xx-xx | TBD | TBD | PRES-05 | — | N/A | script | `node scripts/check-docs.mjs` (15 questions, 2–4 sentences) | ❌ W0 | ⬜ pending |
-| 7-xx-xx | TBD | TBD | All | — | No secrets or full offer text in docs | grep | `node scripts/check-docs.mjs` (links, anchors, images, voice, no Gemini/Groq) | ❌ W0 | ⬜ pending |
+| 07-01-T1 | 07-01 | 1 | PRES-04 (all docs: links) | T-07-01 | No secret-shaped string, no excluded provider in phase docs | script | `node scripts/check-docs.mjs && npx eslint scripts/check-docs.mjs --max-warnings=0` | ❌ W0 (created by this task) | ⬜ pending |
+| 07-01-T2 | 07-01 | 1 | PRES-04 | T-07-02 | ADR-005 states only the recorded rationale | script | `node scripts/check-docs.mjs --adr` | ❌ W0 | ⬜ pending |
+| 07-01-T3 | 07-01 | 1 | PRES-01 … PRES-05 (contracts) | T-07-03 | No rule can pass on invalid input | script | `node scripts/check-docs.mjs --self-test && node scripts/check-docs.mjs --adr && npm run lint && npm run typecheck && npm run test` | ❌ W0 | ⬜ pending |
+| 07-02-T1 | 07-02 | 2 | PRES-03 | T-07-06 | Every figure recomputed from git and .planning | script | `node scripts/check-figures.mjs && node scripts/check-docs.mjs` | ❌ W0 (created by this task) | ⬜ pending |
+| 07-02-T2 | 07-02 | 2 | PRES-03 | T-07-06 | Every claim links its source | script | `node scripts/check-docs.mjs && node scripts/check-figures.mjs` | ✅ after 07-02-T1 | ⬜ pending |
+| 07-02-T3 | 07-02 | 2 | PRES-03 | T-07-04, T-07-05, T-07-SC | Offer text never printed; official price source; scratch-only install | script | `node scripts/check-figures.mjs --tests && node scripts/check-docs.mjs --ia && npm run lint && npm run typecheck && npm run test` | ✅ after 07-02-T1 | ⬜ pending |
+| 07-03-T1 | 07-03 | 2 | PRES-01, PRES-02 | T-07-SC | Packages verified by a human before any install (blocking-human) | checkpoint | `docker image inspect mcr.microsoft.com/playwright:v1.56.1-noble --format '{{.Id}}'` plus the recorded resume signal | n/a | ⬜ pending |
+| 07-03-T2 | 07-03 | 2 | PRES-02 | T-07-07, T-07-10 | Container on the compose network only, removed after use | script | `bash -n scripts/browser-tools.sh && node scripts/check-docs.mjs --captures` (read-only re-check; the capture itself is 07-03 Task 2 `<automated>`) | ❌ W0 | ⬜ pending |
+| 07-03-T3 | 07-03 | 2 | PRES-01, PRES-02 | T-07-08, T-07-09 | No write to the user's data; no personal data in images | script | `bash scripts/browser-tools.sh mermaid --self-test && node scripts/check-docs.mjs --captures && npm run typecheck && npm run test` | ❌ W0 | ⬜ pending |
+| 07-04-T1 | 07-04 | 3 | PRES-02 | T-07-13 | Labels match the real UI | script | 07-04 Task 1 `<automated>` (prints `GUION OK 10 300`) | ❌ W0 | ⬜ pending |
+| 07-04-T2 | 07-04 | 3 | PRES-02 | T-07-11, T-07-12 | `--reset` only by the presenter; only committed fixtures | script | `node scripts/check-docs.mjs --demo && npm run typecheck && npm run test` | ✅ after 07-04-T1 | ⬜ pending |
+| 07-05-T1 | 07-05 | 4 | PRES-01 | T-07-15 | Figures copied from «Cifras» | script | 07-05 Task 1 `<automated>` (prints `DECK SPINE OK 11 900`) | ❌ W0 | ⬜ pending |
+| 07-05-T2 | 07-05 | 4 | PRES-01 | T-07-14, T-07-16 | Snippets byte-identical to the repository | script | `node scripts/check-docs.mjs --deck && npm run typecheck && npm run test` · `bash scripts/browser-tools.sh mermaid docs/presentacion/deck.md` (SKIP if 07-03 recorded «approved without mermaid») | ✅ after 07-05-T1 | ⬜ pending |
+| 07-06-T1 | 07-06 | 5 | PRES-05 | T-07-17 | Answers agree with ADRs and figures | script | `node scripts/check-docs.mjs --qa` | ❌ W0 | ⬜ pending |
+| 07-06-T2 | 07-06 | 5 | PRES-01 … PRES-05 (README) | T-07-18 | Additions only, no secret | script | `node scripts/check-docs.mjs --readme` | ✅ (README exists) | ⬜ pending |
+| 07-06-T3 | 07-06 | 5 | PRES-01 … PRES-05 (gate) | T-07-19 | No product, config or manifest change; no video tracked | script | `node scripts/check-docs.mjs --all && node scripts/check-figures.mjs --tests && npm run lint && npm run typecheck && npm run test` · 07-06 Task 3 second `<automated>` (product diff and video check) | ✅ after 07-01 … 07-05 | ⬜ pending |
 
-*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky* — the planner fills task IDs; see `07-RESEARCH.md` § Validation Architecture.
+*Status: ⬜ pending · ✅ green · ❌ red · ⚠️ flaky* — task IDs filled at planning time (6 plans, 16 tasks); 07-06 Task 3 runs every row once and records the results under «## Gate evidence (07-06)».
 
 ---
 
 ## Wave 0 Requirements
 
-- [ ] `scripts/check-docs.mjs` — links/anchors/images/required sections/voice checks (header `/* global console, process */`)
-- [ ] `scripts/check-figures.mjs` (or flags on one script) — figure recomputation anchored on `c11ab61`, snippet byte-compare
-- [ ] `docs/presentacion/capturas/capture.mjs` — reproducible screenshot recipe (not linted)
+- [ ] `scripts/check-docs.mjs` (07-01) — links/anchors/images, voice and D-16 rules, one contract flag per deliverable (deck snippet byte-compare included), `--self-test` (header `/* global console, process */`)
+- [ ] `scripts/check-figures.mjs` (07-02) — figure recomputation anchored on `c11ab61` and `9c70231`, cost arithmetic, `--tests`
+- [ ] `scripts/browser-tools.sh` (07-03) — host runner for the throwaway Playwright container (`capture`, `mermaid`, `mermaid --self-test`)
+- [ ] `docs/presentacion/capturas/capture.mjs` (07-03) — reproducible screenshot recipe (container-only, not linted)
+- [ ] `docs/presentacion/mermaid-check.mjs` (07-03) — Mermaid parse check (container-only, not linted)
 - No new test framework; no new dependency.
 
 ---
