@@ -1,4 +1,4 @@
-// Dev-only manual run (D-24): posts the three fixture offers to POST /api/offers/extract with the
+// Dev-only manual run (D-24): posts the three fixture offers (docs/demo/ofertas/) to POST /api/offers/extract with the
 // configured provider and prints timing and correctness. Not part of `npm run test` or CI.
 // In-process by default (no server or database needed); set API_URL to target a running API.
 import { offerExtractionSchema, type OfferExtraction } from "@tfm/contracts";

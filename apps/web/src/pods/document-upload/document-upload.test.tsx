@@ -11,6 +11,7 @@ import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { describe, expect, it, vi } from "vitest";
 import { HttpError } from "@/core/http/http-client";
+import { useFakeClock, useRealClock } from "@/test/fake-clock";
 import { jsonResponse, mockFetch, type MockHandler } from "@/test/mock-fetch";
 import { DocumentUploadContainer } from "./document-upload.container";
 import {
@@ -430,6 +431,91 @@ describe("DocumentUploadContainer", () => {
       expect(screen.getByRole("dialog")).toBeInTheDocument();
     });
 
+    describe("close lock feedback", () => {
+      const CLOSE_SENTENCE = "Cancela la subida para cerrar.";
+      const closeButton = (dialog: HTMLElement) =>
+        within(dialog).getByRole("button", { name: "Cerrar" });
+      const statusLine = (dialog: HTMLElement) =>
+        within(dialog).getByRole("status");
+
+      it("marks the X aria-disabled and keeps it focusable", async () => {
+        const { dialog } = await startUpload();
+
+        const close = closeButton(dialog);
+        expect(close).toHaveAttribute("aria-disabled", "true");
+        expect(close).not.toBeDisabled();
+        close.focus();
+        expect(close).toHaveFocus();
+        expect(statusLine(dialog)).not.toHaveTextContent(CLOSE_SENTENCE);
+      });
+
+      it("explains why on the X", async () => {
+        const { user, dialog } = await startUpload();
+
+        await user.click(closeButton(dialog));
+        expect(statusLine(dialog)).toHaveTextContent(CLOSE_SENTENCE);
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
+      });
+
+      it("explains why on Escape", async () => {
+        const { user, dialog } = await startUpload();
+
+        await user.keyboard("{Escape}");
+
+        expect(statusLine(dialog)).toHaveTextContent(CLOSE_SENTENCE);
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
+      });
+
+      it("explains why on a pointer-down outside", async () => {
+        const { user, dialog } = await startUpload();
+
+        await user.pointer({
+          keys: "[MouseLeft]",
+          target: document.querySelector(
+            '[data-slot="dialog-overlay"]',
+          ) as Element,
+        });
+
+        expect(statusLine(dialog)).toHaveTextContent(CLOSE_SENTENCE);
+        expect(screen.getByRole("dialog")).toBeInTheDocument();
+      });
+
+      it("clears the sentence once the upload ends", async () => {
+        const { user, dialog, pending } = await startUpload();
+        await user.click(closeButton(dialog));
+        expect(statusLine(dialog)).toHaveTextContent(CLOSE_SENTENCE);
+
+        await user.click(
+          within(dialog).getByRole("button", { name: "Cancelar subida" }),
+        );
+
+        expect(
+          await within(dialog).findByText("Subida cancelada."),
+        ).toBeInTheDocument();
+        expect(screen.queryByText(CLOSE_SENTENCE)).toBeNull();
+        expect(closeButton(dialog)).not.toHaveAttribute("aria-disabled");
+        expect(pending.state.signal?.aborted).toBe(true);
+      });
+
+      it("is absent when the dialog is reopened", async () => {
+        const { user, dialog } = await startUpload();
+        await user.click(closeButton(dialog));
+        await user.click(
+          within(dialog).getByRole("button", { name: "Cancelar subida" }),
+        );
+        await within(dialog).findByText("Subida cancelada.");
+        await user.click(closeButton(dialog));
+        await waitFor(() =>
+          expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+        );
+
+        const reopened = await openDialog(user);
+
+        expect(screen.queryByText(CLOSE_SENTENCE)).toBeNull();
+        expect(closeButton(reopened)).not.toHaveAttribute("aria-disabled");
+      });
+    });
+
     it("aborts on «Cancelar subida», keeps the dialog and every value", async () => {
       const { user, dialog, pending } = await startUpload();
 
@@ -456,6 +542,20 @@ describe("DocumentUploadContainer", () => {
       expect(await screen.findByText("Documento subido.")).toBeInTheDocument();
       expect(dialog).not.toBeInTheDocument();
     });
+  });
+
+  it("leaves the X unmarked and working when idle", async () => {
+    const user = setup();
+    render(<DocumentUploadContainer />);
+    const dialog = await openDialog(user);
+
+    const close = within(dialog).getByRole("button", { name: "Cerrar" });
+    expect(close).not.toHaveAttribute("aria-disabled");
+    await user.click(close);
+
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument(),
+    );
   });
 
   describe("name prefill", () => {
@@ -586,7 +686,7 @@ describe("DocumentUploadContainer", () => {
       "text-base",
       "focus-visible:ring-2",
       "focus-visible:ring-ring",
-      "file:mr-3",
+      "file:mr-4",
       "file:inline-flex",
       "file:h-11",
       "file:items-center",
@@ -645,7 +745,7 @@ describe("DocumentUploadContainer", () => {
 
   it("clears the success line 5 s after the upload", async () => {
     mockFetch({ "POST /api/documents": () => jsonResponse(stored, 201) });
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    useFakeClock();
     try {
       const user = userEvent.setup({
         applyAccept: false,
@@ -658,16 +758,16 @@ describe("DocumentUploadContainer", () => {
       expect(await screen.findByText("Documento subido.")).toBeInTheDocument();
 
       await act(async () => {
-        vi.advanceTimersByTime(4900);
+        await vi.advanceTimersByTimeAsync(4000);
       });
       expect(screen.getByText("Documento subido.")).toBeInTheDocument();
       await act(async () => {
-        vi.advanceTimersByTime(200);
+        await vi.advanceTimersByTimeAsync(1500);
       });
 
       expect(screen.queryByText("Documento subido.")).toBeNull();
     } finally {
-      vi.useRealTimers();
+      useRealClock();
     }
   });
 });

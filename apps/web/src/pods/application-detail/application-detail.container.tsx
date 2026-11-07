@@ -29,6 +29,7 @@ export function ApplicationDetailContainer({
     pendingStatus,
     statusFeedback,
     remove,
+    resetDeleteError,
     deleteState,
     interviewActions,
     documents,
@@ -50,6 +51,7 @@ export function ApplicationDetailContainer({
       statusFeedback={statusFeedback}
       deleteState={deleteState}
       onDelete={remove}
+      onDeleteOpen={resetDeleteError}
       interviewActions={interviewActions}
       documents={documents}
       renderListLink={renderListLink}

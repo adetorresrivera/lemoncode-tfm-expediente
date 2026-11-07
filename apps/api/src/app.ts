@@ -61,6 +61,11 @@ export function createApp(deps: AppDeps): Hono {
   const indexHtml = deps.webDistDir
     ? readIndexHtml(deps.webDistDir)
     : undefined;
+  if (deps.webDistDir && indexHtml === undefined) {
+    console.warn(
+      `index.html not found in ${deps.webDistDir}; SPA fallback disabled`,
+    );
+  }
 
   app.use("*", secureHeaders({ strictTransportSecurity: false }));
 
@@ -109,7 +114,15 @@ export function createApp(deps: AppDeps): Hono {
 
   app.notFound((c) => {
     const isApiPath = c.req.path === "/api" || c.req.path.startsWith("/api/");
-    if (!isApiPath && c.req.method === "GET" && indexHtml !== undefined) {
+    // A path whose last segment has a file extension is a missing static file (a stale hash, a
+    // favicon): answering the app shell for it would hide a broken build behind a 200.
+    const looksLikeFile = /\.[A-Za-z0-9]+$/.test(c.req.path);
+    if (
+      !isApiPath &&
+      !looksLikeFile &&
+      c.req.method === "GET" &&
+      indexHtml !== undefined
+    ) {
       return c.html(indexHtml, 200);
     }
     const body: ErrorResponse = {

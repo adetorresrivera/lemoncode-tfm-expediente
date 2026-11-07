@@ -55,7 +55,10 @@ export function ApplicationListComponent({
   };
 
   const firstLoad = status === "loading" && !refreshing;
-  const count = firstLoad || status === "error" ? null : applications.length;
+  // A refetch that starts from an empty result has no cards to keep: show the skeleton, never an
+  // empty state, until a settled response arrives (02 WR-04).
+  const showSkeleton = firstLoad || (refreshing && applications.length === 0);
+  const count = showSkeleton || status === "error" ? null : applications.length;
 
   return (
     <div className="flex flex-col gap-4">
@@ -75,7 +78,7 @@ export function ApplicationListComponent({
         tabIndex={-1}
         className="outline-none"
       >
-        {firstLoad ? (
+        {showSkeleton ? (
           <ListSkeleton />
         ) : status === "error" ? (
           <ListError

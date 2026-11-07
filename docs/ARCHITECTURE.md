@@ -72,7 +72,11 @@ src/
     extract.routes.ts
     extract.service.ts     prompt + normalización
   tags/tags.routes.ts
-  scripts/seed.ts
+  scripts/
+    seed.ts                 entrada del comando `npm run seed`
+    seed/                   plan puro (`seed.plan.ts`) y ejecutor (`seed.run.ts`)
+    assets/                 3 PDF de demo, copiados a `dist` en el build
+    try-extract.ts          prueba la extracción con las ofertas de `docs/demo/ofertas/`
 ```
 Índices: `applications`: `{ status: 1 }`, `{ updatedAt: -1 }`, `{ "tags.label": 1 }`, texto en `{ title, company }`, `{ cvDocumentId: 1 }`, `{ coverLetterDocumentId: 1 }` (comprobación de uso). `documents`: `{ createdAt: -1 }`.
 
@@ -164,4 +168,5 @@ Gestión de datos: hooks propios con `fetch` + `AbortController` como en el curs
 - `Dockerfile` multi-stage: `deps` (npm ci) → `build` (contracts, api, web) → `runtime` (node:22-slim, solo `apps/api/dist`, `apps/web/dist` y deps de producción; usuario no root; `HEALTHCHECK` a `/api/health`).
 - `compose.yml`: `app` (imagen `tfm-app`, puerto 8080), `mongo:8`, `s3` (`pgsty/minio`, consola 9001), `s3-init` (`pgsty/mc`, crea bucket), `ollama` + `ollama-init` (pull del modelo). Volúmenes con nombre. `app` espera a que mongo y s3 estén sanos.
 - Fijar versiones de imágenes (nada de `latest`) en el entregable.
-- `npm run seed` disponible dentro del contenedor: `docker compose exec app npm run seed`.
+- `npm run seed` disponible dentro del contenedor: `docker compose exec app npm run seed` (12 candidaturas y 3 documentos; idempotente). `docker compose exec app npm run seed -- --reset` borra todo antes de sembrar, para los ensayos. Las 3 ofertas de `docs/demo/ofertas/` no se siembran: se pegan en vivo.
+- Arranque en frío: `bash scripts/compose-smoke.sh --cold` reconstruye la imagen en un proyecto aislado `expediente-cold` (volúmenes nuevos, sin puertos publicados, `LLM_PROVIDER=mock`), ejecuta el seed dentro de la imagen y comprueba la API, la descarga de un PDF y la extracción simulada. También exige que la imagen `tfm-app:0.1.0` no pase de 450 MB, que ninguna imagen use `latest` y que `app`, `mongo`, `s3` y `ollama` tengan healthcheck. Al terminar borra su proyecto y sus volúmenes; nunca toca el proyecto `expediente` ni el volumen del modelo. Requiere Docker Compose v2.24 o posterior (`scripts/compose.cold.yml` usa la etiqueta `!reset`).

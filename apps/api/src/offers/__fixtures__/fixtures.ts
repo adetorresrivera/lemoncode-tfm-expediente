@@ -95,7 +95,14 @@ export const OFFER_FIXTURES: readonly {
 export function readFixtureText(name: FixtureName): string {
   const fixture = OFFER_FIXTURES.find((entry) => entry.name === name);
   if (!fixture) throw new Error(`Unknown fixture: ${name}`);
-  return readFileSync(new URL(fixture.file, import.meta.url), "utf8");
+  // docs/demo/ofertas/ is the single source of truth, also pasted live in the demo.
+  return readFileSync(
+    new URL(
+      `../../../../../docs/demo/ofertas/${fixture.file}`,
+      import.meta.url,
+    ),
+    "utf8",
+  );
 }
 
 const compact = (value: string): string =>

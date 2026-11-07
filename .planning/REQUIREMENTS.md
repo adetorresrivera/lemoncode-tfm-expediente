@@ -68,12 +68,12 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Demo readiness (DEMO)
 
-- [ ] **DEMO-01**: `npm run seed` (also via `docker compose exec app npm run seed`) loads demo applications, documents and the 3 fixture offers into Mongo and Silo
-- [ ] **DEMO-02**: README explains how to run, seed, switch `LLM_PROVIDER` and recover with `mock` when Ollama fails
-- [ ] **DEMO-03**: The app is usable from 360 px width without horizontal scroll
-- [ ] **DEMO-04**: The app is fully keyboard-operable with visible focus, labelled fields, `aria-live="polite"` on load/error/AI results and AA contrast
-- [ ] **DEMO-05**: The full demo flow (paste offer → autofill → review → save → add round → attach CV → change status → see it filtered) works in under 2 minutes on a clean machine, with Ollama and with `mock`
-- [ ] **DEMO-06**: Pending tests from earlier phases are completed and `npm run typecheck && npm run test` pass on a clean checkout
+- [x] **DEMO-01**: `npm run seed` (also via `docker compose exec app npm run seed`) loads demo applications and documents into Mongo and Silo, idempotently (`-- --reset` wipes everything first); the 3 fixture offers are available to paste from `docs/demo/ofertas/` and are never seeded (D-08)
+- [x] **DEMO-02**: README explains how to run, seed, switch `LLM_PROVIDER` and recover with `mock` when Ollama fails
+- [x] **DEMO-03**: The app is usable from 360 px width without horizontal scroll
+- [x] **DEMO-04**: The app is fully keyboard-operable with visible focus, labelled fields, `aria-live="polite"` on load/error/AI results and AA contrast
+- [x] **DEMO-05**: The full demo flow (paste offer → autofill → review → save → add round → attach CV → change status → see it filtered) works in under 2 minutes on a clean machine, with Ollama and with `mock`
+- [x] **DEMO-06**: Pending tests from earlier phases are completed and `npm run typecheck && npm run test` pass on a clean checkout
 
 ### Presentation (PRES)
 
@@ -160,12 +160,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DOC-04 | Phase 5 | Complete |
 | DOC-05 | Phase 5 | Complete |
 | DOC-06 | Phase 5 | Complete |
-| DEMO-01 | Phase 6 | Pending |
-| DEMO-02 | Phase 6 | Pending |
-| DEMO-03 | Phase 6 | Pending |
-| DEMO-04 | Phase 6 | Pending |
-| DEMO-05 | Phase 6 | Pending |
-| DEMO-06 | Phase 6 | Pending |
+| DEMO-01 | Phase 6 | Complete |
+| DEMO-02 | Phase 6 | Complete |
+| DEMO-03 | Phase 6 | Complete |
+| DEMO-04 | Phase 6 | Complete |
+| DEMO-05 | Phase 6 | Complete |
+| DEMO-06 | Phase 6 | Complete |
 | PRES-01 | Phase 7 | Pending |
 | PRES-02 | Phase 7 | Pending |
 | PRES-03 | Phase 7 | Pending |
@@ -179,4 +179,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-10-28*
-*Last updated: 2026-10-28 after roadmap creation (traceability filled)*
+*Last updated: 2026-11-06 after plan 06-16: DEMO-01 reworded because D-08 keeps the 3 fixture offers out of the seed (they live in `docs/demo/ofertas/`)*

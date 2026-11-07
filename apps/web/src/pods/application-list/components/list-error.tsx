@@ -26,10 +26,7 @@ export function ListError({ code, onRetry }: Props) {
       className="flex flex-col items-start gap-4 rounded-md border border-border bg-card p-6"
     >
       <div className="flex items-start gap-2">
-        <CircleAlert
-          aria-hidden="true"
-          className="mt-0.5 size-4 shrink-0 text-destructive"
-        />
+        <CircleAlert aria-hidden="true" className="mt-1 size-4 shrink-0" />
         <div className="flex flex-col gap-2">
           <h2 className="font-serif text-base font-semibold leading-[1.2] text-foreground">
             No se pudieron cargar las candidaturas

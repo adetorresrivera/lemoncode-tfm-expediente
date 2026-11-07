@@ -95,4 +95,4 @@ Iteración futura: añadir al prompt las etiquetas existentes de `GET /api/tags`
 - `extract.service` con un `LlmClient` falso: normaliza salarios, deduplica etiquetas, propaga timeout como 504.
 - `ollama.provider` y `openai.provider` con `fetch` mockeado: cuerpo de la petición correcto (`format` / `response_format`) y parseo de la respuesta.
 - Mapper web: fusión que no pisa valores del usuario y calcula marcas «IA» y «faltan».
-- Fixtures: 3 ofertas anonimizadas en `apps/api/src/offers/__fixtures__/` (remoto senior con rango salarial; presencial junior sin salario; oferta en inglés con «nice to have»). Se reutilizan en el seed y en la demo.
+- Fixtures: 3 ofertas anonimizadas en `docs/demo/ofertas/` (remoto senior con rango salarial; presencial junior sin salario; oferta en inglés con «nice to have»). Alimentan los tests de fixtures (`apps/api/src/offers/__fixtures__/`) y `npm run try-extract`, y se pegan en vivo en la demo. El seed no las carga: la lista sembrada trae candidaturas ya creadas.

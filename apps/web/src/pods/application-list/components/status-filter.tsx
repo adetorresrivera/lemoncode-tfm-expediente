@@ -40,7 +40,7 @@ export function StatusFilter({ value, onChange }: Props) {
           <ToggleGroupItem
             key={status}
             value={status}
-            className="h-9 px-2 text-sm font-semibold data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+            className="h-11 px-2 text-sm font-semibold data-[state=on]:border-primary data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
           >
             {STATUS_LABELS[status]}
           </ToggleGroupItem>

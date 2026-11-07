@@ -54,7 +54,7 @@ export function DocumentDeleteDialog({
         onCloseAutoFocus={onCloseAutoFocus}
       >
         <AlertDialogTitle>¿Eliminar este documento?</AlertDialogTitle>
-        <AlertDialogDescription className="break-words">
+        <AlertDialogDescription className="min-w-0 break-words">
           {shown !== null
             ? `Vas a eliminar «${shown.name}» (${shown.version}). Esta acción no se puede deshacer.`
             : ""}

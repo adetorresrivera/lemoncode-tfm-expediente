@@ -38,6 +38,7 @@ interface Props {
   statusFeedback: StatusFeedback | null;
   deleteState: DeleteState;
   onDelete: () => void;
+  onDeleteOpen?: () => void;
   interviewActions: InterviewActions;
   documents: DetailDocumentsVm;
   renderListLink: RenderListLink;
@@ -56,6 +57,7 @@ export function ApplicationDetailComponent({
   statusFeedback,
   deleteState,
   onDelete,
+  onDeleteOpen,
   interviewActions,
   documents,
   renderListLink,
@@ -120,6 +122,7 @@ export function ApplicationDetailComponent({
               company={vm.company}
               state={deleteState}
               onConfirm={onDelete}
+              onOpen={onDeleteOpen}
             />
           </div>
         </div>
