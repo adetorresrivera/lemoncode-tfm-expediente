@@ -640,7 +640,7 @@ describe("findings of the human pass", () => {
     expect(buttons.filter((button) => !hasHitArea(button))).toEqual([]);
   });
 
-  it("S2 · all viewports · both themes · the stack filter chips have a 44 px hit area", async () => {
+  it("S2 · all viewports · both themes · the stack filter chips have a 44 × 44 px hit area, a short label such as CSS included", async () => {
     const user = userEvent.setup();
     renderAt("/applications");
 
@@ -649,7 +649,12 @@ describe("findings of the human pass", () => {
     const chips = await screen.findAllByRole("button", { name: "React" });
 
     expect(chips.length).toBeGreaterThan(0);
-    expect(chips.filter((chip) => !hasHitArea(chip))).toEqual([]);
+    // The label sets the width, so a two-letter chip (CSS, 42 px) needs `min-w-11` as well.
+    expect(
+      chips.filter(
+        (chip) => !hasHitArea(chip) || !baseTokens(chip).has("min-w-11"),
+      ),
+    ).toEqual([]);
   });
 
   it("S3 · all viewports · both themes · the «Ver oferta original» link has a 44 px hit area", async () => {
