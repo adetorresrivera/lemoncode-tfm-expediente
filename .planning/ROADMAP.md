@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Autocompletado con IA** - Paste an offer and get a reviewable draft that never overwrites user data (target 2 Nov) (completed 2026-11-01)
 - [x] **Phase 4: Rondas de entrevista** - Create, edit and delete interview rounds with the automatic move to `en_entrevistas` (target 3 Nov) (completed 2026-11-03)
 - [x] **Phase 5: Documentos en S3** - Upload CV and cover letters, link them to applications, download them (target 5 Nov) (completed 2026-11-06)
-- [ ] **Phase 6: Pulido de demo** - Seed, README, responsive and accessibility pass, pending tests (target 7 Nov)
+- [x] **Phase 6: Pulido de demo** - Seed, README, responsive and accessibility pass, pending tests (target 7 Nov) (completed 2026-11-07)
 - [ ] **Phase 7: Documentación y defensa** - Deck, demo script, AI-usage doc, ADRs and examiner Q&A (target 8 Nov)
 
 ## Phase Details
@@ -229,7 +229,7 @@ Plans:
   3. Every screen is usable from 360 px width without horizontal scroll, and fully operable with the keyboard alone, with visible focus, labelled fields, `aria-live="polite"` on load, error and AI results, and AA contrast in light and dark themes.
   4. The full demo flow (paste offer → autofill → review → save → add round → attach CV → change status → see it filtered) completes in under 2 minutes on a clean machine, both with Ollama and with `mock`.
   5. Tests pending from earlier phases are written, and `npm run typecheck && npm run test` pass on a clean checkout.
-**Plans**: 17/17 plans executed
+**Plans**: 17/17 plans complete
 Plans:
 **Wave 1**
 - [x] 06-01-PLAN.md — Seed tracer: `npm run seed` → compiled `dist/scripts/seed.js` → services with an injected clock → Mongo + Silo, idempotent `seed: true` mark, one linked CV and one application (wave 1)
@@ -308,5 +308,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Autocompletado con IA | 12/12 | Complete    | 2026-11-01 |
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
 | 5. Documentos en S3 | 11/11 | Complete    | 2026-11-06 |
-| 6. Pulido de demo | 17/17 | In Progress | - |
+| 6. Pulido de demo | 17/17 | Complete    | 2026-11-07 |
 | 7. Documentación y defensa | 0/TBD | Not started | - |
