@@ -22,9 +22,10 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 
 - ✓ **DOC**: subir PDF/DOCX ≤5 MB a Silo (firma y extensión deben coincidir, DOCX por directorio central), listado `/documents` con filtro por tipo, descarga con `Content-Disposition: attachment`, vincular CV y carta desde el formulario (incluida subida en diálogo), borrado bloqueado con 409 si está en uso — Fase 5 (DOC-01..DOC-06, verificado, UAT 4/4, seguridad 38/38 cerradas con 5 riesgos bajos aceptados, UI 19/24 como lista de mejoras). Avisos de revisión abiertos y no bloqueantes en `05-REVIEW-DISPOSITION.md` (WR-01..WR-03)
 
+- ✓ **DEMO**: seed idempotente (12 candidaturas, 3 documentos, `--reset` explícito), README en español con arranque en 3 comandos y captura, responsive desde 360 px, teclado y movimiento reducido, contraste AA con axe, demo cronometrada (mock 13 s, Ollama 48 s), smoke de compose en frío — Fase 6 (DEMO-01..DEMO-06, verificado 5/5, UAT completo, seguridad 37/37 cerradas con 8 riesgos bajos aceptados, UI 19/24, Nyquist validado). Avisos de revisión abiertos y no bloqueantes en `06-REVIEW-DISPOSITION.md` (WR-01..WR-03, IN-01..IN-05)
+
 ### Active
 
-- [ ] **DEMO**: seed de datos, README, responsive desde 360 px y accesibilidad AA, modo mock
 - [ ] **PRES**: documentación y material de defensa (deck, guion de demo, `docs/ia-en-el-proyecto.md`, `docs/decisiones.md`, preguntas del tribunal)
 
 ### Out of Scope
@@ -45,6 +46,7 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 - Fase 1 cerrada (29 oct): esqueleto andante con monorepo, contratos Zod, API Hono con `/api/health`, shell web con tema y compose funcionando. Metodología GSD + Claude Code; rama por fase (`phase/NN-nombre`), una PR por fase.
 - Fase 2 cerrada (31 oct, rama `phase/02-candidaturas`): CRUD completo de candidaturas en API y web, filtros en la URL, detalle con historial, formulario compartido crear/editar con TanStack Form; 471 tests y smoke de compose con ida y vuelta CRUD.
 - Fase 5 cerrada (6 nov, rama `phase/05-documentos-s3`): documentos en S3 con API multipart limitada a 5 MB, compensación del objeto si falla el insert, picker y diálogo de subida en el formulario, sección de documentos en el detalle; 1079 tests.
+- Fase 6 cerrada (7 nov, rama `phase/06-pulido-demo`): 17 planes en 11 olas; seed por los servicios, reintento de arranque y límites de cuerpo en la API, pantallas de error en español, foco y 44 px en todos los controles, fundidos tras `motion-safe:`; 1416 tests (59 + 467 + 890). La pasada de navegador de la UAT la hizo Playwright en un contenedor aparte (delegada por el usuario); los tiempos los midió el usuario.
 - Fase 4 cerrada (3 nov, rama `phase/04-rondas-entrevista`): rondas de entrevista en API y web con diálogo accesible, fechas `datetime-local` que conservan el instante guardado al editar; 870 tests y smoke de compose con ida y vuelta de rondas.
 
 ## Constraints
@@ -79,6 +81,9 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 | Tipo de archivo por magic bytes + extensión, sin dependencias (DOCX por el directorio central del ZIP); `mimeType` guardado sale de la detección | Un HTML renombrado nunca se guarda ni se sirve como PDF; sin librería nueva | ✓ Fase 5 (D-02) |
 | Subir a S3 con id generado antes y, si falla el insert, borrar el objeto sin tapar el error original | Sin objetos huérfanos en Silo ni metadatos sin objeto | ✓ Fase 5 (D-04) |
 | Feedback de mutaciones y temporizadores de éxito por candidatura en el hook del detalle | Dos candidaturas mutando a la vez no se pisan mensajes ni temporizadores | ✓ Fase 4 (fix 2ea14e0); queda el candado `busy` de un solo hueco como aviso |
+| Seed por los servicios de la API, con marca `seed: true` escrita aparte y `--reset` solo como flag explícito | Las etiquetas y el historial salen igual que en uso real; un seed normal nunca toca datos del usuario | ✓ Fase 6 (aviso WR-03: si el proceso cae entre crear y marcar, queda un registro sin marca) |
+| Objetivos táctiles de 44 px en todos los controles, incluidos chips y filtros | El UI-SPEC lo exige sin excepciones; la pasada de navegador encontró chips de 28-36 px | ✓ Fase 6 (98e5c63, bd6f63b); la tarjeta de filtros crece unos 24 px |
+| Animaciones de diálogos y Sheet tras `motion-safe:` | `motion-reduce:animate-none` perdía contra `data-[state=open]:animate-in` | ✓ Fase 6 (98e5c63) |
 | Roadmap de 7 fases fijado por el autor | MVP completo y demostrable antes que funcionalidades a medias | — Pending |
 
 ## Evolution
@@ -99,4 +104,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-06 after Phase 5*
+*Last updated: 2026-11-07 after Phase 6*

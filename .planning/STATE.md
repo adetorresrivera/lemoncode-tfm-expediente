@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-06)
+See: .planning/PROJECT.md (updated 2026-11-07)
 
 **Core value:** Pegar una oferta y obtener un expediente casi completo y revisable en segundos, con el flujo entero (pegar → guardar → ronda → CV → estado → filtrar) demostrable en menos de 2 minutos con `docker compose up`.
-**Current focus:** Phase 06 — Pulido de demo
+**Current focus:** Phase 07 — Documentación y defensa
 
 ## Current Position
 
@@ -86,18 +86,19 @@ None yet.
 
 - [Schedule]: 7 phases must fit before the 9 Nov defense; MVP finished beats features half done.
 - [Ship]: Phases 1-4 shipped 2026-11-03 as stacked PRs #1 (01→main), #2 (02→01), #3 (03→02), #4 (04→03); merge in order. GitHub default branch is `main` (only "First commit"). `.planning/config.json` still has `branching_strategy` = `none`; phase branches are created by hand. PR #1 carries the committed `.claude/` GSD install (~320k lines).
-- [Phase 1]: Web tests (`@tfm/web`) intermittently fail with `Failed to start forks worker` on a cold start; not seen during Phase 2 but not fixed either.
-- [Phase 1]: Open code-review findings that can hurt a live demo: API startup hangs or dies when Mongo/S3 is slow, and `pingS3` has no abort (see `01-REVIEW-DISPOSITION.md`, ids carried from the first review). `server.host: true` in `apps/web/vite.config.ts` exposes the dev server on all interfaces.
-- [Phase 2]: Code review 0 critical / 4 warnings / 9 info, all `open` in `02-REVIEW-DISPOSITION.md`. Demo-relevant: WR-01 no request-body limit + unbounded `sourceUrl`/document ids; WR-02 compose smoke has no cleanup trap; WR-03 stale delete error; WR-04 empty state flashes during refetch. `/gsd-code-review 02 --fix` applies them.
-- [Phase 2]: `02-VALIDATION.md` still draft — `/gsd-validate-phase 02` (Nyquist) not run; `/gsd-ui-review 02` not run.
+- [Phase 1 → resolved Phase 6]: the cold-start `Failed to start forks worker` flake is handled by `apps/web/scripts/run-vitest.mjs` (one conditional retry, 06-13).
+- [Phase 1]: startup retry and `pingS3` abort fixed in Phase 6 (06-04). Still open: `server.host: true` in `apps/web/vite.config.ts` exposes the dev server on all interfaces.
+- [Phase 2 → resolved Phase 6]: 02 WR-01 (body limit, `.max()`), WR-02 (smoke cleanup trap), WR-03 (stale delete error) and WR-04 (refetch flash) fixed in 06-05 / 06-10 / 06-06; the 9 info findings stay open in `02-REVIEW-DISPOSITION.md`.
+- [Phase 2]: `02-VALIDATION.md` validated (closed in 06-15); `/gsd-ui-review 02` not run.
 - [Phase 2]: Dev DB applications created before plan 02-03 have no `tags.key` and do not match the stack filter; delete or re-save them.
 - [Env]: GSD install hard-codes `/workspaces/TFM/.claude`; the devcontainer folder is now `lemoncode-tfm-expediente`, bridged by a container-local symlink `/workspaces/TFM`. Reinstall GSD to fix permanently. `.DS_Store` and `.claude/worktrees/` are in `.git/info/exclude` (macOS host writes `.DS_Store` into the bind mount, which blocked worktree merges).
 - [Phase 3]: Open info findings in `03-REVIEW-DISPOSITION.md`: IN-01 ~12 lucide icons from earlier phases still at default stroke; IN-02 `idiomas` entries are trusted, so a technology the model puts there wins over its `stack` tag; IN-03 model-facing schema still offers the `idioma` tag group; IN-04 docs drift; IN-05 triple `LLM_BASE_URL` trailing-slash normalization.
-- [Phase 3]: `03-VALIDATION.md` still draft — `/gsd-validate-phase 03` (Nyquist) not run. `03-03-SUMMARY.md` lists `src/scripts/try-extract.ts` and `__fixtures__/fixtures.ts` without the `apps/api/` prefix.
+- [Phase 3]: `03-VALIDATION.md` validated. `03-03-SUMMARY.md` lists `src/scripts/try-extract.ts` and `__fixtures__/fixtures.ts` without the `apps/api/` prefix.
 - [Phase 1]: `npm run format:check` flags the untracked GSD artifact `.gsd/dispatch-isolation-sentinel.json`; add `.gsd` to `.prettierignore` when convenient.
 
 - [Phase 4]: Open findings in `04-REVIEW-DISPOSITION.md`: WR-01 the `busy` lock (`busyRef`) is still one slot while feedback and timers are per application (a second mutation on A is possible after A → B → A with A pending); WR-02 the unmount-cancels-timers test only asserts `clearTimeout` ≥ 1; IN-01 `endBusy` own-lock guard untested; IN-02 `deletingRef`/`onDeleted` not scoped per application; IN-03 per-key error feedback never pruned. `/gsd-code-review 04 --fix` applies the warnings. `04-01/02-SUMMARY.md` key-files list paths without the `apps/web/src/` prefix.
-- [Phase 5]: Open findings in `05-REVIEW-DISPOSITION.md` (WR-01..WR-03, IN-01..IN-06), incl. a possibly flaky timer test and an untested idle outside-pointer case. UI review top fixes not applied: error icons tinted `text-destructive` against the UI-SPEC, dialog X silently ignored during upload, `mt-0.5`/`file:mr-3` off-scale. `05-VALIDATION.md` still draft (`/gsd-validate-phase 05` not run). Several 05-SUMMARY key-files lack the `apps/*/src/` prefix.
+- [Phase 5]: Open findings in `05-REVIEW-DISPOSITION.md` (WR-01..WR-03, IN-01..IN-06), incl. a possibly flaky timer test and an untested idle outside-pointer case. UI review top fixes applied in Phase 6 (A1 destructive sweep, 06-09 explained close lock, A2 off-scale sweep). `05-VALIDATION.md` validated (closed in 06-15). Several 05-SUMMARY key-files lack the `apps/*/src/` prefix.
+- [Phase 6]: 17 plans in 11 waves on `phase/06-pulido-demo`; verified 5/5, UAT complete (browser pass automated with Playwright 1.56.1 in a separate container, delegated by the user; timed demo by the user: mock 13 s, Ollama 48 s), security 37/37 closed (8 accepted low), UI review 19/24, Nyquist validated. One new devDependency: `axe-core` 4.14.0 (test only). Open advisory review findings in `06-REVIEW-DISPOSITION.md`: WR-01 the form explains a >2048-char `sourceUrl` as an invalid URL; WR-02 `connectMongo` leaks a client if `ensureIndexes` fails during the startup retry; WR-03 the seed marks records in a second write (a crash in between leaves an unmarked demo record); IN-01..IN-05. S10 (route error) never captured in a browser (covered by `route-error.test.tsx`).
 - [Phase 6 plan]: Plan check accepted by the user on 2026-11-06 with 1 open warning (override): in 06-17 Task 3, a code fix after the human pass re-runs only typecheck/lint/test/clean checkout/image build, so other green map rows (incl. `compose-smoke.sh --cold`) keep pre-fix evidence. If Task 3 changes anything under `apps/`, re-run every map command; `/gsd-verify-work 06` must re-run the full suite and the cold smoke. Advisory: record the log dir in the SUMMARY; timed runs are truncated to whole seconds.
 
 ### Quick Tasks Completed
@@ -119,6 +120,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T09:50:17.488Z
-Stopped at: Phase 06 complete, ready to plan Phase 7
-Resume file: .planning/phases/06-pulido-de-demo/06-UI-SPEC.md
+Last session: 2026-11-07
+Stopped at: Phase 06 complete, ready to plan Phase 07
+Resume file: None
