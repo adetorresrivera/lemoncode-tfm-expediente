@@ -31,7 +31,7 @@ export function TagChip({
         onClick={onToggle}
         className={cn(
           BASE,
-          "h-11 outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "h-11 min-w-11 justify-center outline-none focus-visible:ring-2 focus-visible:ring-ring",
           soft && "border-dashed",
           selected
             ? "border-primary bg-primary text-primary-foreground"
