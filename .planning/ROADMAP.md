@@ -283,7 +283,7 @@ Plans:
   3. `docs/ia-en-el-proyecto.md` explains how AI was used in development (GSD + Claude Code) and inside the product.
   4. `docs/decisiones.md` records the ADRs for the stack and architecture decisions.
   5. Likely examiner questions are documented with prepared answers.
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans executed
 Plans:
 **Wave 1**
 - [x] 07-01-PLAN.md — Doc checker (links, anchors, voice, D-16 rules, one contract flag per deliverable, self-test) and the 12-ADR log `docs/decisiones.md` (wave 1)
@@ -301,7 +301,7 @@ Plans:
 - [x] 07-05-PLAN.md — 11-slide deck (15:00, demo in the middle, front-weighted) with 3 Mermaid diagrams and 2 verbatim snippets (wave 5)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 07-06-PLAN.md — Author's decision on ADR-005 (blocking), 15 examiner questions, README «Próximos pasos» and links, phase gate and validation map (wave 6, not autonomous)
+- [x] 07-06-PLAN.md — Author's decision on ADR-005 (blocking), 15 examiner questions, README «Próximos pasos» and links, phase gate and validation map (wave 6, not autonomous)
 
 ## Cross-Phase Notes
 
@@ -327,4 +327,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
 | 5. Documentos en S3 | 11/11 | Complete    | 2026-11-06 |
 | 6. Pulido de demo | 17/17 | Complete    | 2026-11-07 |
-| 7. Documentación y defensa | 5/6 | In Progress | - |
+| 7. Documentación y defensa | 6/6 | In Progress | - |
