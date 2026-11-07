@@ -9,7 +9,7 @@ import {
   documentSchema,
   tagSummarySchema,
 } from "@tfm/contracts";
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { RootError } from "@/common/components/route-error";
@@ -533,5 +533,133 @@ describe("responsive guards per screen", () => {
     await user.click(screen.getByRole("button", { name: "Abrir menú" }));
     expect(await screen.findByRole("dialog")).toBeInTheDocument();
     expectResponsive();
+  });
+});
+
+// ---- guards for the findings of the human pass (06-17 Task 2) -------------------------------
+// Each one fails without its fix. The UAT rows read «S# · viewport · theme · what happened»; every
+// finding repeats at all viewports and in both themes, so the guard is on the class that causes it.
+
+// UI-SPEC §Spacing: every interactive control has a 44 px hit area (`size-11`, `h-11` or `min-h-11`).
+const HIT_AREA = ["size-11", "h-11", "min-h-11"];
+const hasHitArea = (element: Element): boolean =>
+  HIT_AREA.some((token) => baseTokens(element).has(token));
+
+// UI-SPEC §8: under `prefers-reduced-motion: reduce` the fades stop. A bare
+// `data-[state=open]:animate-in` has a higher specificity than `motion-reduce:animate-none`, so the
+// animation classes may only exist inside the `motion-safe` media query.
+const unguardedAnimations = (element: Element): string[] =>
+  tokensOf(element).filter((token) => {
+    const { variants, utility } = splitVariants(token);
+    return (
+      (utility === "animate-in" || utility === "animate-out") &&
+      !variants.includes("motion-safe")
+    );
+  });
+
+const expectMotionSafe = (content: Element, overlaySlot: string) => {
+  expect(unguardedAnimations(content)).toEqual([]);
+  const overlay = document.querySelector(`[data-slot='${overlaySlot}']`);
+  expect(overlay).not.toBeNull();
+  if (overlay !== null) expect(unguardedAnimations(overlay)).toEqual([]);
+};
+
+describe("findings of the human pass", () => {
+  it("S4 · all viewports · both themes · the round dialog and its overlay do not animate under reduced motion", async () => {
+    const user = userEvent.setup();
+    renderAt("/applications/a1");
+
+    await screen.findByRole("heading", { level: 1, name: LONG_TITLE });
+    await user.click(screen.getByRole("button", { name: "Añadir ronda" }));
+
+    expectMotionSafe(await screen.findByRole("dialog"), "dialog-overlay");
+  });
+
+  it("S4 · all viewports · both themes · the delete dialog and its overlay do not animate under reduced motion", async () => {
+    const user = userEvent.setup();
+    renderAt("/applications/a1");
+
+    await screen.findByRole("heading", { level: 1, name: LONG_TITLE });
+    await user.click(screen.getByRole("button", { name: "Eliminar" }));
+
+    expectMotionSafe(
+      await screen.findByRole("alertdialog"),
+      "alert-dialog-overlay",
+    );
+  });
+
+  it("S11 · all viewports · both themes · the Sheet and its overlay do not animate under reduced motion", async () => {
+    const user = userEvent.setup();
+    renderAt("/applications");
+
+    await screen.findAllByText(LONG_TITLE);
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+
+    expectMotionSafe(await screen.findByRole("dialog"), "sheet-overlay");
+  });
+
+  it("S11 · all viewports · both themes · the Sheet close button «Cerrar» has a 44 px hit area", async () => {
+    const user = userEvent.setup();
+    renderAt("/applications");
+
+    await screen.findAllByText(LONG_TITLE);
+    await user.click(screen.getByRole("button", { name: "Abrir menú" }));
+    const close = within(await screen.findByRole("dialog")).getByRole(
+      "button",
+      { name: "Cerrar" },
+    );
+
+    expect(hasHitArea(close)).toBe(true);
+  });
+
+  it("S6 · all viewports · both themes · the «Quitar {etiqueta}» tag buttons have a 44 px hit area", async () => {
+    renderAt("/applications/a1/edit");
+
+    await waitFor(() =>
+      expect(
+        screen.getByLabelText(/^Puesto/, { selector: "input" }),
+      ).toHaveValue(LONG_TITLE),
+    );
+    const removes = await screen.findAllByRole("button", { name: /^Quitar / });
+
+    expect(removes.length).toBeGreaterThan(0);
+    expect(removes.filter((button) => !hasHitArea(button))).toEqual([]);
+  });
+
+  it("S1 · all viewports · both themes · the status filter buttons have a 44 px hit area", async () => {
+    const user = userEvent.setup();
+    renderAt("/applications");
+
+    await screen.findAllByText(LONG_TITLE);
+    await user.click(screen.getByRole("button", { name: /^Filtros y orden/ }));
+    const buttons = screen
+      .getAllByRole("group", { name: "Estado" })
+      .flatMap((group) => Array.from(group.querySelectorAll("button")));
+
+    expect(buttons.length).toBeGreaterThan(0);
+    expect(buttons.filter((button) => !hasHitArea(button))).toEqual([]);
+  });
+
+  it("S2 · all viewports · both themes · the stack filter chips have a 44 px hit area", async () => {
+    const user = userEvent.setup();
+    renderAt("/applications");
+
+    await screen.findAllByText(LONG_TITLE);
+    await user.click(screen.getByRole("button", { name: /^Filtros y orden/ }));
+    const chips = await screen.findAllByRole("button", { name: "React" });
+
+    expect(chips.length).toBeGreaterThan(0);
+    expect(chips.filter((chip) => !hasHitArea(chip))).toEqual([]);
+  });
+
+  it("S3 · all viewports · both themes · the «Ver oferta original» link has a 44 px hit area", async () => {
+    renderAt("/applications/a1");
+
+    await screen.findByRole("heading", { level: 1, name: LONG_TITLE });
+    const link = await screen.findByRole("link", {
+      name: /^Ver oferta original/,
+    });
+
+    expect(hasHitArea(link)).toBe(true);
   });
 });
