@@ -96,7 +96,7 @@ status: complete
 
 ## Accomplishments
 
-- `node scripts/check-figures.mjs` prints `SKIP tests (usa --tests)` and `FIGURES OK (73 cifras)`; with `--tests` it runs the suite (59 + 467 + 890) and prints `FIGURES OK (73 cifras)` with no skip. All 45 keys of the «Cifras» block matched on the first run, and the PR tips are derived from the merge commits, not hard-coded.
+- `node scripts/check-figures.mjs` prints `SKIP tests (usa --tests)` and `FIGURES OK (72 cifras)`; with `--tests` it runs the suite (59 + 467 + 890) and prints `FIGURES OK (73 cifras)` with no skip. All 45 keys of the «Cifras» block matched on the first run, and the PR tips are derived from the merge commits, not hard-coded.
 - Unknown keys, mismatches, a broken per-phase sum (`suma_fases`), prose figures that are not «Cifras» values (P1, P2) and leftover `<clave>` placeholders (P3) all exit 1. `--prose <file>` applies the same prose rules to the deck and the Q&A in 07-05 and 07-06.
 - The doc has the six sections the `--ia` contract expects. «Qué funcionó y qué no» has 11 sourced bullets, none with a count, score or timing beyond the «Cifras» values.
 - The measurement was re-run against the devcontainer Ollama and matches RESEARCH exactly: Ollama 1004 / 884 / 922 input and 263 / 175 / 216 output tokens; `o200k_base` 1257 / 1145 / 1175 input with the schema, 925 / 813 / 843 without it, 219 / 150 / 180 output. Means 1192 / 860 / 183.
