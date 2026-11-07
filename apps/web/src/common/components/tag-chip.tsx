@@ -31,7 +31,7 @@ export function TagChip({
         onClick={onToggle}
         className={cn(
           BASE,
-          "outline-none focus-visible:ring-2 focus-visible:ring-ring",
+          "h-11 min-w-11 justify-center outline-none focus-visible:ring-2 focus-visible:ring-ring",
           soft && "border-dashed",
           selected
             ? "border-primary bg-primary text-primary-foreground"
@@ -57,7 +57,7 @@ export function TagChip({
       className={cn(
         BASE,
         soft && "border-dashed",
-        onRemove !== undefined && "pr-1",
+        onRemove !== undefined && "h-11 pr-0",
       )}
     >
       {aiSuggested === true ? (
@@ -78,7 +78,7 @@ export function TagChip({
           type="button"
           aria-label={`Quitar ${label}`}
           onClick={onRemove}
-          className="inline-flex size-6 shrink-0 items-center justify-center rounded-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
+          className="inline-flex size-11 shrink-0 items-center justify-center rounded-sm outline-none hover:bg-accent hover:text-accent-foreground focus-visible:ring-2 focus-visible:ring-ring"
         >
           <X aria-hidden="true" strokeWidth={1.5} className="size-4" />
         </button>
