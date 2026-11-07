@@ -586,13 +586,16 @@ for (const f of OFFER_FIXTURES) {
 | A5 | GitHub's Mermaid version supports the chosen `flowchart`/`sequenceDiagram` syntax (parse-checked with mermaid 11 only) | §7 | Diagram shows as an error block in GitHub; check in the PR preview, or use `info` block |
 | A6 | OpenAI price table cells were extracted by the fetch tool, not read by hand | §4 prices | Re-open the page when writing the doc; refresh the access date |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does the 15-minute budget include the examiners' questions?**
    - Known: bases require 15 min total, 5 of live demo.
    - Unclear: Q&A time. Recommendation: plan 15:00 of talk and keep `preguntas-tribunal.md` for the Q&A.
+   - **RESOLVED (explicit planning assumption, author not asked during discuss):** 15:00 is the talk including the 5:00 demo and **excludes** the examiners' questions; `preguntas-tribunal.md` covers the Q&A. The deck plan (07-05) states the assumption in «Cómo usar este guion» and its end-of-phase `<human-check>` (07-05 Task 2) asks the author to confirm it. If questions turn out to be inside the 15 minutes, the author shortens slides 4-10 and re-checks with `node scripts/check-docs.mjs --deck --deck-total=m:ss` (the checker supports another total).
 2. **Silo vs SeaweedFS/RustFS rationale** (A3). Recommendation: the planner adds a short `checkpoint:human-verify` asking the author to confirm/complete ADR 5's «decision» and «alternatives» lines; meanwhile write it from the recorded facts.
+   - **RESOLVED:** 07-01 writes ADR-005 from the recorded rationale («fork mantenido de MinIO, compatible con el SDK de AWS») plus the cited external facts only. Before ADR-005 is cited (answer 15 of the Q&A) and before the phase gate, 07-06 Task 1 is a `checkpoint:decision` with `gate="blocking-human"` and no `auto_select`: the author keeps ADR-005 as written or dictates his own reason, which is added to ADR-005 as his. A decision checkpoint instead of `checkpoint:human-verify` because `.planning/config.json` sets `workflow.human_verify_mode: end-of-phase` (no mid-flight human-verify tasks), and what the ADR records is the author's choice, not a check of finished work.
 3. **Demo fixture under mock needs no change**, but should the script offer the «Lumen Analytics» explanation inline or in plan B only? Recommendation: plan B only plus the pre-flight «what you will see» table.
+   - **RESOLVED (as recommended):** the explanation lives only on the plan B side: the «Plan B (mock)» cell of step 3 of the «Guion» table (07-04 Task 1), the `## Qué verás según el proveedor` table and the `## Plan B` section (07-04 Task 2). The main «Qué dices» line of the live path does not mention it.
 
 ## Environment Availability
 

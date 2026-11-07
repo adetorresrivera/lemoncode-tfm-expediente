@@ -290,16 +290,18 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 07-02-PLAN.md — `docs/ia-en-el-proyecto.md` with the «Cifras» block recomputed by `scripts/check-figures.mjs` at `c11ab61`, lessons with sources, product AI and measured cloud cost (wave 2)
-- [ ] 07-03-PLAN.md — Package-legitimacy checkpoint, then the throwaway Playwright runner: five screenshots and the Mermaid parse check (wave 2, not autonomous)
 
-**Wave 3** *(blocked on Wave 2 completion)*
-- [ ] 07-04-PLAN.md — Timed 5:00 demo script with plan B (mock) and plan C per step, pre-flight that decides mock, recording notes (wave 3)
+**Wave 3** *(blocked on Wave 2 completion; after 07-02 because both load the local Ollama)*
+- [ ] 07-03-PLAN.md — Package-legitimacy checkpoint, then the throwaway Playwright runner: five screenshots and the Mermaid parse check (wave 3, not autonomous)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 07-05-PLAN.md — 11-slide deck (15:00, demo in the middle, front-weighted) with 3 Mermaid diagrams and 2 verbatim snippets (wave 4)
+- [ ] 07-04-PLAN.md — Timed 5:00 demo script with plan B (mock) and plan C per step, pre-flight that decides mock, recording notes (wave 4)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 07-06-PLAN.md — 15 examiner questions, README «Próximos pasos» and links, phase gate and validation map (wave 5)
+- [ ] 07-05-PLAN.md — 11-slide deck (15:00, demo in the middle, front-weighted) with 3 Mermaid diagrams and 2 verbatim snippets (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 07-06-PLAN.md — Author's decision on ADR-005 (blocking), 15 examiner questions, README «Próximos pasos» and links, phase gate and validation map (wave 6, not autonomous)
 
 ## Cross-Phase Notes
 
