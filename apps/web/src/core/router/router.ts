@@ -1,9 +1,18 @@
 import { createRouter, type RouterHistory } from "@tanstack/react-router";
+import { RouteError } from "@/common/components/route-error";
+import { RouteNotFound } from "@/common/components/route-not-found";
 import { routeTree } from "../../routeTree.gen";
 import { parseSearch, stringifySearch } from "./search-params";
 
 export function createAppRouter(history?: RouterHistory) {
-  return createRouter({ routeTree, history, parseSearch, stringifySearch });
+  return createRouter({
+    routeTree,
+    history,
+    parseSearch,
+    stringifySearch,
+    defaultNotFoundComponent: RouteNotFound,
+    defaultErrorComponent: RouteError,
+  });
 }
 
 export const router = createAppRouter();

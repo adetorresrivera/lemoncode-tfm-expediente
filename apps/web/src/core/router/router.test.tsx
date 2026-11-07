@@ -79,6 +79,54 @@ describe("app router", () => {
   });
 });
 
+describe("unknown routes", () => {
+  it("shows the Spanish not-found screen inside the shell and moves focus to its heading", async () => {
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/nope"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    const heading = await screen.findByRole("heading", {
+      level: 1,
+      name: "No encontramos esta página",
+    });
+    const main = screen.getByRole("main");
+    expect(main).toContainElement(heading);
+    expect(
+      screen.getByRole("navigation", { name: "Principal" }),
+    ).toBeInTheDocument();
+    expect(within(main).getByText("Expediente")).toBeInTheDocument();
+    expect(
+      within(main).getByText("La dirección no existe o ya no está disponible."),
+    ).toBeInTheDocument();
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(document.title).toBe("Página no encontrada · Expediente");
+    expect(screen.queryByText(/Not Found/i)).not.toBeInTheDocument();
+  });
+
+  it("links back to Mis candidaturas", async () => {
+    mockFetch({ "GET /api/applications": [] });
+    const user = userEvent.setup();
+    const router = createAppRouter(
+      createMemoryHistory({ initialEntries: ["/nope"] }),
+    );
+    render(<RouterProvider router={router} />);
+
+    const link = await screen.findByRole("link", {
+      name: "Volver a Mis candidaturas",
+    });
+    expect(link).toHaveAttribute("href", "/applications");
+    await user.click(link);
+
+    expect(
+      await screen.findByRole("heading", {
+        level: 1,
+        name: "Mis candidaturas",
+      }),
+    ).toBeInTheDocument();
+  });
+});
+
 const firstRequestUrl = (fetchMock: ReturnType<typeof mockFetch>): URL => {
   const call = fetchMock.mock.calls[0];
   if (!call) throw new Error("fetch was not called");

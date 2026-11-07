@@ -89,6 +89,24 @@ describe("applicationInputSchema", () => {
     expect(parse("http://example.com/oferta")).toBe(true);
   });
 
+  it("limits sourceUrl to 2048 characters", () => {
+    const url = (n: number) => `https://example.com/${"a".repeat(n - 20)}`;
+    expect(url(2048)).toHaveLength(2048);
+    const parse = (sourceUrl: string) =>
+      applicationInputSchema.safeParse({ ...minimal, sourceUrl }).success;
+    expect(parse(url(2048))).toBe(true);
+    expect(parse(url(2049))).toBe(false);
+  });
+
+  it("limits the document ids to 64 characters", () => {
+    for (const key of ["cvDocumentId", "coverLetterDocumentId"]) {
+      const parse = (id: string) =>
+        applicationInputSchema.safeParse({ ...minimal, [key]: id }).success;
+      expect(parse("a".repeat(64))).toBe(true);
+      expect(parse("a".repeat(65))).toBe(false);
+    }
+  });
+
   it("limits offerText to 20000 characters", () => {
     expect(
       applicationInputSchema.safeParse({

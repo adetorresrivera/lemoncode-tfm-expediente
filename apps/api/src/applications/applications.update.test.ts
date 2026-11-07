@@ -346,6 +346,29 @@ describe("PUT /api/applications/:id", () => {
     expect(stored?.title).toBe("Dev");
   });
 
+  it("never echoes the offerText in a validation error, on PUT or on POST", async () => {
+    const app = buildApp();
+    const created = await create(app, { title: "Dev", company: "Acme" });
+    const marker = "SECRET-OFFER-MARKER";
+    const tooLong = `${marker}${"a".repeat(20001)}`;
+
+    const put400 = await put(app, created.id, {
+      title: "Dev",
+      company: "Acme",
+      offerText: tooLong,
+    });
+    expect(put400.status).toBe(400);
+    expect(await put400.text()).not.toContain(marker);
+
+    const post400 = await app.request("/api/applications", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ title: "", company: "Acme", offerText: tooLong }),
+    });
+    expect(post400.status).toBe(400);
+    expect(await post400.text()).not.toContain(marker);
+  });
+
   it("clears appliedAt with null and stores a given instant", async () => {
     const app = buildApp();
     const created = await create(app, {

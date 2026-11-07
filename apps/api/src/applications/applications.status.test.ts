@@ -117,6 +117,36 @@ describe("PATCH /api/applications/:id/status", () => {
     expect(updated.createdAt).toBe(created.createdAt);
   });
 
+  it("allows a move between any two of the seven statuses and records each in the history (rule 1)", async () => {
+    const statuses = [
+      "guardada",
+      "enviada",
+      "en_entrevistas",
+      "oferta_recibida",
+      "aceptada",
+      "rechazada",
+      "descartada",
+    ] as const;
+    const app = buildApp();
+    let step = 0;
+
+    for (const from of statuses) {
+      for (const to of statuses) {
+        if (from === to) continue;
+        const created = await create(app, { title: "Dev", company: "Acme" });
+        step += 1;
+        tick(new Date(Date.UTC(2026, 9, 2) + step * 60_000).toISOString());
+        if (from !== "guardada") await change(app, created.id, from);
+
+        const moved = await change(app, created.id, to);
+
+        expect(moved.status).toBe(to);
+        expect(moved.statusHistory.at(-1)?.status).toBe(to);
+        expect(moved.statusHistory.at(-2)?.status).toBe(from);
+      }
+    }
+  });
+
   it("persists the change: a later GET returns the same document, status and history together", async () => {
     const app = buildApp();
     const created = await create(app, { title: "Dev", company: "Acme" });

@@ -78,6 +78,9 @@ services:
 
   ollama:
     image: ollama/ollama:0.40.3
+    environment:
+      # Keeps the model loaded for 30 minutes after each use, so one warm-up covers the demo (D-26).
+      OLLAMA_KEEP_ALIVE: "30m"
     volumes:
       - ollama-data:/root/.ollama
     healthcheck:

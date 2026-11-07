@@ -12,6 +12,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { describe, expect, it, vi } from "vitest";
 import type { HttpErrorCode } from "@/core/http/http-client";
+import { useFakeClock, useRealClock } from "@/test/fake-clock";
 import { jsonResponse, mockFetch } from "@/test/mock-fetch";
 import { ApplicationDetailComponent } from "./application-detail.component";
 import { ApplicationDetailContainer } from "./application-detail.container";
@@ -937,7 +938,7 @@ describe("status change", () => {
     renderDetail();
     const select = await statusSelect();
 
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    useFakeClock();
     try {
       await userEvent
         .setup({ advanceTimers: vi.advanceTimersByTime })
@@ -946,11 +947,15 @@ describe("status change", () => {
         expect(feedbackLine()).toHaveTextContent("Estado cambiado a Enviada."),
       );
       await act(async () => {
-        await vi.advanceTimersByTimeAsync(5000);
+        await vi.advanceTimersByTimeAsync(4000);
+      });
+      expect(feedbackLine()).toHaveTextContent("Estado cambiado a Enviada.");
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(1500);
       });
       expect(feedbackLine()).toBeEmptyDOMElement();
     } finally {
-      vi.useRealTimers();
+      useRealClock();
     }
   });
 });
@@ -1119,6 +1124,39 @@ describe("delete dialog", () => {
       within(dialog).getByRole("button", { name: "Eliminar candidatura" }),
     ).toHaveFocus();
     expect(onDeleted).not.toHaveBeenCalled();
+  });
+
+  it("reopens clean after a failed DELETE: no previous error and focus on «Conservar candidatura»", async () => {
+    mockFetch({
+      "GET /api/applications/a1": makeApplication(),
+      "DELETE /api/applications/a1": serverError,
+    });
+    renderDetail();
+    const { trigger, dialog } = await openDeleteDialog();
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Eliminar candidatura" }),
+    );
+    await within(dialog).findByText(
+      "No se pudo eliminar la candidatura. Inténtalo de nuevo.",
+    );
+
+    await userEvent.click(
+      within(dialog).getByRole("button", { name: "Conservar candidatura" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    await userEvent.click(trigger);
+
+    const reopened = await screen.findByRole("alertdialog");
+    expect(
+      within(reopened).queryByText(
+        "No se pudo eliminar la candidatura. Inténtalo de nuevo.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      within(reopened).getByRole("button", { name: "Conservar candidatura" }),
+    ).toHaveFocus();
   });
 });
 
@@ -1491,7 +1529,7 @@ describe("interview rounds", () => {
       renderDetail();
       await screen.findByRole("heading", { level: 1 });
 
-      vi.useFakeTimers({ shouldAdvanceTime: true });
+      useFakeClock();
       try {
         const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
         await user.click(screen.getByRole("button", { name: "Añadir ronda" }));
@@ -1510,13 +1548,19 @@ describe("interview rounds", () => {
           ),
         );
         await act(async () => {
-          await vi.advanceTimersByTimeAsync(5000);
+          await vi.advanceTimersByTimeAsync(4000);
+        });
+        expect(within(roundsRegion()).getByRole("status")).toHaveTextContent(
+          /^Ronda añadida\.$/,
+        );
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(1500);
         });
         expect(
           within(roundsRegion()).getByRole("status"),
         ).toBeEmptyDOMElement();
       } finally {
-        vi.useRealTimers();
+        useRealClock();
       }
     });
   });

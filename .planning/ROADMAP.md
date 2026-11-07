@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Autocompletado con IA** - Paste an offer and get a reviewable draft that never overwrites user data (target 2 Nov) (completed 2026-11-01)
 - [x] **Phase 4: Rondas de entrevista** - Create, edit and delete interview rounds with the automatic move to `en_entrevistas` (target 3 Nov) (completed 2026-11-03)
 - [x] **Phase 5: Documentos en S3** - Upload CV and cover letters, link them to applications, download them (target 5 Nov) (completed 2026-11-06)
-- [ ] **Phase 6: Pulido de demo** - Seed, README, responsive and accessibility pass, pending tests (target 7 Nov)
+- [x] **Phase 6: Pulido de demo** - Seed, README, responsive and accessibility pass, pending tests (target 7 Nov) (completed 2026-11-07)
 - [ ] **Phase 7: Documentación y defensa** - Deck, demo script, AI-usage doc, ADRs and examiner Q&A (target 8 Nov)
 
 ## Phase Details
@@ -224,12 +224,51 @@ Plans:
 **Target**: 7 Nov 2026 · **Branch**: `phase/06-pulido-demo`
 **Requirements**: DEMO-01, DEMO-02, DEMO-03, DEMO-04, DEMO-05, DEMO-06
 **Success Criteria** (what must be TRUE):
-  1. `npm run seed` (and `docker compose exec app npm run seed`) loads demo applications, documents and the 3 fixture offers into Mongo and Silo, leaving a list worth demoing.
+  1. `npm run seed` (and `docker compose exec app npm run seed`) loads demo applications and documents into Mongo and Silo, leaving a list worth demoing; the 3 fixture offers are available to paste from `docs/demo/ofertas/`.
   2. The README lets someone on a clean machine run the project, seed it, switch `LLM_PROVIDER`, and recover with `mock` when Ollama fails.
   3. Every screen is usable from 360 px width without horizontal scroll, and fully operable with the keyboard alone, with visible focus, labelled fields, `aria-live="polite"` on load, error and AI results, and AA contrast in light and dark themes.
   4. The full demo flow (paste offer → autofill → review → save → add round → attach CV → change status → see it filtered) completes in under 2 minutes on a clean machine, both with Ollama and with `mock`.
   5. Tests pending from earlier phases are written, and `npm run typecheck && npm run test` pass on a clean checkout.
-**Plans**: TBD
+**Plans**: 17/17 plans complete
+Plans:
+**Wave 1**
+- [x] 06-01-PLAN.md — Seed tracer: `npm run seed` → compiled `dist/scripts/seed.js` → services with an injected clock → Mongo + Silo, idempotent `seed: true` mark, one linked CV and one application (wave 1)
+- [x] 06-03-PLAN.md — Offer fixtures moved to `docs/demo/ofertas/`, loader and `try-extract` re-pointed, fixture code kept out of `dist` (wave 1)
+- [x] 06-04-PLAN.md — API start and static fallback: bounded startup retry, S3 deadlines, extension-aware SPA fallback, loud missing `index.html` (wave 1)
+- [x] 06-05-PLAN.md — Bounded inputs and clean smoke: 256 KiB body limit on applications, `.max()` bounds in contracts, cleanup trap in the compose smoke (wave 1)
+- [x] 06-14-PLAN.md — Direct mapper tests for the five web pods and both API mappers, incl. the storage-only `seed` field (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 06-02-PLAN.md — Demo list and rehearsal reset: 12 applications / 3 PDFs (pure plan, TDD), coherent histories, `--reset` with announced counts, strict options, user-linked documents kept, interrupted-run recovery, in-image command check (wave 2)
+- [x] 06-06-PLAN.md — Shell keyboard pass (skip link, sidebar focus ring, 44 px targets, wordmark, stacked theme toggle) and list refetch without an empty flash (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [x] 06-07-PLAN.md — Token sweep of the shared components and the upload dialog; UI-SPEC A1, A2, A10 write-backs (wave 3)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 06-08-PLAN.md — Token sweep of the remaining pod files: no destructive icon tint, on-scale offsets and skeleton gaps (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 06-09-PLAN.md — Dialog close lock with spoken feedback on the upload and round dialogs (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 06-10-PLAN.md — Reset-on-open delete dialogs (application, round, document) (wave 6)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [x] 06-11-PLAN.md — Spanish not-found and route-error screens, view-state review test per view, 360 px guards on screens S1-S11 (wave 7)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [x] 06-12-PLAN.md — axe-core (test only) on every screen in both themes, AA token contrast from the CSS, live-region inventory (wave 8)
+
+**Wave 9** *(blocked on Wave 8 completion)*
+- [x] 06-13-PLAN.md — Deterministic timer tests and a one-shot worker-start retry wrapper (wave 9)
+- [x] 06-16-PLAN.md — Deliverable: `--cold` compose smoke (isolated project, seed in the image, mock extraction, size, pins, healthchecks), docs and DEMO-01 wording per D-08, final Spanish README, Ollama keep-alive (wave 9)
+
+**Wave 10** *(blocked on Wave 9 completion)*
+- [x] 06-15-PLAN.md — DOMAIN rule coverage table and the closed Nyquist validations of phases 02 and 05 (wave 10)
+
+**Wave 11** *(blocked on Wave 10 completion)*
+- [x] 06-17-PLAN.md — Phase gate: clean checkout, full suite and both smokes, one human pass (screenshot, 3 viewports × 2 themes, keyboard, reduced motion, timed demo with mock and Ollama), fixes with guards for what it finds, recorded in 06-UAT.md (wave 11, not autonomous)
 **UI hint**: yes
 
 ### Phase 7: Documentación y defensa
@@ -269,5 +308,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 3. Autocompletado con IA | 12/12 | Complete    | 2026-11-01 |
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
 | 5. Documentos en S3 | 11/11 | Complete    | 2026-11-06 |
-| 6. Pulido de demo | 0/TBD | Not started | - |
+| 6. Pulido de demo | 17/17 | Complete    | 2026-11-07 |
 | 7. Documentación y defensa | 0/TBD | Not started | - |

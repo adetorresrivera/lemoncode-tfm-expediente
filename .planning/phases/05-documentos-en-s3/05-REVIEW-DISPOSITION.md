@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Success-line timer test can flake on fake-timer drift"
   - id: WR-02
     severity: warning
@@ -13,7 +13,7 @@ findings:
     title: "The \"outside pointer never closes it\" guard is not tested where it matters"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Close «X» stays active-looking but does nothing while uploading"
   - id: IN-01
     severity: info
@@ -39,7 +39,7 @@ findings:
     severity: info
     disposition: open
     title: "Filter change keeps the previous filter's rows and counter on screen"
-open: 9
+open: 8
 total: 9
 recorded: 2026-11-06T09:03:29.696Z
 ---
@@ -48,9 +48,9 @@ recorded: 2026-11-06T09:03:29.696Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
+| WR-01 | warning | fixed | fixed in 06-13 |
 | WR-02 | warning | open | - |
-| WR-03 | warning | open | - |
+| WR-03 | warning | fixed | fixed in 06-09 |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |

@@ -56,7 +56,7 @@ export function InterviewDeleteDialog({
         <AlertDialogTitle>
           {shown !== null ? `¿Eliminar la ronda ${shown.round}?` : ""}
         </AlertDialogTitle>
-        <AlertDialogDescription className="break-words">
+        <AlertDialogDescription className="min-w-0 break-words">
           {shown !== null
             ? `Vas a eliminar la ronda ${shown.round} (${shown.typeLabel}). Esta acción no se puede deshacer.`
             : ""}

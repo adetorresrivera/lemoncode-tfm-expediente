@@ -177,7 +177,8 @@ describe("RequestStatus", () => {
 
     expect(screen.getByText("No se pudo guardar.")).toBeInTheDocument();
     const icon = container.querySelector("svg");
-    expect(icon).toHaveClass("text-destructive");
+    expect(icon).not.toHaveClass("text-destructive");
+    expect(icon).toHaveClass("mt-1");
     expect(icon).toHaveAttribute("aria-hidden", "true");
 
     await userEvent.click(screen.getByRole("button", { name: "Reintentar" }));
@@ -214,9 +215,9 @@ describe("AiMark", () => {
       "items-center",
       "rounded-sm",
       "bg-brand-navy",
-      "px-1.5",
+      "px-2",
       "text-[11px]",
-      "font-bold",
+      "font-semibold",
       "tracking-wide",
       "text-brand-parchment",
     );

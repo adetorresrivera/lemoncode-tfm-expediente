@@ -14,7 +14,7 @@ export const BACK_LINK_CLASS =
 
 function SectionSkeleton() {
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-border bg-card p-4 lg:p-6">
+    <div className="flex flex-col gap-4 rounded-md border border-border bg-card p-4 lg:p-6">
       <Skeleton className="h-5 w-1/3" />
       <Skeleton className="h-4 w-full" />
       <Skeleton className="h-4 w-5/6" />
@@ -53,10 +53,7 @@ export function DetailNotFound({ renderListLink }: NotFoundProps) {
   return (
     <div role="alert" className={CARD_CLASS}>
       <div className="flex items-start gap-2">
-        <CircleAlert
-          aria-hidden="true"
-          className="mt-0.5 size-4 shrink-0 text-destructive"
-        />
+        <CircleAlert aria-hidden="true" className="mt-1 size-4 shrink-0" />
         <div className="flex flex-col gap-2">
           <h2 className={HEADING_CLASS}>No encontramos esta candidatura</h2>
           <p className="text-sm text-foreground">
@@ -93,10 +90,7 @@ export function DetailLoadError({ code, onRetry }: LoadErrorProps) {
   return (
     <div role="alert" className={CARD_CLASS}>
       <div className="flex items-start gap-2">
-        <CircleAlert
-          aria-hidden="true"
-          className="mt-0.5 size-4 shrink-0 text-destructive"
-        />
+        <CircleAlert aria-hidden="true" className="mt-1 size-4 shrink-0" />
         <div className="flex flex-col gap-2">
           <h2 className={HEADING_CLASS}>No se pudo cargar la candidatura</h2>
           <p className="text-sm text-foreground">{errorBody(code)}</p>

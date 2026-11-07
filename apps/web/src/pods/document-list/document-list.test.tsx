@@ -3,6 +3,7 @@ import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import type { ComponentProps } from "react";
 import { describe, expect, it, vi } from "vitest";
+import { flushFakeClock, useFakeClock, useRealClock } from "@/test/fake-clock";
 import { jsonResponse, mockFetch } from "@/test/mock-fetch";
 import { DocumentListContainer } from "./document-list.container";
 import {
@@ -570,6 +571,36 @@ describe("delete from the library", () => {
     ).toBeInTheDocument();
   });
 
+  it("reopens the document dialog without the previous message after a failed delete and a cancel", async () => {
+    mockFetch({
+      "GET /api/documents": [cv, carta],
+      "DELETE /api/documents/d1": inUse,
+    });
+    const user = userEvent.setup();
+    renderList();
+    const dialog = await openDialog(user);
+    await user.click(
+      within(dialog).getByRole("button", { name: "Eliminar documento" }),
+    );
+    await within(dialog).findByText(
+      "Este documento está vinculado a alguna candidatura. Desvincúlalo antes de eliminarlo.",
+    );
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "Conservar documento" }),
+    );
+    await waitFor(() =>
+      expect(screen.queryByRole("alertdialog")).not.toBeInTheDocument(),
+    );
+    const reopened = await openDialog(user);
+
+    expect(
+      within(reopened).queryByText(
+        "Este documento está vinculado a alguna candidatura. Desvincúlalo antes de eliminarlo.",
+      ),
+    ).not.toBeInTheDocument();
+  });
+
   it("removes the row only after the 204, without a new GET, and announces it", async () => {
     const pending = deferred();
     const fetchMock = mockFetch({
@@ -614,29 +645,31 @@ describe("delete from the library", () => {
       "GET /api/documents": [cv, carta],
       "DELETE /api/documents/d1": noContent,
     });
-    vi.useFakeTimers({ shouldAdvanceTime: true });
+    // Load and open the dialog on the real clock; only the 5 s deadline is
+    // driven by the fake one, so no real time elapses against the deadline.
+    const realUser = userEvent.setup();
+    renderList();
+    const dialog = await openDialog(realUser);
+    useFakeClock();
     try {
       const user = userEvent.setup({ advanceTimers: vi.advanceTimersByTime });
-      renderList();
-      const dialog = await openDialog(user);
       await user.click(
         within(dialog).getByRole("button", { name: "Eliminar documento" }),
       );
-      expect(
-        await screen.findByText("Documento eliminado."),
-      ).toBeInTheDocument();
+      await flushFakeClock();
+      expect(screen.getByText("Documento eliminado.")).toBeInTheDocument();
 
       await act(async () => {
-        vi.advanceTimersByTime(4900);
+        await vi.advanceTimersByTimeAsync(4000);
       });
       expect(screen.getByText("Documento eliminado.")).toBeInTheDocument();
       await act(async () => {
-        vi.advanceTimersByTime(200);
+        await vi.advanceTimersByTimeAsync(1500);
       });
 
       expect(screen.queryByText("Documento eliminado.")).toBeNull();
     } finally {
-      vi.useRealTimers();
+      useRealClock();
     }
   });
 

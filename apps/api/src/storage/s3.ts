@@ -35,9 +35,11 @@ export function createS3Client(config: S3Config): S3Client {
 export async function ensureBucket(
   s3: S3Client,
   bucket: string,
+  timeoutMs = 5000,
 ): Promise<void> {
+  const options = { abortSignal: AbortSignal.timeout(timeoutMs) };
   try {
-    await s3.send(new HeadBucketCommand({ Bucket: bucket }));
+    await s3.send(new HeadBucketCommand({ Bucket: bucket }), options);
   } catch (err) {
     if (
       !(err instanceof S3ServiceException) ||
@@ -45,7 +47,7 @@ export async function ensureBucket(
     )
       throw err;
     try {
-      await s3.send(new CreateBucketCommand({ Bucket: bucket }));
+      await s3.send(new CreateBucketCommand({ Bucket: bucket }), options);
     } catch (createErr) {
       // Raced with the s3-init container: the bucket already exists.
       const tolerated = ["BucketAlreadyOwnedByYou", "BucketAlreadyExists"];
@@ -59,9 +61,15 @@ export async function ensureBucket(
   }
 }
 
-export async function pingS3(s3: S3Client, bucket: string): Promise<boolean> {
+export async function pingS3(
+  s3: S3Client,
+  bucket: string,
+  timeoutMs = 2000,
+): Promise<boolean> {
   try {
-    await s3.send(new HeadBucketCommand({ Bucket: bucket }));
+    await s3.send(new HeadBucketCommand({ Bucket: bucket }), {
+      abortSignal: AbortSignal.timeout(timeoutMs),
+    });
     return true;
   } catch {
     return false;

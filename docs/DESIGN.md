@@ -13,11 +13,11 @@ Fuente: design system Expediente (académico y solemne: pergamino, azul Oxford, 
 Tuteo, frases cortas, verbos de acción («Añadir candidatura», «Autocompletar con IA», «Subir documento»). Mayúscula solo inicial. Fechas «12 oct. 2026». Cifras «52.000 €». Sin emojis ni exclamaciones. Estados vacíos con propósito: «Aún no has guardado ninguna oferta. Empieza añadiendo la primera.»
 
 ## Componentes clave
-- **Badge de estado**: `bg-status-<x>-bg text-status-<x> rounded-sm px-2 py-0.5 text-sm font-semibold` + punto `size-1.5 rounded-full bg-status-<x>` + icono lucide (ver DOMAIN.md).
+- **Badge de estado**: `bg-status-<x>-bg text-status-<x> rounded-sm px-2 py-1 text-sm font-semibold` + punto `size-1.5 rounded-full bg-status-<x>` + icono lucide (ver DOMAIN.md).
 - **Etiqueta**: `inline-flex h-7 items-center gap-1.5 rounded-sm border border-border bg-card px-2.5 text-[13px] font-semibold`. Variante `soft` (grupo `nice_to_have`): borde discontinuo. Removible en formularios con `aria-label="Quitar <label>"`. Seleccionada como filtro: `bg-primary text-primary-foreground border-primary` + icono `Check`. Nunca colores de estado.
 - **Grupos de etiquetas**: título en estilo eyebrow (`text-[11px] uppercase tracking-[0.08em] text-muted-foreground`): Stack tecnológico, Se valora, Modelo de trabajo, Seniority, Contrato, Idiomas. Modalidad, seniority y contrato son campos tipados que se pintan como etiquetas.
 - **En listas**: máximo 3 etiquetas + contador `+N`.
-- **Marca IA**: `inline-flex h-5 items-center rounded-sm bg-brand-navy px-1.5 text-[11px] font-bold tracking-wide text-brand-parchment` junto al label. Desaparece cuando el usuario edita el campo.
+- **Marca IA**: `inline-flex h-5 items-center rounded-sm bg-brand-navy px-2 text-[11px] font-semibold tracking-wide text-brand-parchment` junto al label. Desaparece cuando el usuario edita el campo.
 - **Campo que la IA no encontró**: borde `border-brand-gold-ink` + `bg-ai-missing-bg` y ayuda «Complétalo tú».
 - **Botón de IA**: `primary` con icono `Sparkles` («Autocompletar con IA»).
 - Iconos lucide `strokeWidth={1.5}`, 16 px en controles y 20 px en navegación.
@@ -25,8 +25,11 @@ Tuteo, frases cortas, verbos de acción («Añadir candidatura», «Autocompleta
 ## Pantallas
 
 ### Shell (`layouts/app-layout.tsx`)
-- Escritorio (≥1024 px): barra lateral fija `bg-sidebar text-sidebar-foreground`, marca «Expediente» en serifa, navegación: «Mis candidaturas» y «Documentos» activas (la entrada de la ruta actual lleva `aria-current="page"`); «Tablero» desactivada con «Próximamente». Toggle de tema al pie (Sistema / Claro / Oscuro).
-- Móvil: cabecera con botón de menú que abre un `Sheet` con la misma navegación.
+- Escritorio (≥1024 px): barra lateral fija `bg-sidebar text-sidebar-foreground`, marca «Expediente» en serifa a 28 px y peso 400 (misma en la barra lateral, el título del `Sheet` y la cabecera móvil), navegación: «Mis candidaturas» y «Documentos» activas (la entrada de la ruta actual lleva `aria-current="page"`); «Tablero» desactivada con «Próximamente». Toggle de tema al pie (Sistema / Claro / Oscuro), apilado: icono encima de una etiqueta de 14 px, cada opción de al menos 44 px de alto.
+- Móvil: cabecera con botón de menú de 44 px (`size-11`) que abre un `Sheet` con la misma navegación. Esc lo cierra y el foco vuelve al botón.
+- Los enlaces de navegación miden al menos 44 px (`min-h-11`, `font-semibold`).
+- Enlace «Saltar al contenido»: primer elemento enfocable de la página; oculto hasta recibir foco, y al activarlo mueve el foco a `<main id="main-content">` sin cambiar la URL.
+- Foco sobre `bg-sidebar`: todo control de la barra lateral, la cabecera móvil y el `Sheet` (enlaces, «Abrir menú», opciones del toggle de tema, botón de cierre) usa el anillo `sidebar-ring` (`focus-visible:ring-2 focus-visible:ring-sidebar-ring`); `ring` no se ve sobre ese fondo.
 
 ### Mis candidaturas (`/applications`)
 - Cabecera: eyebrow «Expediente», h1 «Mis candidaturas», contador, botón primary «Añadir candidatura».
@@ -51,5 +54,11 @@ Tuteo, frases cortas, verbos de acción («Añadir candidatura», «Autocompleta
 - Formulario en secciones: Puesto y empresa · Condiciones (modalidad, seniority, contrato, ubicación, salario min/max, moneda) · Etiquetas (input por grupo con chips removibles) · Seguimiento (estado inicial, fecha de envío, URL, notas) · Documentos (CV y carta: un selector nativo con los documentos del tipo, más el botón «Subir nuevo», que abre en un diálogo el mismo formulario de subida con el tipo fijado; el documento subido queda seleccionado y el diálogo nunca envía el formulario de la candidatura).
 - Acciones: primary «Guardar candidatura», «Descartar cambios». Validación con el esquema de contracts; errores junto al campo.
 
+### Página no encontrada y error de pantalla
+- Las dos pantallas comparten una tarjeta (`section` con borde y fondo `card`, ancho máximo `max-w-xl`) dentro del `<main>` del shell, con eyebrow «Expediente», `h1` en serifa a 28 px y un texto corto. El `h1` recibe el foco al montarse y fija `document.title`.
+- «No encontramos esta página»: texto «La dirección no existe o ya no está disponible.» y una acción primary «Volver a Mis candidaturas» (enlace a `/applications`). Título de pestaña: «Página no encontrada · Expediente».
+- «Algo ha fallado» (`role="alert"`, icono `CircleAlert` en `text-foreground`): texto «No se pudo mostrar esta pantalla. Inténtalo de nuevo o vuelve a Mis candidaturas.» y dos acciones: primary «Volver a cargar la pantalla» y outline «Volver a Mis candidaturas» (un `<a href="/applications">` simple, que funciona aunque el estado del router esté roto). Título de pestaña: «Algo ha fallado · Expediente». Nunca se muestra el mensaje del error: el texto es fijo y el error solo va a la consola.
+- Si falla la propia ruta raíz, se muestra la misma tarjeta sin shell, centrada sobre `bg-background`. En 360 px los botones ocupan todo el ancho.
+
 ## Accesibilidad y responsive
-Mobile-first desde 360 px sin scroll horizontal. Labels en todos los campos, foco visible (`ring`), `aria-live="polite"` en carga/errores/resultado de IA, contraste AA (los tokens ya lo cumplen; `brand-gold` nunca como texto pequeño, usar `brand-gold-ink`). Todo operable con teclado; diálogos de shadcn con foco atrapado.
+Mobile-first desde 360 px sin scroll horizontal. Labels en todos los campos, foco visible (`ring` sobre las superficies de página, `sidebar-ring` sobre `bg-sidebar`), enlace «Saltar al contenido» como primer elemento enfocable, `aria-live="polite"` en carga/errores/resultado de IA, contraste AA (los tokens ya lo cumplen; `brand-gold` nunca como texto pequeño, usar `brand-gold-ink`). Todo operable con teclado; diálogos de shadcn con foco atrapado. Los iconos de error heredan `text-foreground`; el rojo destructivo solo aparece como fondo `bg-destructive` y como borde de campo inválido (en oscuro, `destructive` sobre `card` da 2,83:1).

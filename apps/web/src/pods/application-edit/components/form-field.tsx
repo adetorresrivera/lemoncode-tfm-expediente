@@ -60,7 +60,7 @@ export function FormField({
           <CircleAlert
             aria-hidden="true"
             strokeWidth={1.5}
-            className="mt-0.5 size-4 shrink-0 text-destructive"
+            className="mt-1 size-4 shrink-0"
           />
           <span>{error}</span>
         </p>
