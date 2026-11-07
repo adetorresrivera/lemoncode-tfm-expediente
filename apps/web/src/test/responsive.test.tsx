@@ -545,9 +545,9 @@ const HIT_AREA = ["size-11", "h-11", "min-h-11"];
 const hasHitArea = (element: Element): boolean =>
   HIT_AREA.some((token) => baseTokens(element).has(token));
 
-// UI-SPEC §8: under `prefers-reduced-motion: reduce` the fades stop. A bare
-// `data-[state=open]:animate-in` has a higher specificity than `motion-reduce:animate-none`, so the
-// animation classes may only exist inside the `motion-safe` media query.
+// UI-SPEC §8: under `prefers-reduced-motion: reduce` the fades stop. An animate-in or animate-out
+// behind a `data-state` variant has a higher specificity than the reduce variant of animate-none,
+// so those classes may only exist inside the `motion-safe` media query.
 const unguardedAnimations = (element: Element): string[] =>
   tokensOf(element).filter((token) => {
     const { variants, utility } = splitVariants(token);
@@ -633,7 +633,7 @@ describe("findings of the human pass", () => {
     await screen.findAllByText(LONG_TITLE);
     await user.click(screen.getByRole("button", { name: /^Filtros y orden/ }));
     const buttons = screen
-      .getAllByRole("group", { name: "Estado" })
+      .getAllByRole("toolbar", { name: "Estado" })
       .flatMap((group) => Array.from(group.querySelectorAll("button")));
 
     expect(buttons.length).toBeGreaterThan(0);

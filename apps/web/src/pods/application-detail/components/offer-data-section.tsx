@@ -53,7 +53,7 @@ export function OfferDataSection({ vm }: Props) {
               href={sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center gap-1 rounded-sm text-primary underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="inline-flex min-h-11 items-center gap-1 rounded-sm text-primary underline underline-offset-4 outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
               Ver oferta original
               <ExternalLink aria-hidden="true" className="size-4 shrink-0" />
