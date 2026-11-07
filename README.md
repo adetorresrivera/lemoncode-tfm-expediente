@@ -168,6 +168,17 @@ No subas nunca `.env` al repositorio: está en `.gitignore`. Cualquier clave rea
 - El pre-commit ejecuta ESLint y Prettier sobre los archivos en staging y después el typecheck de todos los workspaces. Un commit con un error de lint o de tipos se rechaza.
 - El pre-push ejecuta la suite de tests completa.
 
+## Próximos pasos
+
+Esto es lo que vendría después del MVP, en el orden en que lo haría:
+
+- Un tablero Kanban con arrastrar y soltar accesible entre estados (KAN-01).
+- Una biblioteca de documentos con versiones y el CV que la IA sugiere para cada oferta (LIB-01, LIB-02).
+- Un dashboard con recordatorios de entrevistas, una línea de tiempo y métricas a partir del historial de estados (DASH-01, DASH-02).
+- Tests e2e con Playwright para el flujo de la demo (E2E-01).
+- Login y multiusuario: `ownerId` está reservado y hoy vale siempre `null`.
+- Un prompt que reutilice tus etiquetas existentes desde `GET /api/tags` (AI-10).
+
 ## Documentación
 
 - [`docs/PRODUCT.md`](docs/PRODUCT.md): qué es y qué alcance tiene.
@@ -175,3 +186,8 @@ No subas nunca `.env` al repositorio: está en `.gitignore`. Cualquier clave rea
 - [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md): estructura, API y despliegue.
 - [`docs/DESIGN.md`](docs/DESIGN.md): sistema de diseño y UI.
 - [`docs/AI-EXTRACTION.md`](docs/AI-EXTRACTION.md): la extracción con IA.
+- [`docs/decisiones.md`](docs/decisiones.md): decisiones de arquitectura (ADR).
+- [`docs/ia-en-el-proyecto.md`](docs/ia-en-el-proyecto.md): cómo se usó la IA en el desarrollo y en el producto.
+- [`docs/presentacion/deck.md`](docs/presentacion/deck.md): guion de la presentación.
+- [`docs/presentacion/demo-script.md`](docs/presentacion/demo-script.md): guion cronometrado de la demo, con planes B y C.
+- [`docs/presentacion/preguntas-tribunal.md`](docs/presentacion/preguntas-tribunal.md): preguntas probables del tribunal.
