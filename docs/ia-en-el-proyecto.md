@@ -107,3 +107,59 @@ node scripts/check-figures.mjs --tests                      # recalcula todo el 
 ```
 
 Los rangos por fase empiezan en el commit raíz `a618764` y lo dejan fuera, así que se cuenta aparte: los rangos por fase más el commit raíz dan `commits_total`. El script recalcula cada valor del bloque anterior, comprueba esa suma y falla si alguno no coincide.
+
+## Qué funcionó y qué no
+
+Cada punto enlaza el archivo de `.planning/` que lo respalda, o cita el commit. Los números que aparecen son solo los del bloque de cifras. Las puntuaciones, los cronómetros y los tiempos de espera se quedan en sus fuentes.
+
+### Qué funcionó
+
+- La prueba de aceptación con una oferta real encontró lo que los tests unitarios no vieron: `gemma4:e2b` tomaba C y Python por idiomas hablados (G-03-2, `0ab0e24`). El plan 03-10 añadió una guarda determinista y la tarea rápida 261101-qh3 un campo `idiomas` solo del modelo, sin cambiar el contrato público. Fuente: [03-10-SUMMARY.md](../.planning/phases/03-autocompletado-con-ia/03-10-SUMMARY.md).
+- Los planes de cierre de huecos arreglaron los fallos de la prueba de aceptación dentro de su fase: 03-10, 03-11 y 03-12 en la fase 3. Fuentes: [03-11-SUMMARY.md](../.planning/phases/03-autocompletado-con-ia/03-11-SUMMARY.md) y [03-12-SUMMARY.md](../.planning/phases/03-autocompletado-con-ia/03-12-SUMMARY.md).
+- Cada cambio de prompt o de modelo pasó por el autor, con una huella sha256 nueva (D-25 de [03-CONTEXT.md](../.planning/phases/03-autocompletado-con-ia/03-CONTEXT.md)). Es una comprobación al planificar. Además, un test compara el prompt del código con `docs/AI-EXTRACTION.md` byte a byte.
+- Los planes TDD hicieron RED y GREEN en un solo commit. Cuando se ejecutó el plan, el hook de git corría la suite entera, así que un RED suelto no se podía commitear sin saltarse los hooks. Fuente: la sección «TDD Gate Compliance» de [02-04-SUMMARY.md](../.planning/phases/02-candidaturas/02-04-SUMMARY.md).
+- Las revisiones de interfaz se guardaron como listas de mejoras, no como bloqueos. En la fase 3 se aplicaron los arreglos principales antes de cerrarla. Fuentes: [01-UI-REVIEW.md](../.planning/phases/01-fundaciones-y-walking-skeleton/01-UI-REVIEW.md), [03-UI-REVIEW.md](../.planning/phases/03-autocompletado-con-ia/03-UI-REVIEW.md), [05-UI-REVIEW.md](../.planning/phases/05-documentos-en-s3/05-UI-REVIEW.md) y [06-UI-REVIEW.md](../.planning/phases/06-pulido-de-demo/06-UI-REVIEW.md).
+- La pasada automática de navegador de la fase 6 encontró chips de 28–36 px que los tests unitarios no habían visto. Los dejó en 44 px el commit `98e5c63`. La pasada la hizo Playwright, delegada por el autor; la demo cronometrada la midió el propio autor con su cronómetro. Fuentes: [06-UAT.md](../.planning/phases/06-pulido-de-demo/06-UAT.md) y [06-17-SUMMARY.md](../.planning/phases/06-pulido-de-demo/06-17-SUMMARY.md).
+
+### Qué no funcionó
+
+- Un hueco visual necesitó dos planes. El botón nativo del diálogo de subida se estilizó en 05-10, pero el primer arreglo no lo cerró, y 05-11 lo resolvió con un campo sin caja. Fuentes: [05-10-SUMMARY.md](../.planning/phases/05-documentos-en-s3/05-10-SUMMARY.md) y [05-11-SUMMARY.md](../.planning/phases/05-documentos-en-s3/05-11-SUMMARY.md).
+- Al principio el modelo, solo en CPU, no respondía dentro del tiempo de espera de la petición. Por la regla D-25 el autor decidió seguir con `gemma4:e2b`, y de ahí salieron el calentamiento antes de la demo y mantener el modelo cargado (D-26 de [06-CONTEXT.md](../.planning/phases/06-pulido-de-demo/06-CONTEXT.md)). Fuente del problema: [03-09-SUMMARY.md](../.planning/phases/03-autocompletado-con-ia/03-09-SUMMARY.md).
+- Las herramientas hicieron ruido. Las 71 fusiones de worktrees (`commits_merge_worktree` de «Cifras») inflan el tipo `chore`, la ruta de instalación de GSD estaba fijada a mano y un `.DS_Store` bloqueó fusiones de worktrees. Fuente: [STATE.md](../.planning/STATE.md).
+- Faltan métricas. Solo 55 de los 62 archivos SUMMARY tienen `duration` (`summaries_con_duracion` y `summaries` de «Cifras») y las métricas de `STATE.md` muestran `-`, así que el tiempo se reconstruyó desde los archivos de resumen. Fuente: [STATE.md](../.planning/STATE.md).
+- Quedan hallazgos de revisión sin resolver, de tipo aviso e información. Están anotados, con su disposición, en [04-REVIEW-DISPOSITION.md](../.planning/phases/04-rondas-de-entrevista/04-REVIEW-DISPOSITION.md), [05-REVIEW-DISPOSITION.md](../.planning/phases/05-documentos-en-s3/05-REVIEW-DISPOSITION.md) y [06-REVIEW-DISPOSITION.md](../.planning/phases/06-pulido-de-demo/06-REVIEW-DISPOSITION.md).
+
+## La IA dentro del producto
+
+Así funciona una extracción, de principio a fin:
+
+1. Pegas el texto de la oferta en el formulario y pulsas «Autocompletar con IA».
+2. La web llama a `POST /api/offers/extract`. La petición no guarda nada.
+3. `ExtractService` toma el prompt de sistema literal de [AI-EXTRACTION.md](AI-EXTRACTION.md) y el texto pegado.
+4. `LlmClient.extractStructured` pide la respuesta con un esquema JSON generado desde Zod. Ollama lo recibe como `format`. Un endpoint compatible con OpenAI lo recibe como `response_format` de tipo `json_schema` con `strict`.
+5. La respuesta se valida con Zod. Si no se puede leer, se reintenta una vez (`MAX_ATTEMPTS = 2`).
+6. Se normalizan las etiquetas y el campo `idiomas`, y el borrador vuelve al formulario.
+7. El formulario solo rellena los campos vacíos (`mergeExtractionIntoForm`) y marca cada uno con «IA» hasta que lo editas (`useAiMarks`).
+8. No se guarda nada hasta que pulsas «Guardar candidatura».
+
+El contrato del cliente es pequeño. Cualquier proveedor se esconde detrás de estas dos funciones:
+
+<!-- source: apps/api/src/llm/llm.client.ts#L18-L26 -->
+
+```ts
+export interface LlmClient {
+  extractStructured<T>(
+    system: string,
+    input: string,
+    schema: z.ZodType<T>,
+    options?: LlmCallOptions,
+  ): Promise<T>;
+  ping(): Promise<boolean>; // used by /api/health
+}
+```
+
+Tres hechos más:
+
+- `LLM_PROVIDER` elige entre `ollama` (por defecto, con `gemma4:e2b`, sin conexión), un endpoint «compatible con OpenAI» y `mock`, que devuelve siempre el mismo borrador de ejemplo y sirve para los tests y como plan B.
+- La única línea de log lleva la longitud del texto y la duración. Nunca la oferta ni la respuesta del modelo.
+- El prompt y el modelo están fijados hasta que el autor aprueba un cambio.

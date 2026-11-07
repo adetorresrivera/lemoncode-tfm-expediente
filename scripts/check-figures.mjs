@@ -1,5 +1,5 @@
 /* global console, process */
-// Usage: node scripts/check-figures.mjs [--tests] [--doc <path>]
+// Usage: node scripts/check-figures.mjs [--tests] [--doc <path>] [--prose <file>]...
 //
 // Recomputes every figure of docs/ia-en-el-proyecto.md (the fenced `text` block under «## Cifras»)
 // from git and from .planning/ read at the cut-off c11ab61, the end of Phase 6 (D-13). Nothing is
@@ -17,15 +17,16 @@ const DEFAULT_DOC = "docs/ia-en-el-proyecto.md";
 // ---------------------------------------------------------------------------
 
 function parseArgs(argv) {
-  const opts = { tests: false, doc: DEFAULT_DOC };
+  const opts = { tests: false, doc: DEFAULT_DOC, prose: [] };
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--tests") opts.tests = true;
     else if (arg === "--doc" && argv[i + 1]) opts.doc = argv[++i];
+    else if (arg === "--prose" && argv[i + 1]) opts.prose.push(argv[++i]);
     else {
       console.error(`Unknown or malformed option: ${arg}`);
       console.error(
-        "Usage: node scripts/check-figures.mjs [--tests] [--doc <path>]",
+        "Usage: node scripts/check-figures.mjs [--tests] [--doc <path>] [--prose <file>]...",
       );
       process.exit(2);
     }
@@ -298,6 +299,81 @@ function countTests() {
 }
 
 // ---------------------------------------------------------------------------
+// Prose rules (the prose may only repeat values of the «Cifras» block)
+// ---------------------------------------------------------------------------
+
+const L = String.raw`\p{L}\p{N}`;
+// Spaces that may group thousands: space, no-break space, narrow no-break space.
+const SP = String.fromCharCode(0x20, 0xa0, 0x202f);
+const squash = (text) => text.replace(new RegExp(`[${SP}]`, "g"), "");
+// A number glued to a letter, digit or hyphen (03-09, o200k) is part of an ID, not a count.
+const COUNT_NUMBER = String.raw`(?<![${L}-])(\d{1,3}(?:[${SP}]\d{3})+|\d+)(?![.,]?\d)`;
+const P1_COUNTED = new RegExp(
+  String.raw`${COUNT_NUMBER}[${SP}]+(?:(?:archivos|ficheros)[${SP}]+)?(commits?|planes|plan|SUMMARY|PRs?|días|tests|tareas|fases|minutos|min)(?![${L}])`,
+  "giu",
+);
+const P2_SCORE = new RegExp(
+  String.raw`(?<![${L}-])\d+\s?/\s?24(?![${L}])`,
+  "gu",
+);
+const P2_TIMING = new RegExp(
+  String.raw`(?<![${L}-])\d+(?:[.,]\d+)?(?:\s?[–-]\s?\d+(?:[.,]\d+)?)?\s?(?:s|seg|segundos?|h|horas?)(?![${L}])`,
+  "giu",
+);
+const P2_PERCENT = new RegExp(String.raw`(?<![${L}])\d+(?:[.,]\d+)?\s?%`, "gu");
+const ANGLE = /<[^<>\n]+>/g;
+
+/** Per-line views of a Markdown file: without fenced blocks, comments, inline code and link targets. */
+function proseViews(text) {
+  const doc = scan(text);
+  const masked = doc.lines
+    .map((line, i) => (doc.inFence[i] ? "" : line))
+    .join("\n")
+    .replace(/<!--[\s\S]*?-->/g, (m) => m.replace(/[^\n]/g, ""));
+  const clean = (line) =>
+    line.replace(/\]\([^)]*\)/g, "]").replace(/https?:\/\/[^\s)>\]]+/g, "");
+  const lines = masked.split("\n").map(clean);
+  return {
+    withCode: lines,
+    plain: lines.map((line) => line.replace(/`[^`]*`/g, "")),
+  };
+}
+
+function checkProse(file, allowed, knownKeys, fail) {
+  const { withCode, plain } = proseViews(readFileSync(file, "utf8"));
+  const seen = new Set();
+  const report = (line, reason, match) => {
+    const id = `${line}|${reason}|${match}`;
+    if (seen.has(id)) return;
+    seen.add(id);
+    fail(`${file}:${line} ${reason} «${match}»`);
+  };
+  plain.forEach((text, i) => {
+    const line = i + 1;
+    for (const m of text.matchAll(P1_COUNTED)) {
+      const value = squash(m[1]);
+      if (!allowed.has(value)) {
+        report(line, "cifra sin clave", m[0]);
+      }
+    }
+    for (const re of [P2_SCORE, P2_TIMING, P2_PERCENT]) {
+      for (const m of text.matchAll(re)) {
+        report(line, "cifra no comprobable", m[0]);
+      }
+    }
+    for (const m of text.matchAll(ANGLE)) {
+      if (/^<br\s*\/?>$/i.test(m[0]) || /^<https?:/i.test(m[0])) continue;
+      report(line, "marcador sin rellenar", m[0]);
+    }
+  });
+  withCode.forEach((text, i) => {
+    for (const m of text.matchAll(/<([a-z0-9_]+)>/g)) {
+      if (knownKeys.has(m[1])) report(i + 1, "marcador sin rellenar", m[0]);
+    }
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Main
 // ---------------------------------------------------------------------------
 
@@ -353,6 +429,17 @@ function main() {
     ) + Number(docValues.get("commits_raiz") ?? 0);
   if (phaseSum !== Number(docValues.get("commits_total"))) {
     fail(`suma_fases doc=${phaseSum} real=${docValues.get("commits_total")}`);
+  }
+
+  // Prose rules on the doc and on every file given with --prose.
+  const allowed = new Set(block.map(({ value }) => squash(value)));
+  const knownKeys = new Set(block.map(({ key }) => key));
+  for (const file of [opts.doc, ...opts.prose]) {
+    if (!existsSync(file)) {
+      fail(`${file} no existe`);
+      continue;
+    }
+    checkProse(file, allowed, knownKeys, fail);
   }
 
   if (testsSkipped) console.log("SKIP tests (usa --tests)");
