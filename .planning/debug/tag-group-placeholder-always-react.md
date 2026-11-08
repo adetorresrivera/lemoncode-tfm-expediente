@@ -3,6 +3,10 @@ status: diagnosed
 trigger: "tag-group-placeholder-always-react: Each tag group input shows a placeholder example relevant to that group (stack, se valora, idiomas), not the same «Ej.: React» everywhere"
 created: 2026-11-01T13:17:21Z
 updated: 2026-11-01T13:19:30Z
+audit_acknowledged:
+  milestone: v1
+  at: 2026-11-08
+  status: diagnosed
 ---
 
 ## Current Focus

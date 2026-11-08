@@ -6,6 +6,14 @@ Tracker de candidaturas de empleo, monousuario y local, para quien lleva muchos 
 
 Es el trabajo fin de curso de «Front End moderno + IA» (Lemoncode). Defensa presencial el **9 nov 2026**. UI en español con el design system «Expediente» (pergamino, azul Oxford, burdeos, oro viejo).
 
+## Current State
+
+**v1 MVP shipped 2026-11-08** (tag `v1`, archive in `.planning/milestones/v1-*`). Las 7 fases y los 55 requisitos de v1 están cerrados; el entregable arranca con `docker compose up` en `http://localhost:8080` y el material de defensa está en `docs/`. Unas 40.900 líneas de TypeScript/TSX en `apps/` y `packages/`, 1416 tests en el gate de la Fase 6, 595 commits en 13 días.
+
+## Next Milestone Goals
+
+Sin milestone abierto. Tras la defensa del 9 nov 2026, los candidatos salen del backlog de «Próximos pasos» del README: tablero Kanban con drag & drop, biblioteca de documentos con versiones y CV sugerido por IA, timeline/dashboard de métricas, e2e con Playwright, y la deuda técnica de los `*-REVIEW-DISPOSITION.md`. Se define con `/gsd-new-milestone`.
+
 ## Core Value
 
 Pegar una oferta y obtener un expediente casi completo y revisable en segundos, con el flujo entero (pegar → guardar → ronda → CV → estado → filtrar) demostrable en menos de 2 minutos con `docker compose up`.
@@ -28,7 +36,7 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 
 ### Active
 
-(ninguno: los 7 requisitos de v1 están validados)
+(ninguno: todos los requisitos de v1 están validados; los de v2 se definen con `/gsd-new-milestone`)
 
 ### Out of Scope
 
@@ -37,7 +45,7 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 - Scraping de URLs e integraciones con portales de empleo — fuera del foco Front End + IA del TFM
 - Notificaciones por correo — requiere infraestructura que el entregable local no tiene
 - Despliegue en la nube — el entregable es una imagen Docker ejecutable en local
-- Backlog posterior a la fase 7 (NO entra en v1): tablero Kanban con drag & drop, biblioteca de documentos con versiones y CV sugerido por IA, timeline/dashboard de métricas, e2e con Playwright
+- Backlog posterior a la fase 7 (fuera de v1; candidatos para el siguiente milestone): tablero Kanban con drag & drop, biblioteca de documentos con versiones y CV sugerido por IA, timeline/dashboard de métricas, e2e con Playwright
 
 ## Context
 
@@ -55,8 +63,8 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 ## Constraints
 
 - **Tech stack**: React 19 + TS strict + Vite, TanStack Router/Form, Zod 4, Tailwind v4 + shadcn/ui; Hono + driver `mongodb` + AWS SDK S3 — obligatorio del curso; no cambiar sin ADR en `docs/decisiones.md`
-- **Timeline**: defensa el 9 nov 2026; hoy es 28 oct, así que quedan ~12 días para 7 fases — MVP terminado y demostrable antes que funcionalidades a medias
-- **Roadmap fijo**: 7 fases, una fase = una PR, con objetivos de fecha 29 oct / 31 oct / 2 nov / 3 nov / 5 nov / 7 nov / 8 nov
+- **Timeline**: defensa el 9 nov 2026; v1 se cerró el 8 nov, un día antes. MVP terminado y demostrable antes que funcionalidades a medias
+- **Roadmap fijo (v1, cumplido)**: 7 fases, una fase = una PR, con objetivos de fecha 29 oct / 31 oct / 2 nov / 3 nov / 5 nov / 7 nov / 8 nov
 - **Contracts**: `packages/contracts` es la única fuente de verdad de los modelos de API; web y API nunca los redefinen
 - **Calidad**: sin `any`, sin dependencias nuevas sin justificar en el SUMMARY del plan; todo plan termina con `<verify>` que ejecute al menos `npm run typecheck && npm run test`
 - **IA**: debe funcionar sin conexión (Ollama local) y con `LLM_PROVIDER=mock` como plan B
@@ -90,6 +98,7 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 | Contratos de documentación en scripts (`check-docs.mjs`, `check-figures.mjs`) y cifras leídas de git en un commit fijo | El material de defensa no puede afirmar cifras ni enlaces que el repositorio no respalde | ✓ Fase 7: `DOCS OK`, `FIGURES OK (72 cifras)` |
 | Los 15:00 del deck excluyen las preguntas del tribunal | El guion reparte el tiempo de exposición; las preguntas tienen su propio documento | ✓ Fase 7 (confirmado por el autor en la UAT) |
 | Roadmap de 7 fases fijado por el autor | MVP completo y demostrable antes que funcionalidades a medias | ✓ Fase 7: las 7 fases cerradas el 8 nov, un día antes de la defensa |
+| Cerrar v1 sin `/gsd-audit-milestone` y con verificaciones de fases 1-6 marcadas como caducadas | Todas las `VERIFICATION.md` en `passed` y 55/55 requisitos; la defensa es al día siguiente | ⚠️ Revisar: si hay v2, re-verificar o auditar antes de construir encima |
 
 ## Evolution
 
@@ -109,4 +118,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-08 after Phase 7*
+*Last updated: 2026-11-08 after v1 milestone*

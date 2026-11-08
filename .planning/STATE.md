@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 7
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase 7 complete — all phases complete
-last_updated: "2026-11-08T11:03:52.915Z"
+last_updated: "2026-11-08T11:09:35.647Z"
 last_activity: 2026-11-08
-last_activity_desc: "Phase 7 shipped as PR #7"
-state_head: cb405489ce2615a2a017c63bb1f75dc3e346e563
+last_activity_desc: Milestone v1 completed and archived
+state_head: 5ced4b36d822bd2d938e4df63792ad3dc3cc6f0a
 progress:
   total_phases: 7
   completed_phases: 7
   total_plans: 68
   completed_plans: 68
   percent: 100
+current_phase: 7
 ---
 
 # Project State
@@ -22,16 +22,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-08)
 
 **Core value:** Pegar una oferta y obtener un expediente casi completo y revisable en segundos, con el flujo entero (pegar → guardar → ronda → CV → estado → filtrar) demostrable en menos de 2 minutos con `docker compose up`.
-**Current focus:** Milestone v1 complete — ship Phase 7 (PR) and close the milestone before the 9 Nov defense
+**Current focus:** Milestone v1 MVP shipped and archived (2026-11-08); defense on 9 Nov 2026. Next: `/gsd-new-milestone` when work resumes
 
 ## Current Position
 
-Phase: 7
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-11-08 -- Phase 7 shipped as PR #7
-
-Progress: [██████████] 100%
+Phase: Milestone v1 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-11-08 — Milestone v1 completed and archived
 
 ## Performance Metrics
 
@@ -107,10 +105,8 @@ None yet.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 261029-sa5 | Fix mobile menu button position (left, where the Sheet opens) and bind Vite dev server to IPv4 (UAT gap G-01-2) | 2026-10-29 | 6bc7437 | [261029-sa5-fix-mobile-menu-button-position-left-whe](./quick/261029-sa5-fix-mobile-menu-button-position-left-whe/) |
-| 261101-gfe | D-25 prompt change: add Pitfall 7 rule lines to extraction prompt | 2026-11-01 | 20acd9c | [261101-gfe-d-25-prompt-change-add-pitfall-7-rule-li](./quick/261101-gfe-d-25-prompt-change-add-pitfall-7-rule-li/) |
-| 261101-gpz | Fix re-analysis merge: replace fields still marked IA on a second analysis | 2026-11-01 | fca9c55 | [261101-gpz-fix-re-analysis-merge-replace-fields-sti](./quick/261101-gpz-fix-re-analysis-merge-replace-fields-sti/) |
-| 261101-qh3 | Phase 03 UI-review fixes: icon stroke 1.5, spoken languages as separate model field, gold-ink missing border | 2026-11-01 | 411a55c | [261101-qh3-phase-03-ui-review-fixes-icon-stroke-1-5](./quick/261101-qh3-phase-03-ui-review-fixes-icon-stroke-1-5/) |
+
+v1 quick tasks archived to `.planning/milestones/v1-quick/` (see its README).
 
 ## Deferred Items
 
@@ -118,10 +114,16 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
-| *(none)* | | | | |
+| debug_sessions | ai-tags-programming-languages-in-language-group | diagnosed (fixed by plan 03-10) | 2026-11-08 | v1 |
+| debug_sessions | offer-panel-collapse-after-analysis | diagnosed (fixed by plan 03-12) | 2026-11-08 | v1 |
+| debug_sessions | tag-group-placeholder-always-react | diagnosed (fixed by plan 03-11) | 2026-11-08 | v1 |
 
 ## Session Continuity
 
 Last session: 2026-11-08
-Stopped at: Phase 7 complete — milestone v1 ready to ship and close
+Stopped at: Milestone v1 archived (`.planning/milestones/v1-*`), tagged `v1`
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone

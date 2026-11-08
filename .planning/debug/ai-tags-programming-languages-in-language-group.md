@@ -4,6 +4,10 @@ trigger: "ai-tags-programming-languages-in-language-group — AI tags put progra
 created: 2026-11-01T13:17:35Z
 updated: 2026-11-01T13:50:00Z
 goal: find_root_cause_only
+audit_acknowledged:
+  milestone: v1
+  at: 2026-11-08
+  status: diagnosed
 ---
 
 ## Current Focus
