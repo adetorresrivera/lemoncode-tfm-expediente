@@ -77,11 +77,11 @@ Requirements for initial release. Each maps to roadmap phases.
 
 ### Presentation (PRES)
 
-- [ ] **PRES-01**: Defense deck exists and covers problem, product, architecture, AI usage and demo
-- [ ] **PRES-02**: Demo script with timings and a fallback path exists
-- [ ] **PRES-03**: `docs/ia-en-el-proyecto.md` documents how AI was used in development (GSD + Claude Code) and in the product
-- [ ] **PRES-04**: `docs/decisiones.md` records the ADRs for stack and architecture decisions
-- [ ] **PRES-05**: Likely examiner questions with prepared answers are documented
+- [x] **PRES-01**: Defense deck exists and covers problem, product, architecture, AI usage and demo
+- [x] **PRES-02**: Demo script with timings and a fallback path exists
+- [x] **PRES-03**: `docs/ia-en-el-proyecto.md` documents how AI was used in development (GSD + Claude Code) and in the product
+- [x] **PRES-04**: `docs/decisiones.md` records the ADRs for stack and architecture decisions
+- [x] **PRES-05**: Likely examiner questions with prepared answers are documented
 
 ## v2 Requirements
 
@@ -166,11 +166,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEMO-04 | Phase 6 | Complete |
 | DEMO-05 | Phase 6 | Complete |
 | DEMO-06 | Phase 6 | Complete |
-| PRES-01 | Phase 7 | Pending |
-| PRES-02 | Phase 7 | Pending |
-| PRES-03 | Phase 7 | Pending |
-| PRES-04 | Phase 7 | Pending |
-| PRES-05 | Phase 7 | Pending |
+| PRES-01 | Phase 7 | Complete |
+| PRES-02 | Phase 7 | Complete |
+| PRES-03 | Phase 7 | Complete |
+| PRES-04 | Phase 7 | Complete |
+| PRES-05 | Phase 7 | Complete |
 
 **Coverage:**
 - v1 requirements: 55 total

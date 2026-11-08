@@ -1,43 +1,42 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 7
-current_phase_name: Documentación y defensa
-status: planning
-stopped_at: Phase 06 complete, ready to plan Phase 7
-last_updated: "2026-11-07T11:09:26.024Z"
-last_activity: 2026-11-07
-last_activity_desc: "Phase 06 shipped as PR #6"
-state_head: a50e1776ec78fe47c77d7048fe39e723d1661d1a
+status: completed
+stopped_at: Phase 7 complete — all phases complete
+last_updated: "2026-11-08T11:03:52.915Z"
+last_activity: 2026-11-08
+last_activity_desc: "Phase 7 shipped as PR #7"
+state_head: cb405489ce2615a2a017c63bb1f75dc3e346e563
 progress:
   total_phases: 7
-  completed_phases: 6
-  total_plans: 62
-  completed_plans: 62
-  percent: 86
+  completed_phases: 7
+  total_plans: 68
+  completed_plans: 68
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-07)
+See: .planning/PROJECT.md (updated 2026-11-08)
 
 **Core value:** Pegar una oferta y obtener un expediente casi completo y revisable en segundos, con el flujo entero (pegar → guardar → ronda → CV → estado → filtrar) demostrable en menos de 2 minutos con `docker compose up`.
-**Current focus:** Phase 07 — Documentación y defensa
+**Current focus:** Milestone v1 complete — ship Phase 7 (PR) and close the milestone before the 9 Nov defense
 
 ## Current Position
 
-Phase: 7 — Documentación y defensa
+Phase: 7
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-11-07 -- Phase 06 shipped as PR #6
+Status: All phases complete
+Last activity: 2026-11-08 -- Phase 7 shipped as PR #7
 
-Progress: [█████████░] 86%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 62
+- Total plans completed: 68
 - Average duration: - min
 - Total execution time: 0.0 hours
 
@@ -51,6 +50,7 @@ Progress: [█████████░] 86%
 | 04 | 4 | - | - |
 | 05 | 11 | - | - |
 | 06 | 17 | - | - |
+| 07 | 6 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: -
@@ -77,6 +77,8 @@ Recent decisions affecting current work:
 
 - [Phase 4]: 4 plans on `phase/04-rondas-entrevista`; verified 4/4 (regenerated after review fix 2ea14e0), UAT 6/6, security 0 open threats, UI review done. No new dependency. Interview mutations go through the applications service; the `enviada → en_entrevistas` rule runs inside the same pipeline `findOneAndUpdate`.
 - [Phase 5]: 11 plans (9 + 2 gap-closure for the upload-dialog file button) on `phase/05-documentos-s3`; verified, UAT 4/4, security 38/38 closed (5 accepted low), UI review 19/24 kept as an improvement list (`05-UI-REVIEW.md`), not applied. No new dependency. `fileName` added to `documentSchema` (D-05); file type by magic bytes + extension without a library.
+
+- [Phase 7]: 6 plans on `phase/07-documentacion-defensa`; verified, UAT 6/6 (timed rehearsal with Ollama and mock, plan C video recorded outside the repo, Mermaid renders on GitHub, captures and lessons checked by the author), security 9/9 closed. Doc contracts live in `scripts/check-docs.mjs` (`--all`) and `scripts/check-figures.mjs` (figures read from git at `c11ab61`). Review WR-01 (demo script says Ollama takes «unos segundos», ADR-006 says «decenas de segundos») accepted knowingly by the author.
 
 ### Pending Todos
 
@@ -120,6 +122,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07
-Stopped at: Phase 06 complete, ready to plan Phase 07
+Last session: 2026-11-08
+Stopped at: Phase 7 complete — milestone v1 ready to ship and close
 Resume file: None

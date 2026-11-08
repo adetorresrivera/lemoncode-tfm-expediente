@@ -24,9 +24,11 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 
 - ✓ **DEMO**: seed idempotente (12 candidaturas, 3 documentos, `--reset` explícito), README en español con arranque en 3 comandos y captura, responsive desde 360 px, teclado y movimiento reducido, contraste AA con axe, demo cronometrada (mock 13 s, Ollama 48 s), smoke de compose en frío — Fase 6 (DEMO-01..DEMO-06, verificado 5/5, UAT completo, seguridad 37/37 cerradas con 8 riesgos bajos aceptados, UI 19/24, Nyquist validado). Avisos de revisión abiertos y no bloqueantes en `06-REVIEW-DISPOSITION.md` (WR-01..WR-03, IN-01..IN-05)
 
+- ✓ **PRES**: material de defensa — deck de 11 diapositivas en 15:00 con 3 diagramas Mermaid, guion de demo de 5 min con planes B (mock) y C (capturas o vídeo), `docs/ia-en-el-proyecto.md` con cifras recalculadas desde git, `docs/decisiones.md` (ADR-001..ADR-012), 15 preguntas del tribunal, 5 capturas y README con «Próximos pasos»; contratos de documentación en `scripts/check-docs.mjs` y `scripts/check-figures.mjs` — Fase 7 (PRES-01..PRES-05, verificado, UAT 6/6 con ensayo cronometrado, seguridad 9/9 cerradas). Aviso WR-01 (redacción «unos segundos» para Ollama) aceptado por el autor
+
 ### Active
 
-- [ ] **PRES**: documentación y material de defensa (deck, guion de demo, `docs/ia-en-el-proyecto.md`, `docs/decisiones.md`, preguntas del tribunal)
+(ninguno: los 7 requisitos de v1 están validados)
 
 ### Out of Scope
 
@@ -47,6 +49,7 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 - Fase 2 cerrada (31 oct, rama `phase/02-candidaturas`): CRUD completo de candidaturas en API y web, filtros en la URL, detalle con historial, formulario compartido crear/editar con TanStack Form; 471 tests y smoke de compose con ida y vuelta CRUD.
 - Fase 5 cerrada (6 nov, rama `phase/05-documentos-s3`): documentos en S3 con API multipart limitada a 5 MB, compensación del objeto si falla el insert, picker y diálogo de subida en el formulario, sección de documentos en el detalle; 1079 tests.
 - Fase 6 cerrada (7 nov, rama `phase/06-pulido-demo`): 17 planes en 11 olas; seed por los servicios, reintento de arranque y límites de cuerpo en la API, pantallas de error en español, foco y 44 px en todos los controles, fundidos tras `motion-safe:`; 1416 tests (59 + 467 + 890). La pasada de navegador de la UAT la hizo Playwright en un contenedor aparte (delegada por el usuario); los tiempos los midió el usuario.
+- Fase 7 cerrada (8 nov, rama `phase/07-documentacion-defensa`): 6 planes; documentación y defensa comprobadas por scripts (`check-docs.mjs --all`, `check-figures.mjs`), capturas y comprobación Mermaid en contenedores aparte; el autor ensayó la demo con Ollama y mock y grabó el vídeo del plan C fuera del repositorio.
 - Fase 4 cerrada (3 nov, rama `phase/04-rondas-entrevista`): rondas de entrevista en API y web con diálogo accesible, fechas `datetime-local` que conservan el instante guardado al editar; 870 tests y smoke de compose con ida y vuelta de rondas.
 
 ## Constraints
@@ -84,7 +87,9 @@ Pegar una oferta y obtener un expediente casi completo y revisable en segundos, 
 | Seed por los servicios de la API, con marca `seed: true` escrita aparte y `--reset` solo como flag explícito | Las etiquetas y el historial salen igual que en uso real; un seed normal nunca toca datos del usuario | ✓ Fase 6 (aviso WR-03: si el proceso cae entre crear y marcar, queda un registro sin marca) |
 | Objetivos táctiles de 44 px en todos los controles, incluidos chips y filtros | El UI-SPEC lo exige sin excepciones; la pasada de navegador encontró chips de 28-36 px | ✓ Fase 6 (98e5c63, bd6f63b); la tarjeta de filtros crece unos 24 px |
 | Animaciones de diálogos y Sheet tras `motion-safe:` | `motion-reduce:animate-none` perdía contra `data-[state=open]:animate-in` | ✓ Fase 6 (98e5c63) |
-| Roadmap de 7 fases fijado por el autor | MVP completo y demostrable antes que funcionalidades a medias | — Pending |
+| Contratos de documentación en scripts (`check-docs.mjs`, `check-figures.mjs`) y cifras leídas de git en un commit fijo | El material de defensa no puede afirmar cifras ni enlaces que el repositorio no respalde | ✓ Fase 7: `DOCS OK`, `FIGURES OK (72 cifras)` |
+| Los 15:00 del deck excluyen las preguntas del tribunal | El guion reparte el tiempo de exposición; las preguntas tienen su propio documento | ✓ Fase 7 (confirmado por el autor en la UAT) |
+| Roadmap de 7 fases fijado por el autor | MVP completo y demostrable antes que funcionalidades a medias | ✓ Fase 7: las 7 fases cerradas el 8 nov, un día antes de la defensa |
 
 ## Evolution
 
@@ -104,4 +109,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-07 after Phase 6*
+*Last updated: 2026-11-08 after Phase 7*

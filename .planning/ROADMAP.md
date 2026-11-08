@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Rondas de entrevista** - Create, edit and delete interview rounds with the automatic move to `en_entrevistas` (target 3 Nov) (completed 2026-11-03)
 - [x] **Phase 5: Documentos en S3** - Upload CV and cover letters, link them to applications, download them (target 5 Nov) (completed 2026-11-06)
 - [x] **Phase 6: Pulido de demo** - Seed, README, responsive and accessibility pass, pending tests (target 7 Nov) (completed 2026-11-07)
-- [ ] **Phase 7: Documentación y defensa** - Deck, demo script, AI-usage doc, ADRs and examiner Q&A (target 8 Nov)
+- [x] **Phase 7: Documentación y defensa** - Deck, demo script, AI-usage doc, ADRs and examiner Q&A (target 8 Nov) (completed 2026-11-08)
 
 ## Phase Details
 
@@ -283,7 +283,25 @@ Plans:
   3. `docs/ia-en-el-proyecto.md` explains how AI was used in development (GSD + Claude Code) and inside the product.
   4. `docs/decisiones.md` records the ADRs for the stack and architecture decisions.
   5. Likely examiner questions are documented with prepared answers.
-**Plans**: TBD
+**Plans**: 6/6 plans complete
+Plans:
+**Wave 1**
+- [x] 07-01-PLAN.md — Doc checker (links, anchors, voice, D-16 rules, one contract flag per deliverable, self-test) and the 12-ADR log `docs/decisiones.md` (wave 1)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [x] 07-02-PLAN.md — `docs/ia-en-el-proyecto.md` with the «Cifras» block recomputed by `scripts/check-figures.mjs` at `c11ab61`, lessons with sources, product AI and measured cloud cost (wave 2)
+
+**Wave 3** *(blocked on Wave 2 completion; after 07-02 because both load the local Ollama)*
+- [x] 07-03-PLAN.md — Package-legitimacy checkpoint, then the throwaway Playwright runner: five screenshots and the Mermaid parse check (wave 3, not autonomous)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [x] 07-04-PLAN.md — Timed 5:00 demo script with plan B (mock) and plan C per step, pre-flight that decides mock, recording notes (wave 4)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [x] 07-05-PLAN.md — 11-slide deck (15:00, demo in the middle, front-weighted) with 3 Mermaid diagrams and 2 verbatim snippets (wave 5)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [x] 07-06-PLAN.md — Author's decision on ADR-005 (blocking), 15 examiner questions, README «Próximos pasos» and links, phase gate and validation map (wave 6, not autonomous)
 
 ## Cross-Phase Notes
 
@@ -309,4 +327,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7
 | 4. Rondas de entrevista | 4/4 | Complete    | 2026-11-03 |
 | 5. Documentos en S3 | 11/11 | Complete    | 2026-11-06 |
 | 6. Pulido de demo | 17/17 | Complete    | 2026-11-07 |
-| 7. Documentación y defensa | 0/TBD | Not started | - |
+| 7. Documentación y defensa | 6/6 | Complete    | 2026-11-08 |
